@@ -96,7 +96,7 @@ type Reactor struct {
 	curNonce         uint64
 	curEpoch         uint64
 
-	blsCommon *types.BlsCommon //this must be allocated as validator
+	blsMaster *types.BlsMaster //this must be allocated as validator
 	pacemaker *Pacemaker
 
 	magic [4]byte
@@ -106,7 +106,7 @@ type Reactor struct {
 }
 
 // NewConsensusReactor returns a new Reactor with config
-func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, packer *packer.Packer, state *state.Creator, privKey *ecdsa.PrivateKey, pubKey *ecdsa.PublicKey, magic [4]byte, blsCommon *types.BlsCommon, initDelegates []*types.Delegate) *Reactor {
+func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, packer *packer.Packer, state *state.Creator, nodeMaster *types.Master, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(lastKBlockHeightGauge)
@@ -129,9 +129,9 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 		inQueue:  NewIncomingQueue(),
 		outQueue: NewOutgoingQueue(),
 
-		blsCommon: blsCommon,
-		myPrivKey: *privKey,
-		myPubKey:  *pubKey,
+		blsMaster: blsMaster,
+		myPrivKey: *nodeMaster.PrivateKey,
+		myPubKey:  *nodeMaster.PublicKey,
 	}
 
 	if ctx != nil {
@@ -146,7 +146,7 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 	}
 
 	// initialize consensus common
-	r.logger.Info("my keys", "pubkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSAPub(pubKey)), "privkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSA(privKey)))
+	r.logger.Info("my keys", "pubkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSAPub(nodeMaster.PublicKey)), "privkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSA(nodeMaster.PrivateKey)))
 
 	r.bootstrapCommittee11 = r.bootstrapCommitteeSize11()
 	r.bootstrapCommittee5 = r.bootstrapCommitteeSize5()
@@ -207,7 +207,7 @@ func (r *Reactor) VerifyComboPubKey(delegates []*types.Delegate) {
 				panic("ECDSA key found in delegate list, but comboPubKey mismatch")
 			}
 
-			myBlsPubKey := r.blsCommon.PubKey.Marshal()
+			myBlsPubKey := r.blsMaster.PubKey.Marshal()
 			delegateBlsPubKey := d.BlsPubKey.Marshal()
 
 			if !bytes.Equal(myBlsPubKey, delegateBlsPubKey) {
@@ -378,7 +378,7 @@ func (r *Reactor) combinePubKey(ecdsaPub *ecdsa.PublicKey, blsPub *bls.PublicKey
 }
 
 func (r *Reactor) GetComboPubKey() string {
-	return r.combinePubKey(&r.myPubKey, &r.blsCommon.PubKey)
+	return r.combinePubKey(&r.myPubKey, &r.blsMaster.PubKey)
 }
 
 func calcCommitteeSize(delegateSize int, config ReactorConfig) (int, int) {
@@ -681,7 +681,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	if b.IsKBlock() && b.Number() > 0 && b.Number() <= r.chain.BestBlock().Number() {
 		r.logger.Info("verifying with last committee")
 		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsCommon, r.lastCommittee)
+		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.lastCommittee)
 		if valid && err == nil {
 			r.logger.Debug("validated QC with last committee", "elapsed", meter.PrettyDuration(time.Since(start)))
 			validQCs.Add(qcID, true)
@@ -694,7 +694,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		bestK, _ := r.chain.BestKBlock()
 		lastBestK, _ := r.chain.GetTrunkBlock(bestK.LastKBlockHeight())
 		_, lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.curDelegates, lastBestK.KBlockData.Nonce)
-		valid, err = b.VerifyQC(escortQC, r.blsCommon, lastStagingCommitee)
+		valid, err = b.VerifyQC(escortQC, r.blsMaster, lastStagingCommitee)
 		if valid && err == nil {
 			validQCs.Add(qcID, true)
 			return true
@@ -704,7 +704,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	if escortQC.VoterBitArray().Size() == len(r.bootstrapCommittee11) {
 		// validate with bootstrap committee of size 11
 		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsCommon, r.bootstrapCommittee11)
+		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.bootstrapCommittee11)
 		if valid && err == nil {
 			r.logger.Debug("validated QC with bootstrap committee size 11", "elapsed", meter.PrettyDuration(time.Since(start)))
 			validQCs.Add(qcID, true)
@@ -715,7 +715,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	if escortQC.VoterBitArray().Size() == len(r.bootstrapCommittee5) {
 		// validate with bootstrap committee of size 5
 		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsCommon, r.bootstrapCommittee5)
+		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.bootstrapCommittee5)
 		if valid && err == nil {
 			r.logger.Debug("validated QC with bootstrap committee size 5", "elapsed", meter.PrettyDuration(time.Since(start)))
 			validQCs.Add(qcID, true)
@@ -727,7 +727,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	if r.delegateSource != fromStaking && escortQC.VoterBitArray().Size() == len(r.hardCommittee) {
 		// validate with hard committee
 		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsCommon, r.hardCommittee)
+		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.hardCommittee)
 		if valid && err == nil {
 			r.logger.Debug("validated QC with hard committee", "committeeSize", len(r.hardCommittee), "elapsed", meter.PrettyDuration(time.Since(start)))
 			validQCs.Add(qcID, true)
@@ -742,7 +742,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		fmt.Println("verify QC with empty r.committee")
 		return false
 	}
-	valid, err = b.VerifyQC(escortQC, r.blsCommon, r.committee)
+	valid, err = b.VerifyQC(escortQC, r.blsMaster, r.committee)
 	if valid && err == nil {
 		r.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()), "elapsed", meter.PrettyDuration(time.Since(start)))
 		validQCs.Add(qcID, true)

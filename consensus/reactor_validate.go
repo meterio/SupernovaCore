@@ -484,7 +484,7 @@ func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, chainTag byte, bestNu
 
 	// edison not support the staking/auciton/slashing
 	if meter.IsTesla(parentBlock.Number()) {
-		stats, err := governor.ComputeStatistics(lastKBlockHeight, parentBlock.Number(), r.chain, r.committee, r.blsCommon, !r.config.InitCfgdDelegates, uint32(r.curEpoch))
+		stats, err := governor.ComputeStatistics(lastKBlockHeight, parentBlock.Number(), r.chain, r.committee, r.blsMaster, !r.config.InitCfgdDelegates, uint32(r.curEpoch))
 		if err != nil {
 			// TODO: do something about this
 			r.logger.Error("compute stats error", "err", err)

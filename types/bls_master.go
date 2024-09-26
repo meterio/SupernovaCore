@@ -16,25 +16,25 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
-type BlsCommon struct {
+type BlsMaster struct {
 	PrivKey bls.SecretKey //my private key
 	PubKey  bls.PublicKey //my public key
 
 }
 
-func NewBlsCommon() *BlsCommon {
+func NewBlsMaster() *BlsMaster {
 	secretKey, err := bls.RandKey()
 	if err != nil {
 		return nil
 	}
-	return &BlsCommon{
+	return &BlsMaster{
 		PrivKey: secretKey,
 		PubKey:  secretKey.PublicKey(),
 	}
 }
 
-func NewBlsCommonFromParams(pubKey bls.PublicKey, privKey bls.SecretKey) *BlsCommon {
-	return &BlsCommon{
+func NewBlsMasterFromParams(pubKey bls.PublicKey, privKey bls.SecretKey) *BlsMaster {
+	return &BlsMaster{
 		PrivKey: privKey,
 		PubKey:  pubKey,
 	}
@@ -42,30 +42,30 @@ func NewBlsCommonFromParams(pubKey bls.PublicKey, privKey bls.SecretKey) *BlsCom
 
 // BLS is implemented by C, memeory need to be freed.
 // Signatures also need to be freed but Not here!!!
-func (cc *BlsCommon) Destroy() bool {
+func (cc *BlsMaster) Destroy() bool {
 	return true
 }
 
-func (cc *BlsCommon) GetPublicKey() *bls.PublicKey {
+func (cc *BlsMaster) GetPublicKey() *bls.PublicKey {
 	return &cc.PubKey
 }
 
-// func (cc *BlsCommon) GetPrivateKey() *bls.PrivateKey {
+// func (cc *BlsMaster) GetPrivateKey() *bls.PrivateKey {
 // 	return &cc.PrivKey
 // }
 
 // sign the part of msg
-func (cc *BlsCommon) SignMessage(msg []byte) (bls.Signature, [32]byte) {
+func (cc *BlsMaster) SignMessage(msg []byte) (bls.Signature, [32]byte) {
 	hash := sha256.Sum256(msg)
 	sig := cc.PrivKey.Sign(hash[:])
 	return sig, hash
 }
 
-func (cc *BlsCommon) SignHash(hash [32]byte) []byte {
+func (cc *BlsMaster) SignHash(hash [32]byte) []byte {
 	return cc.PrivKey.Sign(hash[:]).Marshal()
 }
 
-func (cc *BlsCommon) VerifySignature(signature, msgHash, blsPK []byte) (bool, error) {
+func (cc *BlsMaster) VerifySignature(signature, msgHash, blsPK []byte) (bool, error) {
 	var fixedMsgHash [32]byte
 	copy(fixedMsgHash[:], msgHash[32:])
 	pubkey, err := bls.PublicKeyFromBytes(blsPK)
@@ -76,15 +76,15 @@ func (cc *BlsCommon) VerifySignature(signature, msgHash, blsPK []byte) (bool, er
 	return bls.VerifySignature(signature, [32]byte(msgHash), pubkey)
 }
 
-func (cc *BlsCommon) AggregateSign(sigs []bls.Signature) bls.Signature {
+func (cc *BlsMaster) AggregateSign(sigs []bls.Signature) bls.Signature {
 	return bls.AggregateSignatures(sigs)
 }
 
-func (cc *BlsCommon) AggregateVerify(aggrSig bls.Signature, hash [32]byte, pubkeys []bls.PublicKey) bool {
+func (cc *BlsMaster) AggregateVerify(aggrSig bls.Signature, hash [32]byte, pubkeys []bls.PublicKey) bool {
 	return aggrSig.FastAggregateVerify(pubkeys, hash)
 }
 
-func (cc *BlsCommon) SplitPubKey(comboPubKey string) (*ecdsa.PublicKey, *bls.PublicKey) {
+func (cc *BlsMaster) SplitPubKey(comboPubKey string) (*ecdsa.PublicKey, *bls.PublicKey) {
 	// first part is ecdsa public, 2nd part is bls public key
 	split := strings.Split(comboPubKey, ":::")
 	// fmt.Println("ecdsa PubKey", split[0], "Bls PubKey", split[1])

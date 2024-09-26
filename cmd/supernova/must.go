@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/lmittmann/tint"
 	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/cmd/supernova/node"
 	"github.com/meterio/meter-pov/cmd/supernova/probe"
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/comm"
@@ -223,30 +222,30 @@ func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 	return nodes, true, nil
 }
 
-func loadNodeMaster(ctx *cli.Context) (*node.Master, *types.BlsCommon) {
+func loadNodeMaster(ctx *cli.Context) (*types.Master, *types.BlsMaster) {
 	if ctx.String(networkFlag.Name) == "dev" {
 		i := rand.Intn(len(genesis.DevAccounts()))
 		acc := genesis.DevAccounts()[i]
-		return &node.Master{
+		return &types.Master{
 			PrivateKey: acc.PrivateKey,
 		}, nil
 	}
 
 	keyLoader := NewKeyLoader(ctx)
-	ePrivKey, ePubKey, blsCommon, err := keyLoader.Load()
+	ePrivKey, ePubKey, blsMaster, err := keyLoader.Load()
 	if err != nil {
 		fatal("load key error: ", err)
 	}
-	master := &node.Master{PrivateKey: ePrivKey, PublicKey: ePubKey}
+	master := &types.Master{PrivateKey: ePrivKey, PublicKey: ePubKey}
 	master.SetPublicBytes(keyLoader.publicBytes)
-	return master, blsCommon
+	return master, blsMaster
 }
 
-func getNodeComplexPubKey(master *node.Master, blsCommon *types.BlsCommon) (string, error) {
+func getNodeComplexPubKey(master *types.Master, blsMaster *types.BlsMaster) (string, error) {
 	ecdsaPubBytes := crypto.FromECDSAPub(master.PublicKey)
 	ecdsaPubB64 := b64.StdEncoding.EncodeToString(ecdsaPubBytes)
 
-	blsPubB64 := b64.StdEncoding.EncodeToString(blsCommon.PubKey.Marshal())
+	blsPubB64 := b64.StdEncoding.EncodeToString(blsMaster.PubKey.Marshal())
 
 	pub := strings.Join([]string{ecdsaPubB64, blsPubB64}, ":::")
 	return pub, nil
@@ -514,7 +513,7 @@ func printStartupMessage(
 	topic string,
 	gene *genesis.Genesis,
 	chain *chain.Chain,
-	master *node.Master,
+	master *types.Master,
 	dataDir string,
 	apiURL string,
 	observeURL string,

@@ -173,7 +173,7 @@ func ComputeMissingVoter(validators []*types.Validator, blocks []*block.Block) (
 	return result, nil
 }
 
-func ComputeDoubleSigner(common *types.BlsCommon, blocks []*block.Block, curEpoch uint32) ([]*doubleSignerInfo, error) {
+func ComputeDoubleSigner(common *types.BlsMaster, blocks []*block.Block, curEpoch uint32) ([]*doubleSignerInfo, error) {
 	result := make([]*doubleSignerInfo, 0)
 	if len(blocks) < 1 {
 		return make([]*doubleSignerInfo, 0), errors.New("not enough blocks")
@@ -219,7 +219,7 @@ func ComputeDoubleSigner(common *types.BlsCommon, blocks []*block.Block, curEpoc
 	return result, nil
 }
 
-func combinePubKey(blsCommon *types.BlsCommon, ecdsaPub *ecdsa.PublicKey, blsPub bls.PublicKey) string {
+func combinePubKey(blsMaster *types.BlsMaster, ecdsaPub *ecdsa.PublicKey, blsPub bls.PublicKey) string {
 	ecdsaPubBytes := crypto.FromECDSAPub(ecdsaPub)
 	ecdsaPubB64 := b64.StdEncoding.EncodeToString(ecdsaPubBytes)
 
@@ -238,7 +238,7 @@ func findInActualCommittee(actualCommittee []*types.Validator, addr meter.Addres
 	return -1
 }
 
-func ComputeStatistics(lastKBlockHeight, height uint32, chain *chain.Chain, committee []*types.Validator, blsCommon *types.BlsCommon, calcStatsTx bool, curEpoch uint32) ([]*StatEntry, error) {
+func ComputeStatistics(lastKBlockHeight, height uint32, chain *chain.Chain, committee []*types.Validator, blsMaster *types.BlsMaster, calcStatsTx bool, curEpoch uint32) ([]*StatEntry, error) {
 	if len(committee) == 0 {
 		return nil, errors.New("committee is empty")
 	}
@@ -252,7 +252,7 @@ func ComputeStatistics(lastKBlockHeight, height uint32, chain *chain.Chain, comm
 	for _, v := range committee {
 		stats[v.Address] = &StatEntry{
 			Address: v.Address,
-			PubKey:  combinePubKey(blsCommon, &v.PubKey, v.BlsPubKey),
+			PubKey:  combinePubKey(blsMaster, &v.PubKey, v.BlsPubKey),
 			Name:    v.Name,
 		}
 	}
@@ -373,7 +373,7 @@ func ComputeStatistics(lastKBlockHeight, height uint32, chain *chain.Chain, comm
 	}
 	***/
 
-	doubleSigner, err := ComputeDoubleSigner(blsCommon, blocks, curEpoch)
+	doubleSigner, err := ComputeDoubleSigner(blsMaster, blocks, curEpoch)
 	if err != nil {
 		slog.Warn("Error during missing voter calculation", "err", err)
 	} else {

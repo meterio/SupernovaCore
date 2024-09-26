@@ -140,7 +140,7 @@ func MajorityTwoThird(voterNum, committeeSize uint32) bool {
 	return float64(voterNum) >= twoThirds
 }
 
-func (b *Block) VerifyQC(escortQC *QuorumCert, blsCommon *types.BlsCommon, committee []*types.Validator) (bool, error) {
+func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, committee []*types.Validator) (bool, error) {
 	committeeSize := uint32(len(committee))
 	if b == nil {
 		// decode block to get qc
@@ -176,7 +176,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsCommon *types.BlsCommon, commi
 		return false, errors.New("invalid aggregate signature:" + err.Error())
 	}
 	start := time.Now()
-	valid := blsCommon.AggregateVerify(sig, escortQC.VoterMsgHash, pubkeys)
+	valid := blsMaster.AggregateVerify(sig, escortQC.VoterMsgHash, pubkeys)
 	slog.Debug("verified QC", "elapsed", meter.PrettyDuration(time.Since(start)))
 
 	return valid, err

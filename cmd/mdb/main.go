@@ -1137,18 +1137,18 @@ func syncVerifyAction(ctx *cli.Context) error {
 		fromNum = 1
 	}
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsCommon := types.NewBlsCommon()
+	blsMaster := types.NewBlsCommon()
 
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 
 	start := time.Now()
-	initDelegates := types.LoadDelegatesFile(ctx, blsCommon)
+	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
 	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsCommon, initDelegates)
+	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	for i := uint32(fromNum); i < uint32(toNum); i++ {
 		b, _ := meterChain.GetTrunkBlock(i)
@@ -1195,18 +1195,18 @@ func verifyBlockAction(ctx *cli.Context) error {
 	stateCreator := state.NewCreator(mainDB)
 
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsCommon := types.NewBlsCommon()
+	blsMaster := types.NewBlsCommon()
 
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 	// se.StartTeslaForkModules()
 
 	start := time.Now()
-	initDelegates := types.LoadDelegatesFile(ctx, blsCommon)
+	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
 	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsCommon, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1300,18 +1300,18 @@ func runLocalBlockAction(ctx *cli.Context) error {
 	stateCreator := state.NewCreator(mainDB)
 
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsCommon := types.NewBlsCommon()
+	blsMaster := types.NewBlsCommon()
 
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 	// se.StartTeslaForkModules()
 
 	start := time.Now()
-	initDelegates := types.LoadDelegatesFile(ctx, blsCommon)
+	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
 	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsCommon, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error

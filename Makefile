@@ -2,7 +2,7 @@ PACKAGE = github.com/meterio/supernova
 
 GIT_COMMIT = $(shell git --no-pager log --pretty="%h" -n 1)
 GIT_TAG = $(shell git tag -l --points-at HEAD)
-METER_VERSION = $(shell cat cmd/meter/VERSION)
+METER_VERSION = $(shell cat cmd/supernova/VERSION)
 DISCO_VERSION = $(shell cat cmd/disco/VERSION)
 
 PACKAGES = `go list ./... | grep -v '/vendor/'`

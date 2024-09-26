@@ -30,6 +30,7 @@ import (
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/meter-pov/types"
 	"github.com/pkg/errors"
 )
 
@@ -43,7 +44,7 @@ type Node struct {
 	packer  *packer.Packer
 	reactor *consensus.Reactor
 
-	master      *Master
+	master      *types.Master
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
 	txStashPath string
@@ -63,7 +64,7 @@ func GetGlobNode() *Node {
 
 func New(
 	reactor *consensus.Reactor,
-	master *Master,
+	master *types.Master,
 	chain *chain.Chain,
 	stateCreator *state.Creator,
 	txPool *txpool.TxPool,

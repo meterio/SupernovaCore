@@ -101,8 +101,8 @@ func initBlockServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx = tx.WithSignature(sig)
-	packer := packer.New(chain, stateC, genesis.DevAccounts()[0].Address, &genesis.DevAccounts()[0].Address)
-	flow, err := packer.Mock(b.Header(), uint64(time.Now().Unix()), 2000000, &meter.Address{})
+	packer := packer.New(chain, stateC, genesis.DevAccounts()[0].Address)
+	flow, err := packer.Mock(b.Header(), uint64(time.Now().Unix()), 2000000)
 	if err != nil {
 		t.Fatal(err)
 	}

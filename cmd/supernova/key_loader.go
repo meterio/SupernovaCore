@@ -148,13 +148,13 @@ func (k *KeyLoader) genBls() error {
 	return nil
 }
 
-func (k *KeyLoader) Load() (*ecdsa.PrivateKey, *ecdsa.PublicKey, *types.BlsCommon, error) {
+func (k *KeyLoader) Load() (*ecdsa.PrivateKey, *ecdsa.PublicKey, *types.BlsMaster, error) {
 	err := k.validateECDSA()
 	if err != nil {
 		fmt.Println("could not validate ecdsa keys, error:", err)
 		panic("could not validate ecdsa keys")
 	}
 
-	blsCommon := types.NewBlsCommonFromParams(k.blsPubKey, k.blsPrivKey)
-	return k.ecdsaPrivKey, k.ecdsaPubKey, blsCommon, nil
+	blsMaster := types.NewBlsMasterFromParams(k.blsPubKey, k.blsPrivKey)
+	return k.ecdsaPrivKey, k.ecdsaPubKey, blsMaster, nil
 }

@@ -226,8 +226,8 @@ func buildTxWithClauses(t *testing.T, chaiTag byte, clauses ...*tx.Clause) *tx.T
 
 func packTx(chain *chain.Chain, stateC *state.Creator, transaction *tx.Transaction, t *testing.T) {
 	b := chain.BestBlock()
-	p := packer.New(chain, stateC, genesis.DevAccounts()[0].Address, &genesis.DevAccounts()[0].Address)
-	flow, err := p.Mock(b.Header(), uint64(time.Now().Unix()), 2000000, &meter.Address{})
+	p := packer.New(chain, stateC, genesis.DevAccounts()[0].Address)
+	flow, err := p.Mock(b.Header(), uint64(time.Now().Unix()), 2000000)
 	err = flow.Adopt(transaction)
 	if err != nil {
 		t.Fatal(err)

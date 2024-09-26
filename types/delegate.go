@@ -84,7 +84,7 @@ const (
 	COMMISSION_RATE_DEFAULT = uint64(10 * 1e07)  // 10%
 )
 
-func LoadDelegatesFile(ctx *cli.Context, blsCommon *BlsCommon) []*Delegate {
+func LoadDelegatesFile(ctx *cli.Context, blsMaster *BlsMaster) []*Delegate {
 	delegates1 := make([]*DelegateDef, 0)
 
 	// load delegates from presets
@@ -115,7 +115,7 @@ func LoadDelegatesFile(ctx *cli.Context, blsCommon *BlsCommon) []*Delegate {
 	delegates := make([]*Delegate, 0)
 	for _, d := range delegates1 {
 		// first part is ecdsa public, 2nd part is bls public key
-		pubKey, blsPub := blsCommon.SplitPubKey(string(d.PubKey))
+		pubKey, blsPub := blsMaster.SplitPubKey(string(d.PubKey))
 
 		var addr meter.Address
 		if len(d.Address) != 0 {

@@ -221,8 +221,8 @@ func defaultAction(ctx *cli.Context) error {
 		go pruneState(ctx, gene, mainDB, chain, preserveBlocks)
 	}
 
-	master, blsCommon := loadNodeMaster(ctx)
-	pubkey, err := getNodeComplexPubKey(master, blsCommon)
+	master, blsMaster := loadNodeMaster(ctx)
+	pubkey, err := getNodeComplexPubKey(master, blsMaster)
 	if err != nil {
 		panic("could not load pubkey")
 	}
@@ -331,7 +331,7 @@ func defaultAction(ctx *cli.Context) error {
 	copy(consensusMagic[:], sum[:4])
 
 	// load delegates (from binary or from file)
-	initDelegates := types.LoadDelegatesFile(ctx, blsCommon)
+	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
 	printDelegates(initDelegates)
 
 	txPool := txpool.New(chain, state.NewCreator(mainDB), defaultTxPoolOptions)
@@ -342,7 +342,7 @@ func defaultAction(ctx *cli.Context) error {
 	stateCreator := state.NewCreator(mainDB)
 	sc := script.NewScriptEngine(chain, stateCreator)
 	pker := packer.New(chain, stateCreator, master.Address())
-	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, master.PrivateKey, master.PublicKey, consensusMagic, blsCommon, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, master, consensusMagic, blsMaster, initDelegates)
 	// calculate committee so that relay is not an issue
 
 	apiHandler, apiCloser := api.New(reactor, chain, state.NewCreator(mainDB), txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv, pubkey)

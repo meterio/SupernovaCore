@@ -45,7 +45,7 @@ func (r *Reactor) getDelegatesFromStaking(revision *block.Block) ([]*types.Deleg
 	list := state.GetDelegateList()
 	r.logger.Info("Loaded delegateList from staking", "len", len(list.Delegates))
 	for _, s := range list.Delegates {
-		pubKey, blsPub := r.blsCommon.SplitPubKey(string(s.PubKey))
+		pubKey, blsPub := r.blsMaster.SplitPubKey(string(s.PubKey))
 
 		d := types.NewDelegate([]byte(s.Name), s.Address, *pubKey, *blsPub, string(s.PubKey), new(big.Int).Div(s.VotingPower, big.NewInt(1e12)).Int64(), s.Commission, types.NetAddress{
 			IP:   net.ParseIP(string(s.IPAddr)),
