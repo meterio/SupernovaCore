@@ -26,7 +26,6 @@ import (
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/trie"
@@ -1139,15 +1138,7 @@ func syncVerifyAction(ctx *cli.Context) error {
 	}
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
 	blsCommon := types.NewBlsCommon()
-	defaultPowPoolOptions := powpool.Options{
-		Node:            "localhost",
-		Port:            8332,
-		Limit:           10000,
-		LimitPerAccount: 16,
-		MaxLifetime:     20 * time.Minute,
-	}
-	// init powpool for kblock query
-	powpool.New(defaultPowPoolOptions, meterChain, stateCreator)
+
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 
@@ -1205,15 +1196,7 @@ func verifyBlockAction(ctx *cli.Context) error {
 
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
 	blsCommon := types.NewBlsCommon()
-	defaultPowPoolOptions := powpool.Options{
-		Node:            "localhost",
-		Port:            8332,
-		Limit:           10000,
-		LimitPerAccount: 16,
-		MaxLifetime:     20 * time.Minute,
-	}
-	// init powpool for kblock query
-	powpool.New(defaultPowPoolOptions, meterChain, stateCreator)
+
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 	// se.StartTeslaForkModules()
@@ -1318,15 +1301,7 @@ func runLocalBlockAction(ctx *cli.Context) error {
 
 	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
 	blsCommon := types.NewBlsCommon()
-	defaultPowPoolOptions := powpool.Options{
-		Node:            "localhost",
-		Port:            8332,
-		Limit:           10000,
-		LimitPerAccount: 16,
-		MaxLifetime:     20 * time.Minute,
-	}
-	// init powpool for kblock query
-	powpool.New(defaultPowPoolOptions, meterChain, stateCreator)
+
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 	// se.StartTeslaForkModules()
@@ -1448,15 +1423,6 @@ func runProposeBlockAction(ctx *cli.Context) error {
 	}
 	slog.Info("built txs", "len", len(txs), "elapsed", meter.PrettyDuration(time.Since(start)))
 
-	defaultPowPoolOptions := powpool.Options{
-		Node:            "localhost",
-		Port:            8332,
-		Limit:           10000,
-		LimitPerAccount: 16,
-		MaxLifetime:     20 * time.Minute,
-	}
-	// init powpool for kblock query
-	powpool.New(defaultPowPoolOptions, meterChain, stateCreator)
 	// init scriptengine
 	script.NewScriptEngine(meterChain, stateCreator)
 	// se.StartTeslaForkModules()

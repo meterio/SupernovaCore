@@ -35,7 +35,6 @@ import (
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/p2psrv"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/meterio/meter-pov/types"
@@ -273,7 +272,7 @@ type p2pComm struct {
 	peersCachePath string
 }
 
-func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, instanceDir string, powPool *powpool.PowPool, magic [4]byte) *p2pComm {
+func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, instanceDir string, magic [4]byte) *p2pComm {
 	key, err := loadOrGeneratePrivateKey(filepath.Join(cliCtx.String("data-dir"), "p2p.key"))
 	if err != nil {
 		fatal("load or generate P2P key:", err)
@@ -347,7 +346,7 @@ func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, tx
 	topic := cliCtx.String("disco-topic")
 
 	return &p2pComm{
-		comm:           comm.New(ctx, chain, txPool, powPool, topic, magic),
+		comm:           comm.New(ctx, chain, txPool, topic, magic),
 		p2pSrv:         p2psrv.New(opts),
 		peersCachePath: peersCachePath,
 	}
@@ -413,7 +412,6 @@ func startObserveServer(ctx *cli.Context, cons *consensus.Reactor, comboPubkey s
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/probe", probe.HandleProbe)
-	mux.HandleFunc("/probe/replay", probe.HandleReplay)
 	mux.HandleFunc("/probe/version", probe.HandleVersion)
 	mux.HandleFunc("/probe/pubkey", probe.HandlePubkey)
 	mux.HandleFunc("/probe/peers", probe.HandlePeers)
@@ -526,40 +524,6 @@ func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID meter.Byte
 	}
 }
 
-func startPowAPIServer(ctx *cli.Context, handler http.Handler) (string, func()) {
-
-	addr := "localhost:8668" //ctx.String(apiAddrFlag.Name)
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		fatal(fmt.Sprintf("listen API addr [%v]: %v", addr, err))
-	}
-	timeout := ctx.Int(apiTimeoutFlag.Name)
-	if timeout > 0 {
-		handler = handleAPITimeout(handler, time.Duration(timeout)*time.Millisecond)
-	}
-	handler = requestBodyLimit(handler)
-	srv := &http.Server{
-		Handler:      handler,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-	var goes co.Goes
-	goes.Go(func() {
-		err := srv.Serve(listener)
-		slog.Warn(err.Error())
-
-	})
-	return "http://" + listener.Addr().String() + "/", func() {
-		err := srv.Close()
-		if err != nil {
-			fmt.Println("could not close powpool service, error:", err)
-		}
-
-		goes.Wait()
-	}
-}
-
 func printStartupMessage(
 	topic string,
 	gene *genesis.Genesis,
@@ -567,7 +531,6 @@ func printStartupMessage(
 	master *node.Master,
 	dataDir string,
 	apiURL string,
-	powApiURL string,
 	observeURL string,
 ) {
 	bestBlock := chain.BestBlock()
@@ -582,7 +545,6 @@ func printStartupMessage(
     Beneficiary     [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
-    POW API portal  [ %v ]
     Observe service [ %v ]
 `,
 		meter.MakeName("Meter", fullVersion()),
@@ -599,7 +561,7 @@ func printStartupMessage(
 			return master.Beneficiary.String()
 		}(),
 		dataDir,
-		apiURL, powApiURL, observeURL)
+		apiURL, observeURL)
 }
 
 func openMemMainDB() *lvldb.LevelDB {

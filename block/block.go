@@ -48,15 +48,10 @@ type PowRawBlock []byte
 
 type KBlockData struct {
 	Nonce uint64 // the last of the pow block
-	Data  []PowRawBlock
 }
 
 func (d KBlockData) ToString() string {
-	hexs := make([]string, 0)
-	for _, r := range d.Data {
-		hexs = append(hexs, hex.EncodeToString(r))
-	}
-	return fmt.Sprintf("KBlockData(Nonce:%v, Data:%v)", d.Nonce, strings.Join(hexs, ","))
+	return fmt.Sprintf("KBlockData(Nonce:%v)", d.Nonce)
 }
 
 type CommitteeInfo struct {
@@ -374,9 +369,9 @@ func (b *Block) String() string {
   QuorumCert:  %v
   Transactions: %v`, canonicalName, b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
 
-	if len(b.KBlockData.Data) > 0 {
+	if b.KBlockData.Nonce > 0 {
 		s += fmt.Sprintf(`
-  KBlockData:    %v`, b.KBlockData.ToString())
+  KBlockData.Nonce:    %v`, b.KBlockData.ToString())
 	}
 
 	if len(b.CommitteeInfos.CommitteeInfo) > 0 {

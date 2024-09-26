@@ -40,8 +40,6 @@ import (
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/powpool"
-	pow_api "github.com/meterio/meter-pov/powpool/api"
 	"github.com/meterio/meter-pov/preset"
 	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
@@ -61,14 +59,6 @@ var (
 	defaultTxPoolOptions = txpool.Options{
 		Limit:           200000,
 		LimitPerAccount: 1024, /*16,*/ //XXX: increase to 1024 from 16 during the testing
-		MaxLifetime:     20 * time.Minute,
-	}
-
-	defaultPowPoolOptions = powpool.Options{
-		Node:            "localhost",
-		Port:            8332,
-		Limit:           10000,
-		LimitPerAccount: 16,
 		MaxLifetime:     20 * time.Minute,
 	}
 )
@@ -352,22 +342,7 @@ func defaultAction(ctx *cli.Context) error {
 	txPool := txpool.New(chain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	defaultPowPoolOptions.Node = ctx.String("pow-node")
-	defaultPowPoolOptions.Port = ctx.Int("pow-port")
-	defaultPowPoolOptions.User = ctx.String("pow-user")
-	defaultPowPoolOptions.Pass = ctx.String("pow-pass")
-	// fmt.Println(defaultPowPoolOptions)
-
-	powPool := powpool.New(defaultPowPoolOptions, chain, state.NewCreator(mainDB))
-	defer func() { slog.Info("closing pow pool..."); powPool.Close() }()
-
-	p2pcom := newP2PComm(ctx, exitSignal, chain, txPool, instanceDir, powPool, p2pMagic)
-
-	powApiHandler, powApiCloser := pow_api.New(powPool)
-	defer func() { slog.Info("closing Pow Pool API..."); powApiCloser() }()
-
-	powApiURL, powSrvCloser := startPowAPIServer(ctx, powApiHandler)
-	defer func() { slog.Info("stopping Pow API server..."); powSrvCloser() }()
+	p2pcom := newP2PComm(ctx, exitSignal, chain, txPool, instanceDir, p2pMagic)
 
 	stateCreator := state.NewCreator(mainDB)
 	sc := script.NewScriptEngine(chain, stateCreator)
@@ -384,10 +359,7 @@ func defaultAction(ctx *cli.Context) error {
 	observeURL, observeSrvCloser := startObserveServer(ctx, reactor, pubkey, p2pcom.comm, chain, stateCreator)
 	defer func() { slog.Info("closing Observe Server ..."); observeSrvCloser() }()
 
-	//also create the POW components
-	// powR := pow.NewPowpoolReactor(chain, stateCreator, powpool)
-
-	printStartupMessage(topic, gene, chain, master, instanceDir, apiURL, powApiURL, observeURL)
+	printStartupMessage(topic, gene, chain, master, instanceDir, apiURL, observeURL)
 
 	p2pcom.Start()
 	defer p2pcom.Stop()

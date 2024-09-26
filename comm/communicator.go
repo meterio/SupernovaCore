@@ -23,7 +23,6 @@ import (
 	"github.com/meterio/meter-pov/comm/proto"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/p2psrv"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/pkg/errors"
@@ -51,7 +50,6 @@ type Communicator struct {
 	goes           co.Goes
 	onceSynced     sync.Once
 
-	powPool     *powpool.PowPool
 	configTopic string
 
 	magic  [4]byte
@@ -59,12 +57,11 @@ type Communicator struct {
 }
 
 // New create a new Communicator instance.
-func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, powPool *powpool.PowPool, configTopic string, magic [4]byte) *Communicator {
+func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, configTopic string, magic [4]byte) *Communicator {
 	return &Communicator{
-		chain:   chain,
-		txPool:  txPool,
-		powPool: powPool,
-		ctx:     ctx,
+		chain:  chain,
+		txPool: txPool,
+		ctx:    ctx,
 		// cancel:         cancel,
 		peerSet:        newPeerSet(),
 		syncedCh:       make(chan struct{}),
@@ -169,7 +166,6 @@ func (c *Communicator) Protocols() []*p2psrv.Protocol {
 func (c *Communicator) Start() {
 	c.goes.Go(c.txsLoop)
 	c.goes.Go(c.announcementLoop)
-	// disable powpool gossip
 	//c.goes.Go(c.powsLoop)
 }
 
@@ -338,8 +334,4 @@ func (c *Communicator) PeersStats() []*PeerStats {
 		return stats[i].Duration < stats[j].Duration
 	})
 	return stats
-}
-
-func (c *Communicator) PowPoolLen() int {
-	return c.powPool.Len()
 }

@@ -6,19 +6,15 @@
 package blocks
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
-	"log/slog"
 	"math/big"
 
-	"github.com/btcsuite/btcd/wire"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/tx"
 )
 
@@ -44,7 +40,6 @@ type JSONBlockSummary struct {
 	QC               *QC                `json:"qc"`
 	Nonce            uint64             `json:"nonce"`
 	Epoch            uint64             `json:"epoch"`
-	KblockData       []string           `json:"kblockData"`
 	PowBlocks        []*JSONPowBlock    `json:"powBlocks"`
 	LogsBloom        string             `json:"logsBloom"`
 	BaseFeePerGas    uint64             `json:"baseFeePerGas"`
@@ -128,44 +123,11 @@ type JSONEpoch struct {
 	Nonce     uint64          `json:"nonce"`
 }
 
-func buildJSONPowBlock(powRaw []byte) *JSONPowBlock {
-	powBlock := wire.MsgBlock{}
-	err := powBlock.Deserialize(bytes.NewReader(powRaw))
-	if err != nil {
-		slog.Error("could not deserialize msgBlock", "err", err)
-		return nil
-	}
-
-	var height uint32
-	beneficiaryAddr := "0x"
-	if len(powBlock.Transactions) == 1 && len(powBlock.Transactions[0].TxIn) == 1 {
-		ss := powBlock.Transactions[0].TxIn[0].SignatureScript
-		height, beneficiaryAddr = powpool.DecodeSignatureScript(ss)
-	}
-
-	jPowBlk := &JSONPowBlock{
-		Hash:        powBlock.Header.BlockHash().String(),
-		PrevBlock:   powBlock.Header.PrevBlock.String(),
-		Beneficiary: beneficiaryAddr,
-		Height:      height,
-	}
-	return jPowBlk
-}
-
 func buildJSONEpoch(blk *block.Block) *JSONEpoch {
-	jPowBlks := make([]*JSONPowBlock, 0)
-	for _, powRaw := range blk.KBlockData.Data {
-		jPowBlk := buildJSONPowBlock(powRaw)
-		if jPowBlk != nil {
-			jPowBlks = append(jPowBlks, jPowBlk)
-		}
-	}
-
 	return &JSONEpoch{
-		Nonce:     blk.KBlockData.Nonce,
-		EpochID:   blk.GetBlockEpoch(),
-		Number:    blk.Number(),
-		PowBlocks: jPowBlks,
+		Nonce:   blk.KBlockData.Nonce,
+		EpochID: blk.GetBlockEpoch(),
+		Number:  blk.Number(),
 	}
 }
 
@@ -213,7 +175,6 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, bas
 		BlockType:        blockType,
 		LastKBlockHeight: header.LastKBlockHeight(),
 		Epoch:            epoch,
-		KblockData:       make([]string, 0),
 		LogsBloom:        logsBloom,
 		BaseFeePerGas:    baseFeePerGas.Uint64(),
 	}
@@ -229,19 +190,6 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, bas
 		result.CommitteeInfo = convertCommitteeList(blk.CommitteeInfos)
 	} else {
 		result.CommitteeInfo = make([]*CommitteeMember, 0)
-	}
-	if len(blk.KBlockData.Data) > 0 {
-		raws := make([]string, 0)
-		powBlks := make([]*JSONPowBlock, 0)
-		for _, powRaw := range blk.KBlockData.Data {
-			raws = append(raws, "0x"+hex.EncodeToString(powRaw))
-			powBlk := buildJSONPowBlock(powRaw)
-			if powBlk != nil {
-				powBlks = append(powBlks, powBlk)
-			}
-		}
-		result.KblockData = raws
-		result.PowBlocks = powBlks
 	}
 	if blk.KBlockData.Nonce > 0 {
 		result.Nonce = blk.KBlockData.Nonce
@@ -409,17 +357,6 @@ func convertQCWithRaw(qc *block.QuorumCert) (*QCWithRaw, error) {
 		EpochID:          qc.EpochID,
 		Raw:              raw,
 	}, nil
-}
-
-func convertKBlockData(kdata *block.KBlockData) {
-	for _, raw := range kdata.Data {
-		blk := wire.MsgBlock{}
-		err := blk.BtcDecode(bytes.NewReader(raw), 0, wire.BaseEncoding)
-		if err != nil {
-			slog.Error("btc decode failed", "err", err)
-		}
-
-	}
 }
 
 func convertCommitteeList(cml block.CommitteeInfos) []*CommitteeMember {

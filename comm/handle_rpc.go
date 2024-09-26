@@ -13,7 +13,6 @@ import (
 	"github.com/meterio/meter-pov/comm/proto"
 	"github.com/meterio/meter-pov/meter"
 
-	//"github.com/meterio/meter-pov/powpool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -215,18 +214,6 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			}
 			write(toSend)
 		}
-	case proto.MsgNewPowBlock:
-		peer.logger.Debug(`call in: NewPowBlock`)
-		// Disable the powpool gossip.
-		// comment out here for safe
-		//var newPowBlockInfo *powpool.PowBlockInfo
-		//if err := msg.Decode(&newPowBlockInfo); err != nil {
-		//	return errors.WithMessage(err, "decode msg")
-		//}
-		//powID := newPowBlockInfo.HeaderHash
-		//peer.MarkPowBlock(powID)
-		//c.powPool.Add(newPowBlockInfo)
-		//write(&struct{}{})
 
 	default:
 		return fmt.Errorf("unknown message (%v)", msg.Code)

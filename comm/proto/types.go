@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/tx"
 )
 
@@ -62,11 +61,6 @@ func NotifyNewBlock(ctx context.Context, rpc RPC, block *block.EscortedBlock) er
 // NotifyNewTx notify new tx to remote peer.
 func NotifyNewTx(ctx context.Context, rpc RPC, tx *tx.Transaction) error {
 	return rpc.Notify(ctx, MsgNewTx, tx)
-}
-
-// NotifyNewPow notify new pow block to remote peer.
-func NotifyNewPowBlock(ctx context.Context, rpc RPC, powBlockInfo *powpool.PowBlockInfo) error {
-	return rpc.Notify(ctx, MsgNewPowBlock, powBlockInfo)
 }
 
 // GetBlockByID query block from remote peer by given block ID.

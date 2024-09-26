@@ -8,14 +8,12 @@ package probe
 import (
 	"bytes"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/meterio/meter-pov/api/utils"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/state"
 )
 
@@ -39,17 +37,7 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 	} else {
 		delegateList = state.GetDelegateList()
 	}
-	ppool := powpool.GetGlobPowPoolInst()
-	pow := &PowProbe{Status: "", LatestHeight: 0, KFrameHeight: 0, PoolSize: 0}
-	if ppool != nil {
-		poolStatus := ppool.GetStatus()
-		pow.Status = poolStatus.Status
-		pow.LatestHeight = poolStatus.LatestHeight
-		pow.KFrameHeight = poolStatus.KFrameHeight
-		pow.PoolSize = poolStatus.PoolSize
-	} else {
-		pow.Status = "powpool is not ready"
-	}
+
 	inDelegateList := false
 	for _, d := range delegateList.Delegates {
 		registeredPK := string(d.PubKey)
@@ -88,7 +76,6 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 		BestBlock:      bestBlock.Number,
 		Pacemaker:      pacemaker,
 		Chain:          chainProbe,
-		Pow:            pow,
 	}
 
 	utils.WriteJSON(w, result)
@@ -104,34 +91,4 @@ func (p *Probe) HandleVersion(w http.ResponseWriter, r *http.Request) {
 
 func (p *Probe) HandlePeers(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, p.Network.PeersStats())
-}
-
-func (p *Probe) HandleReplay(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	height, present := query["height"]
-	if !present {
-		utils.WriteJSON(w, "please set a height in query")
-		return
-	}
-	if len(height) < 1 {
-		utils.WriteJSON(w, "invalid height")
-		return
-	}
-	heightNum, err := strconv.Atoi(height[0])
-	if err != nil {
-		utils.WriteJSON(w, "not valid height")
-		return
-	}
-	ppool := powpool.GetGlobPowPoolInst()
-	if ppool == nil {
-		utils.WriteJSON(w, "powpool is not ready")
-		return
-	}
-
-	err = ppool.ReplayFrom(int32(heightNum))
-	if err != nil {
-		utils.WriteJSON(w, err.Error())
-		return
-	}
-	utils.WriteJSON(w, "ok")
 }

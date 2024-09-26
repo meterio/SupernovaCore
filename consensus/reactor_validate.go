@@ -22,7 +22,6 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/consensus/governor"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/powpool"
 	"github.com/meterio/meter-pov/runtime"
 	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
@@ -213,12 +212,13 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 			return err
 		}
 
-		proposalKBlock, powResults := powpool.GetGlobPowPoolInst().GetPowDecision()
+		// FIXME: check the current height with epoch start
+		// if it's larger than a threshold, then propose kblock
+		proposalKBlock := true
 		if proposalKBlock && forceValidate {
-			rewards := powResults.Rewards
 			start := time.Now()
 			c.logger.Info("< Begin locally build KBlock txs for validation ")
-			kblockTxs := c.buildKBlockTxs(parent, rewards, chainTag, bestNum, curEpoch, best, state)
+			kblockTxs := c.buildKBlockTxs(parent, chainTag, bestNum, curEpoch, best, state)
 			// for _, tx := range kblockTxs {
 			// 	fmt.Println("tx=", tx.ID(), ", uniteHash=", tx.UniteHash(), "gas", tx.Gas())
 			// }
@@ -402,12 +402,6 @@ func (c *Reactor) VerifyBlock(blk *block.Block, state *state.State, forceValidat
 		return true, meta.Reverted, nil
 	}
 
-	if forceValidate && blk.IsKBlock() {
-		if err := c.verifyKBlock(); err != nil {
-			return nil, nil, err
-		}
-	}
-
 	for _, tx := range txs {
 		// Mint transaction critiers:
 		// 1. no signature (no signer)
@@ -483,21 +477,9 @@ func (c *Reactor) VerifyBlock(blk *block.Block, state *state.State, forceValidat
 	return stage, receipts, nil
 }
 
-func (c *Reactor) verifyKBlock() error {
-	p := powpool.GetGlobPowPoolInst()
-	if !p.VerifyNPowBlockPerEpoch() {
-		return errors.New("NPowBlockPerEpoch err")
-	}
-
-	return nil
-}
-
-func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, rewards []powpool.PowReward, chainTag byte, bestNum uint32, curEpoch uint32, best *block.Block, state *state.State) tx.Transactions {
+func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, chainTag byte, bestNum uint32, curEpoch uint32, best *block.Block, state *state.State) tx.Transactions {
 	// build miner meter reward
-	txs := governor.BuildMinerRewardTxs(rewards, chainTag, bestNum)
-	for _, tx := range txs {
-		r.logger.Info(fmt.Sprintf("Built miner reward tx: %s", tx.ID().String()), "clauses", len(tx.Clauses()), "uhash", tx.UniteHash())
-	}
+	txs := make([]*tx.Transaction, 0)
 
 	lastKBlockHeight := parentBlock.LastKBlockHeight()
 
