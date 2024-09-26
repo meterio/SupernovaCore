@@ -896,9 +896,10 @@ func (rt *Runtime) newEVM(stateDB *statedb.StateDB, clauseIndex uint32, txCtx *x
 				})
 			}
 		},
-		Origin:      common.Address(txCtx.Origin),
-		GasPrice:    txCtx.GasPrice,
-		Coinbase:    common.Address(rt.ctx.Beneficiary),
+		Origin:   common.Address(txCtx.Origin),
+		GasPrice: txCtx.GasPrice,
+		// TODO: change this
+		Coinbase:    common.Address(meter.ZeroAddress),
 		GasLimit:    rt.ctx.GasLimit,
 		BlockNumber: new(big.Int).SetUint64(uint64(rt.ctx.Number)),
 		Time:        new(big.Int).SetUint64(rt.ctx.Time),
@@ -1208,18 +1209,6 @@ func (rt *Runtime) PrepareTransaction(tx *tx.Transaction) (*TransactionExecutor,
 			// origin ratio: 3e17 / 1e18 = 30%
 			//reward.Mul(reward, rewardRatio)
 			//reward.Div(reward, big.NewInt(1e18))
-
-			// mint transaction gas is not prepaid, so no reward.
-			if !origin.IsZero() {
-				txFeeBeneficiary := builtin.Params.Native(rt.State()).GetAddress(meter.KeyTransactionFeeAddress)
-				if txFeeBeneficiary.IsZero() {
-					// fmt.Println("txFee to proposer beneficiary:", "beneficiary", rt.ctx.Beneficiary, "reward", reward.String())
-					rt.state.AddEnergy(rt.ctx.Beneficiary, reward)
-				} else {
-					// fmt.Println("txFee to global beneficiary:", "beneficiary", txFeeBeneficiary, "reward", reward.String())
-					rt.state.AddEnergy(txFeeBeneficiary, reward)
-				}
-			}
 
 			receipt.Reward = reward
 			return receipt, nil

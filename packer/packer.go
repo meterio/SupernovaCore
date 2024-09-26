@@ -20,52 +20,40 @@ type Packer struct {
 	chain          *chain.Chain
 	stateCreator   *state.Creator
 	nodeMaster     meter.Address
-	beneficiary    *meter.Address
 	targetGasLimit uint64
 }
 
 // New create a new Packer instance.
-// The beneficiary is optional, it defaults to endorsor if not set.
 func New(
 	chain *chain.Chain,
 	stateCreator *state.Creator,
 	nodeMaster meter.Address,
-	beneficiary *meter.Address) *Packer {
+) *Packer {
 
 	return &Packer{
 		chain,
 		stateCreator,
 		nodeMaster,
-		beneficiary,
 		0,
 	}
 }
 
 // Mock create a packing flow upon given parent, but with a designated timestamp.
-func (p *Packer) Mock(parent *block.Header, targetTime uint64, gasLimit uint64, candAddr *meter.Address) (*Flow, error) {
+func (p *Packer) Mock(parent *block.Header, targetTime uint64, gasLimit uint64) (*Flow, error) {
 	state, err := p.stateCreator.NewState(parent.StateRoot())
 	if err != nil {
 		return nil, errors.Wrap(err, "state")
-	}
-
-	// if beneficiary is not set, set as candidate Address, so it is not confusing
-	var beneficiary *meter.Address
-	if p.beneficiary != nil {
-		beneficiary = p.beneficiary
-	} else {
-		beneficiary = candAddr
 	}
 
 	rt := runtime.New(
 		p.chain.NewSeeker(parent.ID()),
 		state,
 		&xenv.BlockContext{
-			Beneficiary: *beneficiary,
-			Signer:      p.nodeMaster,
-			Number:      parent.Number() + 1,
-			Time:        targetTime,
-			GasLimit:    gasLimit,
-			TotalScore:  parent.TotalScore() + 1,
+			Signer:     p.nodeMaster,
+			Number:     parent.Number() + 1,
+			Time:       targetTime,
+			GasLimit:   gasLimit,
+			TotalScore: parent.TotalScore() + 1,
 		})
 
 	return newFlow(p, parent, rt), nil

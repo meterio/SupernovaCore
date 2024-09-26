@@ -63,9 +63,8 @@ func (p *Pacemaker) buildMBlock(ts uint64, parent *block.DraftBlock, justify *bl
 		return ErrPackerEmpty, nil
 	}
 
-	candAddr := p.reactor.committee[p.reactor.committeeIndex].Address
 	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit, &candAddr)
+	flow, err := pker.Mock(best.Header(), ts, gasLimit)
 	if err != nil {
 		p.logger.Error("mock packer", "error", err)
 		return ErrFlowEmpty, nil
@@ -305,9 +304,8 @@ func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *bl
 		return ErrPackerEmpty, nil
 	}
 
-	candAddr := p.reactor.committee[p.reactor.committeeIndex].Address
 	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit, &candAddr)
+	flow, err := pker.Mock(best.Header(), ts, gasLimit)
 	if err != nil {
 		p.logger.Warn("mock packer", "error", err)
 		return ErrFlowEmpty, nil
@@ -373,9 +371,8 @@ func (p *Pacemaker) buildStopCommitteeBlock(ts uint64, parent *block.DraftBlock,
 		return ErrPackerEmpty, nil
 	}
 
-	candAddr := p.reactor.committee[p.reactor.committeeIndex].Address
 	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit, &candAddr)
+	flow, err := pker.Mock(best.Header(), ts, gasLimit)
 	if err != nil {
 		p.logger.Error("mock packer", "error", err)
 		return ErrFlowEmpty, nil

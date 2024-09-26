@@ -80,10 +80,9 @@ func TestP(t *testing.T) {
 
 	for {
 		best := c.BestBlock()
-		p := packer.New(c, stateCreator, a1.Address, &a1.Address)
+		p := packer.New(c, stateCreator, a1.Address)
 		gasLimit := p.GasLimit(best.Header().GasLimit())
-		beneficiary, err := meter.ParseAddress("0x0000000000000000000000000000000000000000")
-		flow, err := p.Mock(best.Header(), uint64(time.Now().Unix()), gasLimit, &beneficiary)
+		flow, err := p.Mock(best.Header(), uint64(time.Now().Unix()), gasLimit)
 		if err != nil {
 			t.Fatal(err)
 		}

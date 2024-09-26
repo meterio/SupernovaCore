@@ -20,7 +20,6 @@ type BlsCommon struct {
 	PrivKey bls.SecretKey //my private key
 	PubKey  bls.PublicKey //my public key
 
-	Initialized bool
 }
 
 func NewBlsCommon() *BlsCommon {
@@ -31,28 +30,19 @@ func NewBlsCommon() *BlsCommon {
 	return &BlsCommon{
 		PrivKey: secretKey,
 		PubKey:  secretKey.PublicKey(),
-
-		Initialized: true,
 	}
 }
 
 func NewBlsCommonFromParams(pubKey bls.PublicKey, privKey bls.SecretKey) *BlsCommon {
 	return &BlsCommon{
-		PrivKey:     privKey,
-		PubKey:      pubKey,
-		Initialized: true,
+		PrivKey: privKey,
+		PubKey:  pubKey,
 	}
 }
 
 // BLS is implemented by C, memeory need to be freed.
 // Signatures also need to be freed but Not here!!!
 func (cc *BlsCommon) Destroy() bool {
-	if !cc.Initialized {
-		fmt.Println("BLS is not initialized!")
-		return false
-	}
-
-	cc.Initialized = false
 	return true
 }
 

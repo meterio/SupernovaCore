@@ -25,7 +25,6 @@ type JSONBlockSummary struct {
 	ParentID         meter.Bytes32      `json:"parentID"`
 	Timestamp        uint64             `json:"timestamp"`
 	GasLimit         uint64             `json:"gasLimit"`
-	Beneficiary      meter.Address      `json:"beneficiary"`
 	GasUsed          uint64             `json:"gasUsed"`
 	TotalScore       uint64             `json:"totalScore"`
 	TxsRoot          meter.Bytes32      `json:"txsRoot"`
@@ -40,7 +39,6 @@ type JSONBlockSummary struct {
 	QC               *QC                `json:"qc"`
 	Nonce            uint64             `json:"nonce"`
 	Epoch            uint64             `json:"epoch"`
-	PowBlocks        []*JSONPowBlock    `json:"powBlocks"`
 	LogsBloom        string             `json:"logsBloom"`
 	BaseFeePerGas    uint64             `json:"baseFeePerGas"`
 }
@@ -109,18 +107,10 @@ type JSONEmbeddedTx struct {
 	MaxPriorityFeePerGas *math.HexOrDecimal256 `json:"maxPriorityFeePerGas"`
 }
 
-type JSONPowBlock struct {
-	Hash        string `json:"hash"`
-	PrevBlock   string `json:"prevBlock"`
-	Beneficiary string `json:"beneficiary"`
-	Height      uint32 `json:"height"`
-}
-
 type JSONEpoch struct {
-	EpochID   uint64          `json:"epochID"`
-	Number    uint32          `json:"number"`
-	PowBlocks []*JSONPowBlock `json:"powBlocks"`
-	Nonce     uint64          `json:"nonce"`
+	EpochID uint64 `json:"epochID"`
+	Number  uint32 `json:"number"`
+	Nonce   uint64 `json:"nonce"`
 }
 
 func buildJSONEpoch(blk *block.Block) *JSONEpoch {
@@ -165,7 +155,6 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, bas
 		TotalScore:       header.TotalScore(),
 		GasLimit:         header.GasLimit(),
 		GasUsed:          header.GasUsed(),
-		Beneficiary:      header.Beneficiary(),
 		Signer:           signer,
 		Size:             uint32(blk.Size()),
 		StateRoot:        header.StateRoot(),

@@ -24,12 +24,11 @@ import (
 
 // BlockContext block context.
 type BlockContext struct {
-	Beneficiary meter.Address
-	Signer      meter.Address
-	Number      uint32
-	Time        uint64
-	GasLimit    uint64
-	TotalScore  uint64
+	Signer     meter.Address
+	Number     uint32
+	Time       uint64
+	GasLimit   uint64
+	TotalScore uint64
 }
 
 // TransactionContext transaction context.

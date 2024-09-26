@@ -73,12 +73,11 @@ func (d *Debug) newRuntimeOnBlock(header *block.Header) (*runtime.Runtime, error
 		d.chain.NewSeeker(header.ParentID()),
 		state,
 		&xenv.BlockContext{
-			Beneficiary: header.Beneficiary(),
-			Signer:      signer,
-			Number:      header.Number(),
-			Time:        header.Timestamp(),
-			GasLimit:    header.GasLimit(),
-			TotalScore:  header.TotalScore(),
+			Signer:     signer,
+			Number:     header.Number(),
+			Time:       header.Timestamp(),
+			GasLimit:   header.GasLimit(),
+			TotalScore: header.TotalScore(),
 		}), nil
 }
 

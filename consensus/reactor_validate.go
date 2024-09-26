@@ -380,12 +380,11 @@ func (c *Reactor) VerifyBlock(blk *block.Block, state *state.State, forceValidat
 		c.chain.NewSeeker(header.ParentID()),
 		state,
 		&xenv.BlockContext{
-			Beneficiary: header.Beneficiary(),
-			Signer:      signer,
-			Number:      header.Number(),
-			Time:        header.Timestamp(),
-			GasLimit:    header.GasLimit(),
-			TotalScore:  header.TotalScore(),
+			Signer:     signer,
+			Number:     header.Number(),
+			Time:       header.Timestamp(),
+			GasLimit:   header.GasLimit(),
+			TotalScore: header.TotalScore(),
 		})
 
 	findTx := func(txID meter.Bytes32) (found bool, reverted bool, err error) {

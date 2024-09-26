@@ -73,7 +73,7 @@ func New(
 ) *Node {
 	node := &Node{
 		reactor:     reactor,
-		packer:      packer.New(chain, stateCreator, master.Address(), master.Beneficiary),
+		packer:      packer.New(chain, stateCreator, master.Address()),
 		master:      master,
 		chain:       chain,
 		txPool:      txPool,

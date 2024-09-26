@@ -13,9 +13,8 @@ import (
 )
 
 type Master struct {
-	PrivateKey  *ecdsa.PrivateKey
-	PublicKey   *ecdsa.PublicKey
-	Beneficiary *meter.Address
+	PrivateKey *ecdsa.PrivateKey
+	PublicKey  *ecdsa.PublicKey
 
 	publicBytes []byte
 }

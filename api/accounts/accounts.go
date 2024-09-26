@@ -218,12 +218,11 @@ func (a *Accounts) batchCall(ctx context.Context, batchCallData *BatchCallData, 
 	signer, _ := header.Signer()
 	rt := runtime.New(a.chain.NewSeeker(header.ParentID()), state,
 		&xenv.BlockContext{
-			Beneficiary: header.Beneficiary(),
-			Signer:      signer,
-			Number:      header.Number(),
-			Time:        header.Timestamp(),
-			GasLimit:    header.GasLimit(),
-			TotalScore:  header.TotalScore()})
+			Signer:     signer,
+			Number:     header.Number(),
+			Time:       header.Timestamp(),
+			GasLimit:   header.GasLimit(),
+			TotalScore: header.TotalScore()})
 	results = make(BatchCallResults, 0)
 	vmout := make(chan *runtime.Output, 1)
 	best := a.chain.BestBlock()

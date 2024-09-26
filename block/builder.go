@@ -61,12 +61,6 @@ func (b *Builder) GasUsed(used uint64) *Builder {
 	return b
 }
 
-// Beneficiary set recipient of reward.
-func (b *Builder) Beneficiary(addr meter.Address) *Builder {
-	b.headerBody.Beneficiary = addr
-	return b
-}
-
 // StateRoot set state root.
 func (b *Builder) StateRoot(hash meter.Bytes32) *Builder {
 	b.headerBody.StateRoot = hash

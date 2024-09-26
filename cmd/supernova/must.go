@@ -203,18 +203,6 @@ func blsKeyPath(ctx *cli.Context) string {
 	return filepath.Join(ctx.String("data-dir"), "consensus.key")
 }
 
-func beneficiary(ctx *cli.Context) *meter.Address {
-	value := ctx.String(beneficiaryFlag.Name)
-	if value == "" {
-		return nil
-	}
-	addr, err := meter.ParseAddress(value)
-	if err != nil {
-		fatal("invalid beneficiary:", err)
-	}
-	return &addr
-}
-
 func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 
 	nd := ctx.StringSlice(discoServerFlag.Name)
@@ -240,8 +228,7 @@ func loadNodeMaster(ctx *cli.Context) (*node.Master, *types.BlsCommon) {
 		i := rand.Intn(len(genesis.DevAccounts()))
 		acc := genesis.DevAccounts()[i]
 		return &node.Master{
-			PrivateKey:  acc.PrivateKey,
-			Beneficiary: beneficiary(ctx),
+			PrivateKey: acc.PrivateKey,
 		}, nil
 	}
 
@@ -252,7 +239,6 @@ func loadNodeMaster(ctx *cli.Context) (*node.Master, *types.BlsCommon) {
 	}
 	master := &node.Master{PrivateKey: ePrivKey, PublicKey: ePubKey}
 	master.SetPublicBytes(keyLoader.publicBytes)
-	master.Beneficiary = beneficiary(ctx)
 	return master, blsCommon
 }
 
@@ -542,7 +528,6 @@ func printStartupMessage(
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
     Master          [ %v ]
-    Beneficiary     [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
     Observe service [ %v ]
@@ -554,12 +539,6 @@ func printStartupMessage(
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
 		meter.GetForkConfig(gene.ID()),
 		master.Address(),
-		func() string {
-			if master.Beneficiary == nil {
-				return "not set, defaults to endorsor"
-			}
-			return master.Beneficiary.String()
-		}(),
 		dataDir,
 		apiURL, observeURL)
 }

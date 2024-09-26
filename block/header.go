@@ -45,7 +45,6 @@ type HeaderBody struct {
 	GasLimit         uint64
 	LastKBlockHeight uint32
 	BlockType        BlockType
-	Beneficiary      meter.Address
 	Proposer         meter.Address
 
 	GasUsed    uint64
@@ -100,11 +99,6 @@ func (h *Header) GasUsed() uint64 {
 	return h.Body.GasUsed
 }
 
-// Beneficiary returns reward recipient.
-func (h *Header) Beneficiary() meter.Address {
-	return h.Body.Beneficiary
-}
-
 // TxsRoot returns merkle root of txs contained in this block.
 func (h *Header) TxsRoot() meter.Bytes32 {
 	return h.Body.TxsRoot
@@ -157,7 +151,6 @@ func (h *Header) SigningHash() (hash meter.Bytes32) {
 		h.Body.ParentID,
 		h.Body.Timestamp,
 		h.Body.GasLimit,
-		h.Body.Beneficiary,
 		h.Body.BlockType,
 		h.Body.LastKBlockHeight,
 

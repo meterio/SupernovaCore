@@ -92,7 +92,6 @@ func main() {
 		Flags: []cli.Flag{
 			networkFlag,
 			dataDirFlag,
-			beneficiaryFlag,
 			apiAddrFlag,
 			apiCorsFlag,
 			apiTimeoutFlag,
@@ -103,10 +102,6 @@ func main() {
 			p2pPortFlag,
 			natFlag,
 			peersFlag,
-			powNodeFlag,
-			powPortFlag,
-			powUserFlag,
-			powPassFlag,
 			noDiscoverFlag,
 			minCommitteeSizeFlag,
 			maxCommitteeSizeFlag,
@@ -346,7 +341,7 @@ func defaultAction(ctx *cli.Context) error {
 
 	stateCreator := state.NewCreator(mainDB)
 	sc := script.NewScriptEngine(chain, stateCreator)
-	pker := packer.New(chain, stateCreator, master.Address(), master.Beneficiary)
+	pker := packer.New(chain, stateCreator, master.Address())
 	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, master.PrivateKey, master.PublicKey, consensusMagic, blsCommon, initDelegates)
 	// calculate committee so that relay is not an issue
 

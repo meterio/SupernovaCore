@@ -133,7 +133,6 @@ var (
 	// KeyBaseSequence_AfterFork11       = BytesToBytes32([]byte("BaseSequence_AfterFork11")) // base sequence after fork11
 	// key set transaction fee address
 	// 0x6e73616374696f6e2d6665652d62656e65666963696172792d61646472657373
-	KeyTransactionFeeAddress = BytesToBytes32([]byte("transaction-fee-beneficiary-address"))
 
 	// Initial values
 	InitialRewardRatio         = big.NewInt(3e17) // 30%

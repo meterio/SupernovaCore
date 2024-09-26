@@ -137,7 +137,6 @@ func checkBlock(t *testing.T, expBl *meter_block.Block, actBl *blocks.JSONBlockS
 	assert.Equal(t, header.TotalScore(), actBl.TotalScore, "TotalScore should be equal")
 	assert.Equal(t, header.GasLimit(), actBl.GasLimit, "GasLimit should be equal")
 	assert.Equal(t, header.GasUsed(), actBl.GasUsed, "GasUsed should be equal")
-	assert.Equal(t, header.Beneficiary(), actBl.Beneficiary, "Beneficiary should be equal")
 	assert.Equal(t, header.TxsRoot(), actBl.TxsRoot, "TxsRoot should be equal")
 	assert.Equal(t, header.StateRoot(), actBl.StateRoot, "StateRoot should be equal")
 	assert.Equal(t, header.ReceiptsRoot(), actBl.ReceiptsRoot, "ReceiptsRoot should be equal")

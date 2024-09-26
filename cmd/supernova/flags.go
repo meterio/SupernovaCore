@@ -33,10 +33,6 @@ var (
 		Usage: "state pruning will preserve the last n blocks",
 		Value: int(math.Ceil(365 * 24 * 60 * 60 / 1.8 * 1.5)),
 	}
-	beneficiaryFlag = cli.StringFlag{
-		Name:  "beneficiary",
-		Usage: "address for block rewards",
-	}
 	apiAddrFlag = cli.StringFlag{
 		Name:  "api-addr",
 		Value: "localhost:8669",
@@ -106,26 +102,6 @@ var (
 	exportMasterKeyFlag = cli.BoolFlag{
 		Name:  "export",
 		Usage: "export master key to keystore",
-	}
-	powNodeFlag = cli.StringFlag{
-		Name:  "pow-node",
-		Usage: "address of pow node",
-		Value: "localhost",
-	}
-	powPortFlag = cli.IntFlag{
-		Name:  "pow-port",
-		Usage: "port of pow node",
-		Value: 8332,
-	}
-	powUserFlag = cli.StringFlag{
-		Name:  "pow-user",
-		Usage: "user of pow node",
-		Value: "testuser",
-	}
-	powPassFlag = cli.StringFlag{
-		Name:  "pow-pass",
-		Usage: "password of pow node",
-		Value: "testpass",
 	}
 	noDiscoverFlag = cli.BoolFlag{
 		Name:  "no-discover",

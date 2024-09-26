@@ -33,11 +33,10 @@ func TestSerialize(t *testing.T) {
 	now := uint64(time.Now().UnixNano())
 
 	var (
-		gasUsed     uint64        = 1000
-		gasLimit    uint64        = 14000
-		totalScore  uint64        = 101
-		emptyRoot   meter.Bytes32 = meter.BytesToBytes32([]byte("0"))
-		beneficiary meter.Address = meter.BytesToAddress([]byte("abc"))
+		gasUsed    uint64        = 1000
+		gasLimit   uint64        = 14000
+		totalScore uint64        = 101
+		emptyRoot  meter.Bytes32 = meter.BytesToBytes32([]byte("0"))
 	)
 
 	block := new(Builder).
@@ -50,7 +49,6 @@ func TestSerialize(t *testing.T) {
 		ReceiptsRoot(emptyRoot).
 		Timestamp(now).
 		ParentID(emptyRoot).
-		Beneficiary(beneficiary).
 		Build()
 
 	h := block.Header()
@@ -68,7 +66,6 @@ func TestSerialize(t *testing.T) {
 	assert.Equal(t, emptyRoot, h.ReceiptsRoot())
 	assert.Equal(t, now, h.Timestamp())
 	assert.Equal(t, emptyRoot, h.ParentID())
-	assert.Equal(t, beneficiary, h.Beneficiary())
 	assert.Equal(t, txsRootHash, h.TxsRoot())
 
 	key, _ := crypto.HexToECDSA(privKey)

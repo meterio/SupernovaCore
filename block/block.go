@@ -51,7 +51,9 @@ type KBlockData struct {
 }
 
 func (d KBlockData) ToString() string {
-	return fmt.Sprintf("KBlockData(Nonce:%v)", d.Nonce)
+	hexs := make([]string, 0)
+
+	return fmt.Sprintf("KBlockData(Nonce:%v, Data:%v)", d.Nonce, strings.Join(hexs, ","))
 }
 
 type CommitteeInfo struct {
@@ -257,11 +259,6 @@ func (b *Block) GasUsed() uint64 {
 	return b.BlockHeader.GasUsed()
 }
 
-// Beneficiary returns reward recipient.
-func (b *Block) Beneficiary() meter.Address {
-	return b.BlockHeader.Beneficiary()
-}
-
 // TxsRoot returns merkle root of txs contained in this block.
 func (b *Block) TxsRoot() meter.Bytes32 {
 	return b.BlockHeader.TxsRoot()
@@ -369,10 +366,8 @@ func (b *Block) String() string {
   QuorumCert:  %v
   Transactions: %v`, canonicalName, b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
 
-	if b.KBlockData.Nonce > 0 {
-		s += fmt.Sprintf(`
-  KBlockData.Nonce:    %v`, b.KBlockData.ToString())
-	}
+	s += fmt.Sprintf(`
+  KBlockData:    %v`, b.KBlockData.ToString())
 
 	if len(b.CommitteeInfos.CommitteeInfo) > 0 {
 		s += fmt.Sprintf(`

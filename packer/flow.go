@@ -147,7 +147,6 @@ func (f *Flow) Pack(privateKey *ecdsa.PrivateKey, blockType block.BlockType, las
 	}
 
 	builder := new(block.Builder).
-		Beneficiary(f.runtime.Context().Beneficiary).
 		GasLimit(f.runtime.Context().GasLimit).
 		ParentID(f.parentHeader.ID()).
 		Timestamp(f.runtime.Context().Time).
