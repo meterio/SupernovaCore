@@ -1,0 +1,19 @@
+language: go
+go_import_path: github.com/dfinlab/meter
+sudo: false
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      go: 1.10.x
+    - os: linux
+      dist: trusty
+      go: 1.11.x
+    - os: osx
+      go: 1.10.x
+    - os: osx
+      go: 1.11.x
+install:
+  - make dep
+script:
+  - make all test

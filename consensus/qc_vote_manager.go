@@ -1,0 +1,128 @@
+package consensus
+
+import (
+	"fmt"
+	"log/slog"
+
+	"github.com/meterio/meter-pov/block"
+	cmn "github.com/meterio/meter-pov/libs/common"
+	"github.com/meterio/meter-pov/meter"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
+)
+
+type vote struct {
+	Signature bls.Signature
+	Hash      [32]byte
+}
+
+type voteKey struct {
+	Round   uint32
+	BlockID meter.Bytes32
+}
+
+type QCVoteManager struct {
+	votes         map[voteKey]map[uint32]*vote
+	sealed        map[voteKey]bool
+	committeeSize uint32
+	logger        *slog.Logger
+}
+
+func NewQCVoteManager(committeeSize uint32) *QCVoteManager {
+	return &QCVoteManager{
+		votes:         make(map[voteKey]map[uint32]*vote),
+		sealed:        make(map[voteKey]bool), // sealed indicator
+		committeeSize: committeeSize,
+		logger:        slog.With("pkg", "qcman"),
+	}
+}
+
+func (m *QCVoteManager) Size() uint32 {
+	return m.committeeSize
+}
+
+func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockID meter.Bytes32, sig []byte, hash [32]byte) *block.QuorumCert {
+	key := voteKey{Round: round, BlockID: blockID}
+	if _, existed := m.votes[key]; !existed {
+		m.votes[key] = make(map[uint32]*vote)
+	}
+
+	if _, sealed := m.sealed[key]; sealed {
+		return nil
+	}
+
+	if len(sig) <= 0 {
+		return nil
+	}
+	blsSig, err := bls.SignatureFromBytes(sig)
+	if err != nil {
+		m.logger.Error("load qc signature failed", "err", err)
+		return nil
+	}
+	m.votes[key][index] = &vote{Signature: blsSig, Hash: hash}
+
+	voteCount := uint32(len(m.votes[key]))
+	if block.MajorityTwoThird(voteCount, m.committeeSize) {
+		m.seal(round, blockID)
+		qc := m.Aggregate(round, blockID, epoch)
+		m.logger.Info(
+			fmt.Sprintf("%d/%d voted on %s, R:%d, QC formed.", voteCount, m.committeeSize, blockID.ToBlockShortID(), round))
+		return qc
+
+	}
+	m.logger.Info(fmt.Sprintf("%d/%d voted on %s, R:%d", voteCount, m.committeeSize, key.BlockID.ToBlockShortID(), key.Round))
+	return nil
+}
+
+func (m *QCVoteManager) Count(round uint32, blockID meter.Bytes32) uint32 {
+	key := voteKey{Round: round, BlockID: blockID}
+	return uint32(len(m.votes[key]))
+}
+
+func (m *QCVoteManager) seal(round uint32, blockID meter.Bytes32) {
+	key := voteKey{Round: round, BlockID: blockID}
+	m.sealed[key] = true
+}
+
+func (m *QCVoteManager) Aggregate(round uint32, blockID meter.Bytes32, epoch uint64) *block.QuorumCert {
+	m.seal(round, blockID)
+	sigs := make([]bls.Signature, 0)
+	key := voteKey{Round: round, BlockID: blockID}
+
+	bitArray := cmn.NewBitArray(int(m.committeeSize))
+	var msgHash [32]byte
+	for index, v := range m.votes[key] {
+		sigs = append(sigs, v.Signature)
+		bitArray.SetIndex(int(index), true)
+		msgHash = v.Hash
+	}
+	aggrSig := bls.AggregateSignatures(sigs)
+
+	bitArrayStr := bitArray.String()
+
+	return &block.QuorumCert{
+		QCHeight:         block.Number(blockID),
+		QCRound:          round,
+		EpochID:          epoch,
+		VoterBitArrayStr: bitArrayStr,
+		VoterMsgHash:     msgHash,
+		VoterAggSig:      aggrSig.Marshal(),
+		VoterViolation:   make([]*block.Violation, 0), // TODO: think about how to check double sign
+	}
+}
+
+func (m *QCVoteManager) CleanUpTo(blockNum uint32) {
+	m.logger.Info(fmt.Sprintf("clean qc votes up to block %v", blockNum), "len", len(m.votes))
+	for key, voteMap := range m.votes {
+		num := block.Number(key.BlockID)
+		if num < blockNum {
+			for index, _ := range voteMap {
+				delete(voteMap, index)
+			}
+			delete(m.votes, key)
+			if _, exist := m.sealed[key]; exist {
+				delete(m.sealed, key)
+			}
+		}
+	}
+	m.logger.Debug(fmt.Sprintf("after clean qc votes up to block %v", blockNum), "len", len(m.votes))
+}
