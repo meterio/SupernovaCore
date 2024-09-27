@@ -6,7 +6,6 @@
 package blocks
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"math/big"
 
@@ -353,10 +352,10 @@ func convertCommitteeList(cml block.CommitteeInfos) []*CommitteeMember {
 
 	for i, cm := range cml.CommitteeInfo {
 		committeeList[i] = &CommitteeMember{
-			Index: cm.CSIndex,
+			Index: cm.Index,
 			// Name:    "",
 			NetAddr: cm.NetAddr.IP.String(),
-			PubKey:  base64.StdEncoding.EncodeToString(cm.PubKey),
+			PubKey:  hex.EncodeToString(cm.BlsPubKey),
 		}
 	}
 	return committeeList

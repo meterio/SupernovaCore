@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"time"
 
-	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/types"
@@ -72,12 +71,8 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 	}
 
 	// sign message
-	msgSig, err := crypto.Sign(msg.GetMsgHash().Bytes(), &p.reactor.myPrivKey)
-	if err != nil {
-		p.logger.Error("Sign message failed", "error", err)
-		return nil, err
-	}
-	msg.SetMsgSignature(msgSig)
+	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
+	msg.SetMsgSignature(msgSig.Marshal())
 	p.logger.Debug("Built Proposal Message", "blk", bnew.ProposedBlock.ID().ToBlockShortID(), "msg", msg.String(), "timestamp", msg.Timestamp)
 
 	return msg, nil
@@ -104,12 +99,8 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 	}
 
 	// sign message
-	msgSig, err := crypto.Sign(msg.GetMsgHash().Bytes(), &p.reactor.myPrivKey)
-	if err != nil {
-		p.logger.Error("Sign message failed", "error", err)
-		return nil, err
-	}
-	msg.SetMsgSignature(msgSig)
+	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
+	msg.SetMsgSignature(msgSig.Marshal())
 	p.logger.Debug("Built Vote Message", "msg", msg.String())
 	return msg, nil
 }
@@ -160,12 +151,8 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 	// 	msg.TimeoutCounter = ti.counter
 	// }
 	// sign message
-	msgSig, err := crypto.Sign(msg.GetMsgHash().Bytes(), &p.reactor.myPrivKey)
-	if err != nil {
-		p.logger.Error("Sign message failed", "error", err)
-		return nil, err
-	}
-	msg.SetMsgSignature(msgSig)
+	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
+	msg.SetMsgSignature(msgSig.Marshal())
 	p.logger.Debug("Built New View Message", "msg", msg.String())
 	return msg, nil
 }
@@ -181,12 +168,8 @@ func (p *Pacemaker) BuildQueryMessage() (*block.PMQueryMessage, error) {
 	}
 
 	// sign message
-	msgSig, err := crypto.Sign(msg.GetMsgHash().Bytes(), &p.reactor.myPrivKey)
-	if err != nil {
-		p.logger.Error("Sign message failed", "error", err)
-		return nil, err
-	}
-	msg.SetMsgSignature(msgSig)
+	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
+	msg.SetMsgSignature(msgSig.Marshal())
 	p.logger.Debug("Built Query Message", "msg", msg.String())
 	return msg, nil
 }

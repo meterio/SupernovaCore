@@ -1,10 +1,8 @@
 package consensus
 
 import (
-	b64 "encoding/base64"
 	"encoding/hex"
 
-	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/meter"
 )
 
@@ -39,8 +37,7 @@ type ApiCommitteeMember struct {
 	PubKey      string
 	VotingPower int64
 	NetAddr     string
-	CsPubKey    string
-	CsIndex     int
+	Index       int
 	InCommittee bool
 }
 
@@ -55,11 +52,10 @@ func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 		apiCm := &ApiCommitteeMember{
 			Name:        v.Name,
 			Address:     v.Address,
-			PubKey:      b64.StdEncoding.EncodeToString(v.PubKeyBytes),
+			PubKey:      hex.EncodeToString(v.BlsPubKey.Marshal()),
+			Index:       index,
 			VotingPower: v.VotingPower,
 			NetAddr:     v.NetAddr.String(),
-			CsPubKey:    hex.EncodeToString(v.BlsPubKeyBytes),
-			CsIndex:     index,
 			InCommittee: true,
 		}
 		committeeMembers = append(committeeMembers, apiCm)
@@ -71,8 +67,8 @@ func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 			apiCm := &ApiCommitteeMember{
 				Name:        v.Name,
 				Address:     v.Address,
-				PubKey:      b64.StdEncoding.EncodeToString(crypto.FromECDSAPub(&v.PubKey)),
-				CsIndex:     i,
+				PubKey:      hex.EncodeToString(v.BlsPubKey.Marshal()),
+				Index:       i,
 				InCommittee: false,
 			}
 			committeeMembers = append(committeeMembers, apiCm)

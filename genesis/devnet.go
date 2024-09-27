@@ -95,11 +95,6 @@ func NewDevnet() *Genesis {
 		Call(
 			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyExecutorAddress, new(big.Int).SetBytes(executor[:]))),
 			meter.Address{}).
-		/***
-		Call(
-			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyRewardRatio, meter.InitialRewardRatio)),
-			executor).
-		***/
 		Call(
 			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyBaseGasPrice, meter.InitialBaseGasPrice)),
 			executor).

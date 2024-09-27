@@ -73,8 +73,8 @@ type Reactor struct {
 	SyncDone     bool
 
 	// copy of master/node
-	myPubKey  ecdsa.PublicKey  // this is my public identification !!
-	myPrivKey ecdsa.PrivateKey // copy of private key
+	myPubKey  bls.PublicKey // this is my public identification !!
+	myPrivKey bls.SecretKey // copy of private key
 
 	// still references above consensuStae, reactor if this node is
 	// involved the consensus
@@ -83,11 +83,9 @@ type Reactor struct {
 	knownIPs      map[string]string
 	curDelegates  []*types.Delegate // current delegates list
 
-	committee            []*types.Validator // current committee that I start meter into
-	lastCommittee        []*types.Validator
-	hardCommittee        []*types.Validator // committee that was supposed to issue the QC
-	bootstrapCommittee11 []*types.Validator // bootstrap committee of size 11
-	bootstrapCommittee5  []*types.Validator // bootstrap committee of size 5
+	committee     []*types.Validator // current committee that I start meter into
+	lastCommittee []*types.Validator
+	hardCommittee []*types.Validator // committee that was supposed to issue the QC
 
 	committeeIndex   uint32
 	inCommittee      bool
@@ -106,7 +104,7 @@ type Reactor struct {
 }
 
 // NewConsensusReactor returns a new Reactor with config
-func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, packer *packer.Packer, state *state.Creator, nodeMaster *types.Master, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
+func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, packer *packer.Packer, state *state.Creator, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(lastKBlockHeightGauge)
@@ -130,8 +128,6 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 		outQueue: NewOutgoingQueue(),
 
 		blsMaster: blsMaster,
-		myPrivKey: *nodeMaster.PrivateKey,
-		myPubKey:  *nodeMaster.PublicKey,
 	}
 
 	if ctx != nil {
@@ -146,10 +142,7 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 	}
 
 	// initialize consensus common
-	r.logger.Info("my keys", "pubkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSAPub(nodeMaster.PublicKey)), "privkey", b64.RawStdEncoding.EncodeToString(crypto.FromECDSA(nodeMaster.PrivateKey)))
-
-	r.bootstrapCommittee11 = r.bootstrapCommitteeSize11()
-	r.bootstrapCommittee5 = r.bootstrapCommitteeSize5()
+	r.logger.Info("my keys", "pubkey", blsMaster.PubKey.Marshal())
 
 	// committee info is stored in the first of Mblock after Kblock
 	r.UpdateCurEpoch()
@@ -194,49 +187,7 @@ func (r *Reactor) getRoundProposer(round uint32) *types.Validator {
 
 func (r *Reactor) amIRoundProproser(round uint32) bool {
 	p := r.getRoundProposer(round)
-	return bytes.Equal(p.PubKeyBytes, crypto.FromECDSAPub(&r.myPubKey))
-}
-
-// TODO: remove this
-func (r *Reactor) VerifyComboPubKey(delegates []*types.Delegate) {
-	for _, d := range delegates {
-		if bytes.Equal(crypto.FromECDSAPub(&d.PubKey), crypto.FromECDSAPub(&r.myPubKey)) {
-			if r.GetComboPubKey() != d.GetComboPubkey() {
-				fmt.Println("My Combo PubKey: ", r.GetComboPubKey())
-				fmt.Println("Combo PubKey in delegate list:", d.GetComboPubkey())
-				panic("ECDSA key found in delegate list, but comboPubKey mismatch")
-			}
-
-			myBlsPubKey := r.blsMaster.PubKey.Marshal()
-			delegateBlsPubKey := d.BlsPubKey.Marshal()
-
-			if !bytes.Equal(myBlsPubKey, delegateBlsPubKey) {
-				panic("ECDSA key found in delegate list, but BLS key mismatch, probably wrong info registered in candidate")
-			}
-		}
-	}
-}
-
-func (r *Reactor) sortBootstrapCommitteeByNonce(nonce uint64) {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(buf, nonce)
-
-	r.logger.Info("cal bootstrap committee", "nonce", nonce)
-	// sort bootstrap committee size of 11
-	for _, v := range r.bootstrapCommittee11 {
-		v.SortKey = crypto.Keccak256(append(crypto.FromECDSAPub(&v.PubKey), buf...))
-	}
-	sort.SliceStable(r.bootstrapCommittee11, func(i, j int) bool {
-		return (bytes.Compare(r.bootstrapCommittee11[i].SortKey, r.bootstrapCommittee11[j].SortKey) <= 0)
-	})
-
-	// sort bootstrap committee size of 5
-	for _, v := range r.bootstrapCommittee5 {
-		v.SortKey = crypto.Keccak256(append(crypto.FromECDSAPub(&v.PubKey), buf...))
-	}
-	sort.SliceStable(r.bootstrapCommittee5, func(i, j int) bool {
-		return (bytes.Compare(r.bootstrapCommittee5[i].SortKey, r.bootstrapCommittee5[j].SortKey) <= 0)
-	})
+	return bytes.Equal(p.BlsPubKey.Marshal(), r.blsMaster.PubKey.Marshal())
 }
 
 // it is used for temp calculate committee set by a given nonce in the fly.
@@ -254,15 +205,12 @@ func (r *Reactor) calcCommitteeByNonce(name string, delegates []*types.Delegate,
 		r.logger.Debug("load bls key from delegate", "name", string(d.Name))
 		// fmt.Println("checking validator", string(d.Name), d.Address, d.BlsPubKey)
 		v := &types.Validator{
-			Name:           string(d.Name),
-			Address:        d.Address,
-			PubKey:         d.PubKey,
-			PubKeyBytes:    crypto.FromECDSAPub(&d.PubKey),
-			BlsPubKey:      d.BlsPubKey,
-			BlsPubKeyBytes: d.BlsPubKey.Marshal(),
-			VotingPower:    d.VotingPower,
-			NetAddr:        d.NetAddr,
-			SortKey:        crypto.Keccak256(append(crypto.FromECDSAPub(&d.PubKey), buf...)),
+			Name:        string(d.Name),
+			Address:     d.Address,
+			BlsPubKey:   d.BlsPubKey,
+			VotingPower: d.VotingPower,
+			NetAddr:     d.NetAddr,
+			SortKey:     crypto.Keccak256(append(d.BlsPubKey.Marshal(), buf...)),
 		}
 		validators = append(validators, v)
 	}
@@ -278,7 +226,7 @@ func (r *Reactor) calcCommitteeByNonce(name string, delegates []*types.Delegate,
 	// announce. Validators are stored in r.conS.Vlidators
 	if len(committee) > 0 {
 		for i, val := range committee {
-			if bytes.Equal(crypto.FromECDSAPub(&val.PubKey), crypto.FromECDSAPub(&r.myPubKey)) {
+			if bytes.Equal(val.BlsPubKey.Marshal(), r.myPubKey.Marshal()) {
 
 				return actualDelegates, committee, uint32(i), true
 			}
@@ -336,34 +284,35 @@ func (r *Reactor) PrepareEnvForPacemaker() error {
 	return nil
 }
 
+// FIXME: remove this
 func (r *Reactor) verifyInCommittee() bool {
-	best := r.chain.BestBlock()
-	if r.delegateSource == fromDelegatesFile {
-		return true
-	}
+	// best := r.chain.BestBlock()
+	// if r.delegateSource == fromDelegatesFile {
+	// 	return true
+	// }
 
-	if !best.IsKBlock() && best.Number() != 0 {
-		consentBlock, err := r.chain.GetTrunkBlock(best.LastKBlockHeight() + 1)
-		if err != nil {
-			r.logger.Error("could not get committee info", "err", err)
-			return false
-		}
-		r.logger.Info("got committee info", "len", len(consentBlock.CommitteeInfos.CommitteeInfo))
-		// recover actual committee from consent block
-		committeeInfo := consentBlock.CommitteeInfos
+	// if !best.IsKBlock() && best.Number() != 0 {
+	// 	consentBlock, err := r.chain.GetTrunkBlock(best.LastKBlockHeight() + 1)
+	// 	if err != nil {
+	// 		r.logger.Error("could not get committee info", "err", err)
+	// 		return false
+	// 	}
+	// 	r.logger.Info("got committee info", "len", len(consentBlock.CommitteeInfos.CommitteeInfo))
+	// 	// recover actual committee from consent block
+	// 	committeeInfo := consentBlock.CommitteeInfos
 
-		myself := r.committee[r.committeeIndex]
-		myEcdsaPKBytes := crypto.FromECDSAPub(&myself.PubKey)
-		inCommitteeVerified := false
-		for _, v := range committeeInfo.CommitteeInfo {
-			r.logger.Debug("committee info pubkey", "str", base64.StdEncoding.EncodeToString(v.PubKey), "mine", base64.StdEncoding.EncodeToString(myEcdsaPKBytes))
-			if bytes.Equal(v.PubKey, myEcdsaPKBytes) {
-				inCommitteeVerified = true
-				break
-			}
-		}
-		return inCommitteeVerified
-	}
+	// 	myself := r.committee[r.committeeIndex]
+	// 	myEcdsaPKBytes := crypto.FromECDSAPub(&myself.PubKey)
+	// 	inCommitteeVerified := false
+	// 	for _, v := range committeeInfo.CommitteeInfo {
+	// 		r.logger.Debug("committee info pubkey", "str", base64.StdEncoding.EncodeToString(v.PubKey), "mine", base64.StdEncoding.EncodeToString(myEcdsaPKBytes))
+	// 		if bytes.Equal(v.PubKey, myEcdsaPKBytes) {
+	// 			inCommitteeVerified = true
+	// 			break
+	// 		}
+	// 	}
+	// 	return inCommitteeVerified
+	// }
 	return true
 }
 
@@ -375,10 +324,6 @@ func (r *Reactor) combinePubKey(ecdsaPub *ecdsa.PublicKey, blsPub *bls.PublicKey
 	blsPubB64 := b64.StdEncoding.EncodeToString(blsPubBytes)
 
 	return strings.Join([]string{ecdsaPubB64, blsPubB64}, ":::")
-}
-
-func (r *Reactor) GetComboPubKey() string {
-	return r.combinePubKey(&r.myPubKey, &r.blsMaster.PubKey)
 }
 
 func calcCommitteeSize(delegateSize int, config ReactorConfig) (int, int) {
@@ -474,9 +419,6 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		//initialize Delegates
 		delegates, stakingDelegates := r.GetConsensusDelegates()
 
-		// notice: this will panic if ECDSA key matches but BLS doesn't
-		r.VerifyComboPubKey(delegates)
-
 		if len(r.committee) > 0 {
 			if r.delegateSource != fromDelegatesFile {
 				// clean up bls pubkey only if delegates are not from InitDelegates
@@ -524,7 +466,6 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 			_, r.hardCommittee, _, _ = r.calcCommitteeByNonce("hard", stakingDelegates, nonce)
 		}
 		r.PrintCommittee()
-		r.sortBootstrapCommitteeByNonce(nonce)
 		// r.PrintCommittee()
 
 		// update nonce
@@ -566,11 +507,8 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 func PrintDelegates(delegates []*types.Delegate) {
 	fmt.Println("============================================")
 	for i, dd := range delegates {
-		keyBytes := crypto.FromECDSAPub(&dd.PubKey)
-		pubKeyStr := base64.StdEncoding.EncodeToString(keyBytes)
-		pubKeyAbbr := pubKeyStr[:4] + "..." + pubKeyStr[len(pubKeyStr)-4:]
-		fmt.Printf("#%d: %s (%s) :%d  Address:%s PubKey: %s Commission: %v%% #Dists: %v\n",
-			i+1, dd.Name, dd.NetAddr.IP.String(), dd.NetAddr.Port, dd.Address, pubKeyAbbr, dd.Commission/1e7, len(dd.DistList))
+		fmt.Printf("#%d: %s (%s) :%d  Address:%s BlsPubKey: %s Commission: %v%% #Dists: %v\n",
+			i+1, dd.Name, dd.NetAddr.IP.String(), dd.NetAddr.Port, dd.Address, dd.BlsPubKey.Marshal(), dd.Commission/1e7, len(dd.DistList))
 	}
 	fmt.Println("============================================")
 }
@@ -620,7 +558,7 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 		}
 		signer := r.committee[signerIndex]
 
-		if !msg.VerifyMsgSignature(&signer.PubKey) {
+		if !msg.VerifyMsgSignature(signer.BlsPubKey) {
 			r.logger.Error("invalid signature, dropped ...", "peer", peer, "msg", msg.String(), "signer", signer.Name)
 			return
 		}
@@ -701,28 +639,6 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		}
 		r.logger.Warn(fmt.Sprintf("validate %s with last staging committee FAILED", escortQC.CompactString()), "size", len(r.lastCommittee), "err", err)
 	}
-	if escortQC.VoterBitArray().Size() == len(r.bootstrapCommittee11) {
-		// validate with bootstrap committee of size 11
-		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.bootstrapCommittee11)
-		if valid && err == nil {
-			r.logger.Debug("validated QC with bootstrap committee size 11", "elapsed", meter.PrettyDuration(time.Since(start)))
-			validQCs.Add(qcID, true)
-			return true
-		}
-		r.logger.Warn(fmt.Sprintf("validate %s with bootstrap committee size 11 FAILED", escortQC.CompactString()), "err", err)
-	}
-	if escortQC.VoterBitArray().Size() == len(r.bootstrapCommittee5) {
-		// validate with bootstrap committee of size 5
-		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.bootstrapCommittee5)
-		if valid && err == nil {
-			r.logger.Debug("validated QC with bootstrap committee size 5", "elapsed", meter.PrettyDuration(time.Since(start)))
-			validQCs.Add(qcID, true)
-			return true
-		}
-		r.logger.Warn(fmt.Sprintf("validate %s with bootstrap committee size 5 FAILED", escortQC.CompactString()), "err", err)
-	}
 
 	if r.delegateSource != fromStaking && escortQC.VoterBitArray().Size() == len(r.hardCommittee) {
 		// validate with hard committee
@@ -778,8 +694,6 @@ func (r *Reactor) PrintCommittee() {
 	}
 
 	fmt.Printf("Last Committee (%d):\n%s\n\n", len(r.lastCommittee), r.peakCommittee(r.lastCommittee))
-
-	// fmt.Println("Bootstrap11 Committee:\n" + r.peakCommittee(r.bootstrapCommittee11))
 }
 
 func (r *Reactor) IncomingQueueLen() int {
@@ -788,4 +702,8 @@ func (r *Reactor) IncomingQueueLen() int {
 
 func (r *Reactor) OutgoingQueueLen() int {
 	return r.outQueue.Len()
+}
+
+func (r *Reactor) SignMessage(msg []byte) (sig bls.Signature) {
+	return r.myPrivKey.Sign(msg)
 }

@@ -8,7 +8,6 @@ package block
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -57,17 +56,15 @@ func (d KBlockData) ToString() string {
 }
 
 type CommitteeInfo struct {
-	Name     string
-	CSIndex  uint32 // Index, corresponding to the bitarray
-	NetAddr  types.NetAddress
-	CSPubKey []byte // Bls pubkey
-	PubKey   []byte // ecdsa pubkey
+	Name      string
+	Index     uint32 // Index, corresponding to the bitarray
+	NetAddr   types.NetAddress
+	BlsPubKey []byte // bls pubkey
 }
 
 func (ci CommitteeInfo) String() string {
-	ecdsaPK := base64.StdEncoding.EncodeToString(ci.PubKey)
-	blsPK := base64.StdEncoding.EncodeToString(ci.CSPubKey)
-	return fmt.Sprintf("%v: %v{IP:%v, PubKey: %v:::%v }", ci.CSIndex, ci.Name, ci.NetAddr.IP.String(), ecdsaPK, blsPK)
+	blsPK := hex.EncodeToString(ci.BlsPubKey)
+	return fmt.Sprintf("%v: %v{IP:%v, PubKey: %v }", ci.Index, ci.Name, ci.NetAddr.IP.String(), blsPK)
 }
 
 type CommitteeInfos struct {
@@ -105,13 +102,12 @@ type Body struct {
 }
 
 // Create new committee Info
-func NewCommitteeInfo(name string, pubKey []byte, netAddr types.NetAddress, csPubKey []byte, csIndex uint32) *CommitteeInfo {
+func NewCommitteeInfo(name string, blsPubKey bls.PublicKey, netAddr types.NetAddress, index uint32) *CommitteeInfo {
 	return &CommitteeInfo{
-		Name:     name,
-		PubKey:   pubKey,
-		NetAddr:  netAddr,
-		CSPubKey: csPubKey,
-		CSIndex:  csIndex,
+		Name:      name,
+		BlsPubKey: blsPubKey.Marshal(),
+		NetAddr:   netAddr,
+		Index:     index,
 	}
 }
 
@@ -176,16 +172,16 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 		return false, errors.New("invalid aggregate signature:" + err.Error())
 	}
 	start := time.Now()
-	valid := blsMaster.AggregateVerify(sig, escortQC.VoterMsgHash, pubkeys)
+	valid := sig.FastAggregateVerify(pubkeys, escortQC.VoterMsgHash)
 	slog.Debug("verified QC", "elapsed", meter.PrettyDuration(time.Since(start)))
 
 	return valid, err
 }
 
 // WithSignature create a new block object with signature set.
-func (b *Block) WithSignature(sig []byte) *Block {
+func (b *Block) WithSignature(sig bls.Signature) *Block {
 	return &Block{
-		BlockHeader: b.BlockHeader.withSignature(sig),
+		BlockHeader: b.BlockHeader.withSignature(sig.Marshal()),
 		Txs:         b.Txs,
 	}
 }

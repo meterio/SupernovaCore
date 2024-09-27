@@ -6,18 +6,16 @@
 package block
 
 import (
-	"bytes"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/types"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	amino "github.com/tendermint/go-amino"
 )
 
@@ -36,9 +34,9 @@ type ConsensusMessage interface {
 	GetRound() uint32
 
 	String() string
-	GetMsgHash() meter.Bytes32
+	GetMsgHash() []byte
 	SetMsgSignature(signature []byte)
-	VerifyMsgSignature(pubkey *ecdsa.PublicKey) bool
+	VerifyMsgSignature(pubkey bls.PublicKey) bool
 }
 
 func RegisterConsensusMessages(cdc *amino.Codec) {
@@ -80,12 +78,12 @@ func EncodeMsg(msg ConsensusMessage) (string, error) {
 	return hex.EncodeToString(raw), nil
 }
 
-func verifyMsgSignature(pubkey *ecdsa.PublicKey, msgHash meter.Bytes32, signature []byte) bool {
-	pub, err := crypto.SigToPub(msgHash[:], signature)
+func verifyMsgSignature(pubkey bls.PublicKey, msg []byte, signature []byte) bool {
+	sig, err := bls.SignatureFromBytes(signature)
 	if err != nil {
 		return false
 	}
-	return bytes.Equal(crypto.FromECDSAPub(pub), crypto.FromECDSAPub(pubkey))
+	return sig.Verify(pubkey, msg)
 }
 
 // PMProposalMessage is sent when a new block is proposed
@@ -125,7 +123,7 @@ func (m *PMProposalMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMProposalMessage) GetMsgHash() (hash meter.Bytes32) {
+func (m *PMProposalMessage) GetMsgHash() (hash []byte) {
 	hw := meter.NewBlake2b()
 	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.Round, m.RawBlock}
 	if m.TimeoutCert != nil {
@@ -167,7 +165,7 @@ func (m *PMProposalMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMProposalMessage) VerifyMsgSignature(pubkey *ecdsa.PublicKey) bool {
+func (m *PMProposalMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
 	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
 }
 
@@ -204,7 +202,7 @@ func (m *PMVoteMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMVoteMessage) GetMsgHash() (hash meter.Bytes32) {
+func (m *PMVoteMessage) GetMsgHash() (hash []byte) {
 	hw := meter.NewBlake2b()
 	data := []interface{}{
 		m.Timestamp, m.Epoch, m.SignerIndex,
@@ -228,7 +226,7 @@ func (m *PMVoteMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMVoteMessage) VerifyMsgSignature(pubkey *ecdsa.PublicKey) bool {
+func (m *PMVoteMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
 	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
 }
 
@@ -276,7 +274,7 @@ func (m *PMTimeoutMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMTimeoutMessage) GetMsgHash() (hash meter.Bytes32) {
+func (m *PMTimeoutMessage) GetMsgHash() (hash []byte) {
 	hw := meter.NewBlake2b()
 	data := []interface{}{
 		m.Timestamp, m.Epoch, m.SignerIndex,
@@ -321,7 +319,7 @@ func (m *PMTimeoutMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMTimeoutMessage) VerifyMsgSignature(pubkey *ecdsa.PublicKey) bool {
+func (m *PMTimeoutMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
 	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
 }
 
@@ -352,7 +350,7 @@ func (m *PMQueryMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMQueryMessage) GetMsgHash() (hash meter.Bytes32) {
+func (m *PMQueryMessage) GetMsgHash() (hash []byte) {
 	hw := meter.NewBlake2b()
 	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.LastCommitted}
 	err := rlp.Encode(hw, data)
@@ -372,6 +370,6 @@ func (m *PMQueryMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMQueryMessage) VerifyMsgSignature(pubkey *ecdsa.PublicKey) bool {
+func (m *PMQueryMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
 	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
 }

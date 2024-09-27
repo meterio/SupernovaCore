@@ -17,14 +17,12 @@ import (
 type Node struct {
 	nw      Network
 	reactor *consensus.Reactor
-	pubKey  string
 }
 
-func New(nw Network, reactor *consensus.Reactor, pubKey string) *Node {
+func New(nw Network, reactor *consensus.Reactor) *Node {
 	return &Node{
 		nw,
 		reactor,
-		pubKey,
 	}
 }
 
@@ -45,13 +43,6 @@ func (n *Node) handleCommittee(w http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(w, committeeList)
 }
 
-func (n *Node) handlePubKey(w http.ResponseWriter, req *http.Request) error {
-	w.WriteHeader(http.StatusOK)
-	utils.WriteJSON(w, n.pubKey)
-	//	w.Write([]byte(b))
-	return nil
-}
-
 func (n *Node) handleGetChainId(w http.ResponseWriter, req *http.Request) error {
 	if meter.IsMainNet() {
 		return utils.WriteJSON(w, 82) // mainnet
@@ -64,6 +55,5 @@ func (n *Node) Mount(root *mux.Router, pathPrefix string) {
 
 	sub.Path("/network/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleNetwork))
 	sub.Path("/consensus/committee").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleCommittee))
-	sub.Path("/pubkey").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePubKey))
 	sub.Path("/chainid").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleGetChainId))
 }

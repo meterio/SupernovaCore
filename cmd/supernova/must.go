@@ -8,11 +8,9 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	b64 "encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -21,7 +19,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/fdlimit"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/lmittmann/tint"
@@ -37,6 +34,7 @@ import (
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/meterio/meter-pov/types"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -222,32 +220,14 @@ func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 	return nodes, true, nil
 }
 
-func loadNodeMaster(ctx *cli.Context) (*types.Master, *types.BlsMaster) {
-	if ctx.String(networkFlag.Name) == "dev" {
-		i := rand.Intn(len(genesis.DevAccounts()))
-		acc := genesis.DevAccounts()[i]
-		return &types.Master{
-			PrivateKey: acc.PrivateKey,
-		}, nil
-	}
+func loadNodeMaster(ctx *cli.Context) *types.BlsMaster {
 
 	keyLoader := NewKeyLoader(ctx)
-	ePrivKey, ePubKey, blsMaster, err := keyLoader.Load()
+	blsMaster, err := keyLoader.Load()
 	if err != nil {
 		fatal("load key error: ", err)
 	}
-	master := &types.Master{PrivateKey: ePrivKey, PublicKey: ePubKey}
-	return master, blsMaster
-}
-
-func getNodeComplexPubKey(master *types.Master, blsMaster *types.BlsMaster) (string, error) {
-	ecdsaPubBytes := crypto.FromECDSAPub(master.PublicKey)
-	ecdsaPubB64 := b64.StdEncoding.EncodeToString(ecdsaPubBytes)
-
-	blsPubB64 := b64.StdEncoding.EncodeToString(blsMaster.PubKey.Marshal())
-
-	pub := strings.Join([]string{ecdsaPubB64, blsPubB64}, ":::")
-	return pub, nil
+	return blsMaster
 }
 
 type p2pComm struct {
@@ -386,18 +366,17 @@ func (d *Dispatcher) handlePeers(w http.ResponseWriter, r *http.Request) {
 	// api_utils.WriteJSON(w, d.nw.PeersStats())
 }
 
-func startObserveServer(ctx *cli.Context, cons *consensus.Reactor, comboPubkey string, nw probe.Network, chain *chain.Chain, stateCreator *state.Creator) (string, func()) {
+func startObserveServer(ctx *cli.Context, cons *consensus.Reactor, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain, stateCreator *state.Creator) (string, func()) {
 	addr := ":8670"
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		fatal(fmt.Sprintf("listen observe addr [%v]: %v", addr, err))
 	}
-	probe := &probe.Probe{cons, comboPubkey, chain, fullVersion(), nw, stateCreator}
+	probe := &probe.Probe{cons, blsPubKey, chain, fullVersion(), nw, stateCreator}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/probe", probe.HandleProbe)
 	mux.HandleFunc("/probe/version", probe.HandleVersion)
-	mux.HandleFunc("/probe/pubkey", probe.HandlePubkey)
 	mux.HandleFunc("/probe/peers", probe.HandlePeers)
 
 	// dispatch the msg to reactor/pacemaker
@@ -512,7 +491,7 @@ func printStartupMessage(
 	topic string,
 	gene *genesis.Genesis,
 	chain *chain.Chain,
-	master *types.Master,
+	blsMaster *types.BlsMaster,
 	dataDir string,
 	apiURL string,
 	observeURL string,
@@ -525,7 +504,7 @@ func printStartupMessage(
     Network         [ %v %v ]    
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
-    Master          [ %v ]
+    BlsPubKey       [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
     Observe service [ %v ]
@@ -536,7 +515,7 @@ func printStartupMessage(
 		gene.ID(), gene.Name(),
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
 		meter.GetForkConfig(gene.ID()),
-		master.Address(),
+		hex.EncodeToString(blsMaster.PubKey.Marshal()),
 		dataDir,
 		apiURL, observeURL)
 }

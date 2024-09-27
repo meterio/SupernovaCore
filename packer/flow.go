@@ -6,16 +6,13 @@
 package packer
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
-	"github.com/pkg/errors"
 )
 
 // Flow the flow of packing a new block.
@@ -128,12 +125,7 @@ func (f *Flow) Adopt(tx *tx.Transaction) error {
 }
 
 // Pack build and sign the new block.
-func (f *Flow) Pack(privateKey *ecdsa.PrivateKey, blockType block.BlockType, lastKBlock uint32) (*block.Block, *state.Stage, tx.Receipts, error) {
-	if f.packer.nodeMaster != meter.Address(crypto.PubkeyToAddress(privateKey.PublicKey)) {
-		fmt.Println("FATAL! pack error from private key mismatch")
-		return nil, nil, nil, errors.New("private key mismatch")
-	}
-
+func (f *Flow) Pack(blockType block.BlockType, lastKBlock uint32) (*block.Block, *state.Stage, tx.Receipts, error) {
 	if err := f.runtime.Seeker().Err(); err != nil {
 		fmt.Println("FATAL! pack error from runtime seeker: ", err)
 		return nil, nil, nil, err
@@ -165,10 +157,6 @@ func (f *Flow) Pack(privateKey *ecdsa.PrivateKey, blockType block.BlockType, las
 	}
 	newBlock := builder.Build()
 
-	sig, err := crypto.Sign(newBlock.Header().SigningHash().Bytes(), privateKey)
-	if err != nil {
-		fmt.Println("FATAL! pack error from crypto sign: ", err)
-		return nil, nil, nil, err
-	}
+	sig, _ := f.packer.blsMaster.SignMessage(newBlock.Header().SigningHash().Bytes())
 	return newBlock.WithSignature(sig), stage, f.receipts, nil
 }

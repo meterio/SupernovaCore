@@ -19,11 +19,9 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/types"
 )
 
 func fatal(args ...interface{}) {
@@ -181,13 +179,4 @@ func loadBestBlockIDBeforeFlattern(r kv.Getter) (meter.Bytes32, error) {
 
 func saveBestBlockIDBeforeFlattern(w kv.Putter, id meter.Bytes32) error {
 	return w.Put(bestBeforeFlatternKey, id.Bytes())
-}
-
-func GenMaster() (master *types.Master) {
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		fmt.Println("Error during ECDSA key pair generation: ", err)
-		return nil
-	}
-	return &types.Master{PrivateKey: key, PublicKey: &key.PublicKey}
 }

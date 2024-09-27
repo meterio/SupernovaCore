@@ -7,6 +7,7 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/types"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 // build block committee info part
@@ -14,8 +15,8 @@ func (r *Reactor) MakeBlockCommitteeInfo() []block.CommitteeInfo {
 	cis := []block.CommitteeInfo{}
 
 	for index, cm := range r.committee {
-		ci := block.NewCommitteeInfo(cm.Name, cm.PubKeyBytes, cm.NetAddr,
-			cm.BlsPubKeyBytes, uint32(index))
+		ci := block.NewCommitteeInfo(cm.Name, cm.BlsPubKey, cm.NetAddr,
+			uint32(index))
 		cis = append(cis, *ci)
 	}
 	return (cis)
@@ -45,9 +46,13 @@ func (r *Reactor) getDelegatesFromStaking(revision *block.Block) ([]*types.Deleg
 	list := state.GetDelegateList()
 	r.logger.Info("Loaded delegateList from staking", "len", len(list.Delegates))
 	for _, s := range list.Delegates {
-		pubKey, blsPub := r.blsMaster.SplitPubKey(string(s.PubKey))
+		blsPub, e := bls.PublicKeyFromBytes(s.PubKey)
+		if e != nil {
+			// FIXME: maybe a better way of just skipping
+			continue
+		}
 
-		d := types.NewDelegate([]byte(s.Name), s.Address, *pubKey, *blsPub, string(s.PubKey), new(big.Int).Div(s.VotingPower, big.NewInt(1e12)).Int64(), s.Commission, types.NetAddress{
+		d := types.NewDelegate([]byte(s.Name), s.Address, blsPub, string(s.PubKey), new(big.Int).Div(s.VotingPower, big.NewInt(1e12)).Int64(), s.Commission, types.NetAddress{
 			IP:   net.ParseIP(string(s.IPAddr)),
 			Port: s.Port})
 		d.DistList = convertDistList(s.DistList)

@@ -20,7 +20,7 @@ type IncomingMsg struct {
 	Msg          block.ConsensusMessage
 	Peer         ConsensusPeer
 	RawData      []byte
-	Hash         [32]byte
+	Hash         []byte
 	ShortHashStr string
 
 	// Signer *types.Validator

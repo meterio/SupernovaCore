@@ -51,11 +51,10 @@ type Consensus interface {
 type ApiCommitteeMember struct {
 	Name        string        `json:"name"`
 	Address     meter.Address `json:"addr"`
-	PubKey      string        `json:"pubKey"`
+	BlsPubKey   string        `json:"blspubKey"`
 	VotingPower int64         `json:"votingPower"`
 	NetAddr     string        `json:"netAddr"`
-	CsPubKey    string        `json:"csPubKey"`
-	CsIndex     int           `json:"csIndex"`
+	Index       int           `json:"Index"`
 	InCommittee bool          `json:"inCommittee"`
 }
 
@@ -66,11 +65,10 @@ func convertCommitteeList(cml []*consensus.ApiCommitteeMember) []*ApiCommitteeMe
 		committeeList[i] = &ApiCommitteeMember{
 			Name:        cm.Name,
 			Address:     cm.Address,
-			PubKey:      cm.PubKey,
 			VotingPower: cm.VotingPower,
 			NetAddr:     cm.NetAddr,
-			CsPubKey:    cm.CsPubKey,
-			CsIndex:     cm.CsIndex,
+			BlsPubKey:   cm.PubKey,
+			Index:       cm.Index,
 			InCommittee: cm.InCommittee,
 		}
 	}

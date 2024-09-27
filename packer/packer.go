@@ -8,9 +8,9 @@ package packer
 import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
 	"github.com/meterio/meter-pov/state"
+	"github.com/meterio/meter-pov/types"
 	"github.com/meterio/meter-pov/xenv"
 	"github.com/pkg/errors"
 )
@@ -18,22 +18,23 @@ import (
 // Packer to pack txs and build new blocks.
 type Packer struct {
 	chain          *chain.Chain
+	blsMaster      *types.BlsMaster
 	stateCreator   *state.Creator
-	nodeMaster     meter.Address
 	targetGasLimit uint64
 }
 
 // New create a new Packer instance.
 func New(
 	chain *chain.Chain,
+	blsMaster *types.BlsMaster,
 	stateCreator *state.Creator,
-	nodeMaster meter.Address,
+
 ) *Packer {
 
 	return &Packer{
 		chain,
+		blsMaster,
 		stateCreator,
-		nodeMaster,
 		0,
 	}
 }
@@ -49,7 +50,7 @@ func (p *Packer) Mock(parent *block.Header, targetTime uint64, gasLimit uint64) 
 		p.chain.NewSeeker(parent.ID()),
 		state,
 		&xenv.BlockContext{
-			Signer:     p.nodeMaster,
+			Signer:     p.blsMaster.GetAddress(),
 			Number:     parent.Number() + 1,
 			Time:       targetTime,
 			GasLimit:   gasLimit,

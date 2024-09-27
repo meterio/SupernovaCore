@@ -121,7 +121,7 @@ func (p *Pacemaker) buildMBlock(ts uint64, parent *block.DraftBlock, justify *bl
 			break
 		}
 	}
-	newBlock, stage, receipts, err := flow.Pack(&p.reactor.myPrivKey, block.MBlockType, p.reactor.lastKBlockHeight)
+	newBlock, stage, receipts, err := flow.Pack(block.MBlockType, p.reactor.lastKBlockHeight)
 	if err != nil {
 		p.logger.Error("build block failed", "error", err)
 		return err, nil
@@ -218,7 +218,7 @@ func (p *Pacemaker) packMBlock() error {
 	if p.curFlow == nil {
 		return ErrFlowEmpty
 	}
-	newBlock, stage, receipts, err := p.curFlow.Pack(&p.reactor.myPrivKey, block.MBlockType, p.reactor.lastKBlockHeight)
+	newBlock, stage, receipts, err := p.curFlow.Pack(block.MBlockType, p.reactor.lastKBlockHeight)
 	if err != nil {
 		p.logger.Error("build block failed", "error", err)
 		return err
@@ -302,7 +302,7 @@ func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *bl
 	//create checkPoint before build block
 	checkPoint := state.NewCheckpoint()
 
-	newBlock, stage, receipts, err := flow.Pack(&p.reactor.myPrivKey, block.KBlockType, p.reactor.lastKBlockHeight)
+	newBlock, stage, receipts, err := flow.Pack(block.KBlockType, p.reactor.lastKBlockHeight)
 	if err != nil {
 		p.logger.Error("build block failed...", "error", err)
 		return err, nil
@@ -350,7 +350,7 @@ func (p *Pacemaker) buildStopCommitteeBlock(ts uint64, parent *block.DraftBlock,
 		return ErrFlowEmpty, nil
 	}
 
-	newBlock, stage, receipts, err := flow.Pack(&p.reactor.myPrivKey, block.SBlockType, p.reactor.lastKBlockHeight)
+	newBlock, stage, receipts, err := flow.Pack(block.SBlockType, p.reactor.lastKBlockHeight)
 	if err != nil {
 		p.logger.Error("build block failed", "error", err)
 		return err, nil

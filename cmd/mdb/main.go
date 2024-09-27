@@ -1135,16 +1135,15 @@ func syncVerifyAction(ctx *cli.Context) error {
 	if fromNum <= 0 {
 		fromNum = 1
 	}
-	master := GenMaster()
-	blsMaster := types.NewBlsMaster()
+	blsMaster := types.NewBlsMasterWithRandKey()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{})
+	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	for i := uint32(fromNum); i < uint32(toNum); i++ {
 		b, _ := meterChain.GetTrunkBlock(i)
@@ -1190,15 +1189,14 @@ func verifyBlockAction(ctx *cli.Context) error {
 	meterChain := initChain(ctx, gene, mainDB)
 	stateCreator := state.NewCreator(mainDB)
 
-	master := GenMaster()
-	blsMaster := types.NewBlsMaster()
+	blsMaster := types.NewBlsMasterWithRandKey()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{})
+	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1291,15 +1289,14 @@ func runLocalBlockAction(ctx *cli.Context) error {
 	meterChain := initChain(ctx, gene, mainDB)
 	stateCreator := state.NewCreator(mainDB)
 
-	master := GenMaster()
-	blsMaster := types.NewBlsMaster()
+	blsMaster := types.NewBlsMasterWithRandKey()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{})
+	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1412,8 +1409,8 @@ func runProposeBlockAction(ctx *cli.Context) error {
 	slog.Info("built txs", "len", len(txs), "elapsed", meter.PrettyDuration(time.Since(start)))
 
 	start = time.Now()
-	nodeMaster := meter.Address(crypto.PubkeyToAddress(accts[0].pk.PublicKey))
-	pker := packer.New(meterChain, stateCreator, nodeMaster)
+	blsMaster := types.NewBlsMasterWithRandKey()
+	pker := packer.New(meterChain, blsMaster, stateCreator)
 	flow, err := pker.Mock(parent.Header(), uint64(time.Now().Unix()), parent.GasLimit())
 	if err != nil {
 		slog.Error("mock error", "err", err)
@@ -1430,7 +1427,7 @@ func runProposeBlockAction(ctx *cli.Context) error {
 	slog.Info("adopted txs", "len", len(txs), "elapsed", meter.PrettyDuration(time.Since(start)))
 
 	start = time.Now()
-	blk, _, _, err := flow.Pack(accts[0].pk, block.MBlockType, parent.LastKBlockHeight())
+	blk, _, _, err := flow.Pack(block.MBlockType, parent.LastKBlockHeight())
 	if err != nil {
 		fmt.Println("pack error", "err", err)
 		return err

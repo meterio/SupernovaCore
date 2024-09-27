@@ -7,6 +7,7 @@ package probe
 
 import (
 	"bytes"
+	"encoding/hex"
 	"net/http"
 	"strings"
 
@@ -15,11 +16,12 @@ import (
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/state"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 type Probe struct {
 	Cons         *consensus.Reactor
-	ComboPubkey  string
+	BlsPubKey    bls.PublicKey
 	Chain        *chain.Chain
 	Version      string
 	Network      Network
@@ -40,11 +42,11 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 
 	inDelegateList := false
 	for _, d := range delegateList.Delegates {
-		registeredPK := string(d.PubKey)
+		registeredPK := hex.EncodeToString(d.PubKey)
 		trimedPK := strings.TrimSpace(registeredPK)
-		if strings.Compare(trimedPK, p.ComboPubkey) == 0 {
+		if strings.Compare(trimedPK, hex.EncodeToString(p.BlsPubKey.Marshal())) == 0 {
 			name = string(d.Name)
-			pubkeyMatch = bytes.Equal(d.PubKey, []byte(p.ComboPubkey))
+			pubkeyMatch = bytes.Equal(d.PubKey, p.BlsPubKey.Marshal())
 			inDelegateList = true
 			break
 		}
@@ -63,7 +65,7 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 	}
 	result := ProbeResult{
 		Name:            name,
-		PubKey:          p.ComboPubkey,
+		PubKey:          hex.EncodeToString(p.BlsPubKey.Marshal()),
 		PubKeyValid:     pubkeyMatch,
 		Version:         p.Version,
 		DelegatesSource: p.Cons.GetDelegatesSource(),
@@ -79,10 +81,6 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, result)
-}
-
-func (p *Probe) HandlePubkey(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, p.ComboPubkey)
 }
 
 func (p *Probe) HandleVersion(w http.ResponseWriter, r *http.Request) {

@@ -91,15 +91,9 @@ var (
 var (
 	// Keys
 	KeyExecutorAddress        = BytesToBytes32([]byte("executor"))
-	KeyRewardRatio            = BytesToBytes32([]byte("reward-ratio"))
 	KeyBaseGasPrice           = BytesToBytes32([]byte("base-gas-price"))
 	KeyProposerEndorsement    = BytesToBytes32([]byte("proposer-endorsement"))
-	KeyValidatorBenefitRatio  = BytesToBytes32([]byte("validator-benefit-ratio"))
 	KeyValidatorBaseReward    = BytesToBytes32([]byte("validator-base-reward"))
-	KeyAuctionReservedPrice   = BytesToBytes32([]byte("auction-reserved-price"))
-	KeyMinRequiredByDelegate  = BytesToBytes32([]byte("minimium-require-by-delegate"))
-	KeyAuctionInitRelease     = BytesToBytes32([]byte("auction-initial-release"))
-	KeyBorrowInterestRate     = BytesToBytes32([]byte("borrower-interest-rate"))
 	KeyConsensusCommitteeSize = BytesToBytes32([]byte("consensus-committee-size"))
 	KeyConsensusDelegateSize  = BytesToBytes32([]byte("consensus-delegate-size"))
 
@@ -130,9 +124,6 @@ var (
 	KeyEnforceTesla_Fork10_Correction = BytesToBytes32([]byte("Tesla_Fork10_Correction")) // unset or 0 is not do yet, 1 is done
 
 	KeyEnforceTesla_Fork11_Correction = BytesToBytes32([]byte("Tesla_Fork11_Correction")) // unset or 0 is not do yet, 1 is done
-	// KeyBaseSequence_AfterFork11       = BytesToBytes32([]byte("BaseSequence_AfterFork11")) // base sequence after fork11
-	// key set transaction fee address
-	// 0x6e73616374696f6e2d6665652d62656e65666963696172792d61646472657373
 
 	// Initial values
 	InitialRewardRatio         = big.NewInt(3e17) // 30%

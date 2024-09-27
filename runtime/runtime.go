@@ -1097,7 +1097,6 @@ func (rt *Runtime) PrepareTransaction(tx *tx.Transaction) (*TransactionExecutor,
 			}
 
 			// reward
-			//rewardRatio := builtin.Params.Native(rt.state).Get(meter.KeyRewardRatio)
 			overallGasPrice := tx.OverallGasPrice(baseGasPrice, rt.ctx.Number-1, rt.Seeker().GetID)
 
 			reward := new(big.Int).SetUint64(receipt.GasUsed)

@@ -6,14 +6,13 @@
 package types
 
 import (
-	"crypto/ecdsa"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/preset"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -28,23 +27,21 @@ type Distributor struct {
 
 // make sure to update that method if changes are made here
 type Delegate struct {
-	Name        []byte          `json:"name"`
-	Address     meter.Address   `json:"address"`
-	PubKey      ecdsa.PublicKey `json:"pub_key"`
-	BlsPubKey   bls.PublicKey   `json:"bsl_pubkey"`
-	VotingPower int64           `json:"voting_power"`
-	NetAddr     NetAddress      `json:"network_addr"`
-	Commission  uint64          `json:"commission"`
-	DistList    []*Distributor  `json:"distibutor_list"`
+	Name        []byte         `json:"name"`
+	Address     meter.Address  `json:"address"`
+	BlsPubKey   bls.PublicKey  `json:"bsl_pubkey"`
+	VotingPower int64          `json:"voting_power"`
+	NetAddr     NetAddress     `json:"network_addr"`
+	Commission  uint64         `json:"commission"`
+	DistList    []*Distributor `json:"distibutor_list"`
 
 	comboPubKeyStr string
 }
 
-func NewDelegate(name []byte, addr meter.Address, pubKey ecdsa.PublicKey, blsPub bls.PublicKey, comboPubKeyStr string, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
+func NewDelegate(name []byte, addr meter.Address, blsPub bls.PublicKey, comboPubKeyStr string, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
 	return &Delegate{
 		Name:           name,
 		Address:        addr,
-		PubKey:         pubKey,
 		BlsPubKey:      blsPub,
 		comboPubKeyStr: comboPubKeyStr,
 		VotingPower:    votingPower,
@@ -60,20 +57,13 @@ func (v *Delegate) Copy() *Delegate {
 	return &vCopy
 }
 
-func (v *Delegate) GetComboPubkey() string {
-	return v.comboPubKeyStr
-}
-
 func (v *Delegate) String() string {
 	if v == nil {
 		return "Delegate{nil}"
 	}
-	keyBytes := crypto.FromECDSAPub(&v.PubKey)
-	pubKeyStr := base64.StdEncoding.EncodeToString(keyBytes)
-	pubKeyAbbr := pubKeyStr[:4] + "..." + pubKeyStr[len(pubKeyStr)-4:]
 
-	return fmt.Sprintf("%v ( Addr:%v VP:%v Commission:%v%% #Dists:%v, EcdsaPubKey:%v )",
-		string(v.Name), v.Address, v.VotingPower, v.Commission/1e7, len(v.DistList), pubKeyAbbr)
+	return fmt.Sprintf("%v ( Addr:%v VP:%v Commission:%v%% #Dists:%v, BlsPubKey:%v )",
+		string(v.Name), v.Address, v.VotingPower, v.Commission/1e7, len(v.DistList), hex.EncodeToString(v.BlsPubKey.Marshal()))
 }
 
 // =================================
@@ -115,7 +105,8 @@ func LoadDelegatesFile(ctx *cli.Context, blsMaster *BlsMaster) []*Delegate {
 	delegates := make([]*Delegate, 0)
 	for _, d := range delegates1 {
 		// first part is ecdsa public, 2nd part is bls public key
-		pubKey, blsPub := blsMaster.SplitPubKey(string(d.PubKey))
+		pubkeyBytes, err := hex.DecodeString(strings.Replace(d.PubKey, "0x", "", 1))
+		blsPubKey, err := bls.PublicKeyFromBytes(pubkeyBytes)
 
 		var addr meter.Address
 		if len(d.Address) != 0 {
@@ -125,13 +116,9 @@ func LoadDelegatesFile(ctx *cli.Context, blsMaster *BlsMaster) []*Delegate {
 				os.Exit(1)
 				return nil
 			}
-		} else {
-			// derive from public key
-			fmt.Println("Warning: address for delegate is not set, so use address derived from public key as default")
-			addr = meter.Address(crypto.PubkeyToAddress(*pubKey))
 		}
 
-		dd := NewDelegate([]byte(d.Name), addr, *pubKey, *blsPub, d.PubKey, d.VotingPower, COMMISSION_RATE_DEFAULT, d.NetAddr)
+		dd := NewDelegate([]byte(d.Name), addr, blsPubKey, d.PubKey, d.VotingPower, COMMISSION_RATE_DEFAULT, d.NetAddr)
 		delegates = append(delegates, dd)
 	}
 	return delegates

@@ -25,6 +25,7 @@ import (
 	"github.com/meterio/meter-pov/packer"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/meter-pov/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,7 +102,8 @@ func initBlockServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx = tx.WithSignature(sig)
-	packer := packer.New(chain, stateC, genesis.DevAccounts()[0].Address)
+	blsMaster := types.NewBlsMasterWithRandKey()
+	packer := packer.New(chain, blsMaster, stateC)
 	flow, err := packer.Mock(b.Header(), uint64(time.Now().Unix()), 2000000)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +112,7 @@ func initBlockServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	block, stage, receipts, err := flow.Pack(genesis.DevAccounts()[0].PrivateKey, meter_block.MBlockType, 0)
+	block, stage, receipts, err := flow.Pack(meter_block.MBlockType, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

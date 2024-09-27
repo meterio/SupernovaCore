@@ -145,12 +145,12 @@ func showEnodeIDAction(ctx *cli.Context) error {
 func publicKeyAction(ctx *cli.Context) error {
 	makeDataDir(ctx)
 	keyLoader := NewKeyLoader(ctx)
-	_, _, _, err := keyLoader.Load()
+	blsMaster, err := keyLoader.Load()
 	if err != nil {
 		fatal("error load keys", err)
 	}
 
-	fmt.Println(string(keyLoader.publicBytes))
+	fmt.Println(hex.EncodeToString(blsMaster.PrivKey.Marshal()))
 	return nil
 }
 
@@ -221,10 +221,10 @@ func defaultAction(ctx *cli.Context) error {
 		go pruneState(ctx, gene, mainDB, chain, preserveBlocks)
 	}
 
-	master, blsMaster := loadNodeMaster(ctx)
-	pubkey, err := getNodeComplexPubKey(master, blsMaster)
+	keyLoader := NewKeyLoader(ctx)
+	blsMaster, err := keyLoader.Load()
 	if err != nil {
-		panic("could not load pubkey")
+		panic(err)
 	}
 
 	// load preset config
@@ -337,27 +337,26 @@ func defaultAction(ctx *cli.Context) error {
 
 	proxyApp := cmtproxy.NewLocalClientCreator(NewDumbApplication())
 	stateCreator := state.NewCreator(mainDB)
-	pker := packer.New(chain, stateCreator, master.Address())
-	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, master, consensusMagic, blsMaster, initDelegates)
+	pker := packer.New(chain, blsMaster, stateCreator)
+	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, consensusMagic, blsMaster, initDelegates)
 	// calculate committee so that relay is not an issue
 
-	apiHandler, apiCloser := api.New(reactor, chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv, pubkey)
+	apiHandler, apiCloser := api.New(reactor, chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv)
 	defer func() { slog.Info("closing API..."); apiCloser() }()
 
 	apiURL, srvCloser := startAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())
 	defer func() { slog.Info("stopping API server..."); srvCloser() }()
 
-	observeURL, observeSrvCloser := startObserveServer(ctx, reactor, pubkey, p2pcom.comm, chain, stateCreator)
+	observeURL, observeSrvCloser := startObserveServer(ctx, reactor, blsMaster.GetPublicKey(), p2pcom.comm, chain, stateCreator)
 	defer func() { slog.Info("closing Observe Server ..."); observeSrvCloser() }()
 
-	printStartupMessage(topic, gene, chain, master, instanceDir, apiURL, observeURL)
+	printStartupMessage(topic, gene, chain, blsMaster, instanceDir, apiURL, observeURL)
 
 	p2pcom.Start()
 	defer p2pcom.Stop()
 
 	return node.New(
 		reactor,
-		master,
 		chain,
 		txPool,
 		filepath.Join(instanceDir, "tx.stash"),

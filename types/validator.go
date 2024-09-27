@@ -6,11 +6,9 @@
 package types
 
 import (
-	"crypto/ecdsa"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -19,22 +17,18 @@ import (
 // NOTE: The Accum is not included in Validator.Hash();
 // make sure to update that method if changes are made here
 type Validator struct {
-	Name           string
-	Address        meter.Address
-	PubKey         ecdsa.PublicKey
-	PubKeyBytes    []byte
-	BlsPubKey      bls.PublicKey
-	BlsPubKeyBytes []byte
-	VotingPower    int64
-	NetAddr        NetAddress
-	SortKey        []byte
+	Name        string
+	Address     meter.Address
+	BlsPubKey   bls.PublicKey
+	VotingPower int64
+	NetAddr     NetAddress
+	SortKey     []byte
 }
 
-func NewValidator(name string, address meter.Address, pubKey ecdsa.PublicKey, blsPub bls.PublicKey, votingPower int64) *Validator {
+func NewValidator(name string, address meter.Address, blsPub bls.PublicKey, votingPower int64) *Validator {
 	return &Validator{
 		Name:        name,
 		Address:     address,
-		PubKey:      pubKey,
 		BlsPubKey:   blsPub,
 		VotingPower: votingPower,
 	}
@@ -51,16 +45,14 @@ func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	pubkey := base64.StdEncoding.EncodeToString(crypto.FromECDSAPub(&v.PubKey))
-	pubkey = pubkey[:8] + "..." + pubkey[len(pubkey)-8:]
 	name := v.Name
 	if len(v.Name) > 26 {
 		name = v.Name[:26]
 	}
-	return fmt.Sprintf("%-26v %-15v pub: %v",
+	return fmt.Sprintf("%-26v %-15v blspub: %v",
 		name,
 		v.NetAddr.IP.String(),
-		pubkey,
+		hex.EncodeToString(v.BlsPubKey.Marshal()),
 	)
 }
 

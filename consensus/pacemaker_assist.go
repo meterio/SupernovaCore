@@ -204,7 +204,7 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		if err != nil {
 			return false
 		}
-		valid := p.reactor.blsMaster.AggregateVerify(aggrSig, tc.MsgHash, pubkeys)
+		valid := aggrSig.FastAggregateVerify(pubkeys, tc.MsgHash)
 		if !valid {
 			p.logger.Warn("Invalid TC", "expected", fmt.Sprintf("E:%v,R:%v", tc.Epoch, tc.Round), "proposal", fmt.Sprintf("E:%v,R:%v", p.reactor.curEpoch, round))
 		}

@@ -24,7 +24,7 @@ import (
 )
 
 // New return api router
-func New(reactor *consensus.Reactor, chain *chain.Chain, txPool *txpool.TxPool, nw node.Network, allowedOrigins string, backtraceLimit uint32, callGasLimit uint64, p2pServer *p2psrv.Server, pubKey string) (http.HandlerFunc, func()) {
+func New(reactor *consensus.Reactor, chain *chain.Chain, txPool *txpool.TxPool, nw node.Network, allowedOrigins string, backtraceLimit uint32, callGasLimit uint64, p2pServer *p2psrv.Server) (http.HandlerFunc, func()) {
 	origins := strings.Split(strings.TrimSpace(allowedOrigins), ",")
 	for i, o := range origins {
 		origins[i] = strings.ToLower(strings.TrimSpace(o))
@@ -51,7 +51,7 @@ func New(reactor *consensus.Reactor, chain *chain.Chain, txPool *txpool.TxPool, 
 	transactions.New(chain, txPool).
 		Mount(router, "/transactions")
 
-	node.New(nw, reactor, pubKey).
+	node.New(nw, reactor).
 		Mount(router, "/node")
 	peers.New(p2pServer).Mount(router, "/peers")
 

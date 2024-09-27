@@ -29,6 +29,7 @@ import (
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/meter-pov/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -178,7 +179,8 @@ func initTransactionServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	transaction = transaction.WithSignature(sig)
-	packer := packer.New(c, stateC, genesis.DevAccounts()[0].Address)
+	blsMaster := types.NewBlsMasterWithRandKey()
+	packer := packer.New(c, blsMaster, stateC)
 	flow, err := packer.Mock(b.Header(), uint64(time.Now().Unix()), 2000000)
 	err = flow.Adopt(transaction)
 	if err != nil {
@@ -197,7 +199,7 @@ func initTransactionServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	router := mux.NewRouter()
-	transactions.New(c, stateC, txpool.New(c, txpool.Options{Limit: 10000, LimitPerAccount: 16, MaxLifetime: 10 * time.Minute})).Mount(router, "/transactions")
+	transactions.New(c, txpool.New(c, txpool.Options{Limit: 10000, LimitPerAccount: 16, MaxLifetime: 10 * time.Minute})).Mount(router, "/transactions")
 	ts = httptest.NewServer(router)
 
 }
