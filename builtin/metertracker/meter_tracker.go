@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/script/accountlock"
 	"github.com/meterio/meter-pov/state"
 )
 
@@ -241,24 +240,6 @@ func (e *MeterTracker) Tesla1_0_SubMeterGov(addr meter.Address, amount *big.Int)
 func (e *MeterTracker) SubMeterGov(addr meter.Address, amount *big.Int) bool {
 	if amount.Sign() == 0 {
 		return true
-	}
-
-	// comment out for compile
-	//restrict, _, lockMtrg := accountlock.RestrictByAccountLock(addr, r.State())
-	restrict, _, lockMtrg := accountlock.RestrictByAccountLock(addr, e.state)
-	// restrict, lockMtrg := false, big.NewInt(0)
-	if restrict == true {
-		balance := e.state.GetBalance(addr)
-		if balance.Cmp(amount) < 0 {
-			return false
-		}
-
-		// ok to transfer: balance + boundBalance > profile-lock + amount
-		availabe := new(big.Int).Add(balance, e.state.GetBoundedBalance(addr))
-		needed := new(big.Int).Add(lockMtrg, amount)
-		if availabe.Cmp(needed) < 0 {
-			return false
-		}
 	}
 
 	return e.state.SubBalance(addr, amount)

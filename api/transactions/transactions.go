@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"strings"
 
@@ -19,10 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gorilla/mux"
 	"github.com/meterio/meter-pov/api/utils"
-	"github.com/meterio/meter-pov/builtin"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/pkg/errors"
@@ -33,16 +32,14 @@ const (
 )
 
 type Transactions struct {
-	chain        *chain.Chain
-	stateCreator *state.Creator
-	pool         *txpool.TxPool
-	logger       *slog.Logger
+	chain  *chain.Chain
+	pool   *txpool.TxPool
+	logger *slog.Logger
 }
 
-func New(chain *chain.Chain, stateCreator *state.Creator, pool *txpool.TxPool) *Transactions {
+func New(chain *chain.Chain, pool *txpool.TxPool) *Transactions {
 	return &Transactions{
 		chain,
-		stateCreator,
 		pool,
 		slog.With("api", "tx"),
 	}
@@ -95,12 +92,8 @@ func (t *Transactions) getTransactionByID(txID meter.Bytes32, blockID meter.Byte
 		if t.chain.IsNotFound(err) {
 			if allowPending {
 				if pending := t.pool.Get(txID); pending != nil {
-					bestBlock := t.chain.BestBlock()
-					s, e := t.stateCreator.NewState(bestBlock.StateRoot())
-					if e != nil {
-						return nil, e
-					}
-					baseGasPrice := builtin.Params.Native(s).Get(meter.KeyBaseGasPrice)
+
+					baseGasPrice := big.NewInt(0) /* FIXME: get the correct base gas fee */
 					gasPrice := pending.GasPrice(baseGasPrice)
 					return convertTransaction(pending, nil, 0, gasPrice)
 				}
@@ -117,11 +110,7 @@ func (t *Transactions) getTransactionByID(txID meter.Bytes32, blockID meter.Byte
 	if err != nil {
 		return nil, err
 	}
-	s, err := t.stateCreator.NewState(h.StateRoot())
-	if err != nil {
-		return nil, err
-	}
-	baseGasPrice := builtin.Params.Native(s).Get(meter.KeyBaseGasPrice)
+	baseGasPrice := big.NewInt(0) /* FIXME: get the correct base gas fee */
 	gasPrice := tx.GasPrice(baseGasPrice)
 	return convertTransaction(tx, h, txMeta.Index, gasPrice)
 }
@@ -362,11 +351,7 @@ func (t *Transactions) handleGetRecentTransactions(w http.ResponseWriter, req *h
 	var err error
 	for best.Number() > 0 {
 		blockHeader := best.Header()
-		s, e := t.stateCreator.NewState(blockHeader.StateRoot())
-		if e != nil {
-			return e
-		}
-		baseGasPrice := builtin.Params.Native(s).Get(meter.KeyBaseGasPrice)
+		baseGasPrice := big.NewInt(0) /* FIXME: get the correct base gas fee */
 		for _, tx := range best.Txs {
 			txMeta, err := t.chain.GetTransactionMeta(tx.ID(), blockHeader.ID())
 			if err != nil {

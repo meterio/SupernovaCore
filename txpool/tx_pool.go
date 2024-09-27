@@ -7,13 +7,13 @@ package txpool
 
 import (
 	"log/slog"
+	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/builtin"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/meter"
@@ -42,9 +42,8 @@ type TxEvent struct {
 
 // TxPool maintains unprocessed transactions.
 type TxPool struct {
-	options      Options
-	chain        *chain.Chain
-	stateCreator *state.Creator
+	options Options
+	chain   *chain.Chain
 
 	executables    atomic.Value
 	all            *txObjectMap
@@ -63,11 +62,10 @@ type TxPool struct {
 // Shutdown is required to be called at end.
 func New(chain *chain.Chain, stateCreator *state.Creator, options Options) *TxPool {
 	pool := &TxPool{
-		options:      options,
-		chain:        chain,
-		stateCreator: stateCreator,
-		all:          newTxObjectMap(),
-		done:         make(chan struct{}),
+		options: options,
+		chain:   chain,
+		all:     newTxObjectMap(),
+		done:    make(chan struct{}),
 
 		newTxFeed: make(chan meter.Bytes32, options.Limit),
 		logger:    slog.With("pkg", "txpool"),
@@ -181,12 +179,7 @@ func (p *TxPool) add(newTx *tx.Transaction, rejectNonexecutable bool) error {
 
 	headBlock := p.chain.BestBlock().Header()
 	if isChainSynced(uint64(time.Now().Unix()), headBlock.Timestamp()) {
-		state, err := p.stateCreator.NewState(headBlock.StateRoot())
-		if err != nil {
-			return err
-		}
-
-		executable, err := txObj.Executable(p.chain, state, headBlock)
+		executable, err := txObj.Executable(p.chain, headBlock)
 		if err != nil {
 			return txRejectedError{err.Error()}
 		}
@@ -326,13 +319,8 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 		}
 	}()
 	start := time.Now()
-	state, err := p.stateCreator.NewState(headBlock.StateRoot())
-	if err != nil {
-		return nil, 0, errors.WithMessage(err, "new state")
-	}
 	var (
 		seeker            = p.chain.NewSeeker(headBlock.ID())
-		baseGasPrice      = builtin.Params.Native(state).Get(meter.KeyBaseGasPrice)
 		executableObjs    = make([]*txObject, 0, len(all))
 		nonExecutableObjs = make([]*txObject, 0, len(all))
 		now               = time.Now().UnixNano()
@@ -345,7 +333,7 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 			continue
 		}
 		// settled, out of energy or dep broken
-		executable, err := txObj.Executable(p.chain, state, headBlock)
+		executable, err := txObj.Executable(p.chain, headBlock)
 		if err != nil {
 			toRemove = append(toRemove, txObj.ID())
 			p.logger.Debug("tx washed out", "id", txObj.ID(), "err", err)
@@ -354,7 +342,7 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 
 		if executable {
 			txObj.overallGasPrice = txObj.OverallGasPrice(
-				baseGasPrice,
+				big.NewInt(0), // FIXME: get the right one
 				headBlock.Number(),
 				seeker.GetID)
 			executableObjs = append(executableObjs, txObj)
@@ -365,10 +353,6 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 			p.logger.Info("tx wash ended early due to time limit", "elapsed", meter.PrettyDuration(time.Since(start)), "execs", len(executableObjs))
 			break
 		}
-	}
-
-	if err := state.Err(); err != nil {
-		return nil, 0, errors.WithMessage(err, "state")
 	}
 
 	if err := seeker.Err(); err != nil {

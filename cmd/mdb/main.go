@@ -26,7 +26,6 @@ import (
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/trie"
 	"github.com/meterio/meter-pov/tx"
@@ -1136,19 +1135,16 @@ func syncVerifyAction(ctx *cli.Context) error {
 	if fromNum <= 0 {
 		fromNum = 1
 	}
-	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsMaster := types.NewBlsCommon()
-
-	// init scriptengine
-	script.NewScriptEngine(meterChain, stateCreator)
+	master := GenMaster()
+	blsMaster := types.NewBlsMaster()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
+	pker := packer.New(meterChain, stateCreator, meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	for i := uint32(fromNum); i < uint32(toNum); i++ {
 		b, _ := meterChain.GetTrunkBlock(i)
@@ -1194,19 +1190,15 @@ func verifyBlockAction(ctx *cli.Context) error {
 	meterChain := initChain(ctx, gene, mainDB)
 	stateCreator := state.NewCreator(mainDB)
 
-	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsMaster := types.NewBlsCommon()
-
-	// init scriptengine
-	script.NewScriptEngine(meterChain, stateCreator)
-	// se.StartTeslaForkModules()
+	master := GenMaster()
+	blsMaster := types.NewBlsMaster()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
+	pker := packer.New(meterChain, stateCreator, meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1299,19 +1291,15 @@ func runLocalBlockAction(ctx *cli.Context) error {
 	meterChain := initChain(ctx, gene, mainDB)
 	stateCreator := state.NewCreator(mainDB)
 
-	ecdsaPubKey, ecdsaPrivKey, _ := GenECDSAKeys()
-	blsMaster := types.NewBlsCommon()
-
-	// init scriptengine
-	script.NewScriptEngine(meterChain, stateCreator)
-	// se.StartTeslaForkModules()
+	master := GenMaster()
+	blsMaster := types.NewBlsMaster()
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, stateCreator, meter.Address{}, &meter.Address{})
+	pker := packer.New(meterChain, stateCreator, meter.Address{})
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, ecdsaPrivKey, ecdsaPubKey, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, master, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1423,14 +1411,10 @@ func runProposeBlockAction(ctx *cli.Context) error {
 	}
 	slog.Info("built txs", "len", len(txs), "elapsed", meter.PrettyDuration(time.Since(start)))
 
-	// init scriptengine
-	script.NewScriptEngine(meterChain, stateCreator)
-	// se.StartTeslaForkModules()
-
 	start = time.Now()
 	nodeMaster := meter.Address(crypto.PubkeyToAddress(accts[0].pk.PublicKey))
-	pker := packer.New(meterChain, stateCreator, nodeMaster, &meter.Address{})
-	flow, err := pker.Mock(parent.Header(), uint64(time.Now().Unix()), parent.GasLimit(), &meter.ZeroAddress)
+	pker := packer.New(meterChain, stateCreator, nodeMaster)
+	flow, err := pker.Mock(parent.Header(), uint64(time.Now().Unix()), parent.GasLimit())
 	if err != nil {
 		slog.Error("mock error", "err", err)
 		return err

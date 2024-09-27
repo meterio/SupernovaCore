@@ -94,7 +94,7 @@ func (p *Pacemaker) buildMBlock(ts uint64, parent *block.DraftBlock, justify *bl
 		if _, existed := txsInCache[id.String()]; existed {
 			continue
 		}
-		executable, err := txObj.Executable(p.chain, state, parentBlock.BlockHeader)
+		executable, err := txObj.Executable(p.chain, parentBlock.BlockHeader)
 		if err != nil || !executable {
 			p.logger.Debug(fmt.Sprintf("tx %s not executable", id), "err", err)
 			continue
@@ -167,11 +167,6 @@ func (p *Pacemaker) AddTxToCurProposal(newTxID meter.Bytes32) error {
 	p.logger.Info("add tx to cur proposal", "tx", newTxID, "proposed", p.curProposal.ProposedBlock.ShortID())
 	parentBlock := p.curProposal.Parent.ProposedBlock
 	//create checkPoint before build block
-	state, err := p.reactor.stateCreator.NewState(parentBlock.StateRoot())
-	if err != nil {
-		p.logger.Error("revert state failed ...", "error", err)
-		return ErrStateCreaterNotReady
-	}
 
 	// collect all the txs in cache
 	txsInCache := make(map[string]bool)
@@ -193,7 +188,7 @@ func (p *Pacemaker) AddTxToCurProposal(newTxID meter.Bytes32) error {
 		p.logger.Error("tx obj is nil", "id", id)
 		return errors.New("tx obj is nil")
 	}
-	executable, err := txObj.Executable(p.chain, state, parentBlock.BlockHeader)
+	executable, err := txObj.Executable(p.chain, parentBlock.BlockHeader)
 	if err != nil || !executable {
 		p.logger.Warn(fmt.Sprintf("tx %s not executable", id), "err", err)
 		return err

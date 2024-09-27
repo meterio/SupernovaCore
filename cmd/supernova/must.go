@@ -237,7 +237,6 @@ func loadNodeMaster(ctx *cli.Context) (*types.Master, *types.BlsMaster) {
 		fatal("load key error: ", err)
 	}
 	master := &types.Master{PrivateKey: ePrivKey, PublicKey: ePubKey}
-	master.SetPublicBytes(keyLoader.publicBytes)
 	return master, blsMaster
 }
 

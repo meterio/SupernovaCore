@@ -26,6 +26,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -41,7 +42,6 @@ import (
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/packer"
 	"github.com/meterio/meter-pov/preset"
-	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/trie"
 	"github.com/meterio/meter-pov/txpool"
@@ -227,10 +227,6 @@ func defaultAction(ctx *cli.Context) error {
 		panic("could not load pubkey")
 	}
 
-	if pubkey != string(master.GetPublicBytes()) {
-		panic("pubkey mismatch")
-	}
-
 	// load preset config
 	if "warringstakes" == ctx.String(networkFlag.Name) {
 		config := preset.TestnetPresetConfig
@@ -339,13 +335,13 @@ func defaultAction(ctx *cli.Context) error {
 
 	p2pcom := newP2PComm(ctx, exitSignal, chain, txPool, instanceDir, p2pMagic)
 
+	proxyApp := cmtproxy.NewLocalClientCreator(NewDumbApplication())
 	stateCreator := state.NewCreator(mainDB)
-	sc := script.NewScriptEngine(chain, stateCreator)
 	pker := packer.New(chain, stateCreator, master.Address())
 	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, master, consensusMagic, blsMaster, initDelegates)
 	// calculate committee so that relay is not an issue
 
-	apiHandler, apiCloser := api.New(reactor, chain, state.NewCreator(mainDB), txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv, pubkey)
+	apiHandler, apiCloser := api.New(reactor, chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv, pubkey)
 	defer func() { slog.Info("closing API..."); apiCloser() }()
 
 	apiURL, srvCloser := startAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())
@@ -363,11 +359,10 @@ func defaultAction(ctx *cli.Context) error {
 		reactor,
 		master,
 		chain,
-		stateCreator,
 		txPool,
 		filepath.Join(instanceDir, "tx.stash"),
 		p2pcom.comm,
-		sc).
+		proxyApp).
 		Run(exitSignal)
 }
 

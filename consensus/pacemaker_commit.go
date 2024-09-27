@@ -7,7 +7,6 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/script"
 )
 
 // finalize the block with its own QC
@@ -46,12 +45,6 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 	}
 
 	p.logger.Info(fmt.Sprintf("* committed %v", blk.ShortID()), "txs", len(blk.Txs), "epoch", blk.GetBlockEpoch(), "elapsed", meter.PrettyDuration(time.Since(start)))
-
-	if meter.IsMainNet() {
-		if blk.Number() == meter.TeslaMainnetStartNum {
-			script.EnterTeslaForkInit()
-		}
-	}
 
 	// broadcast the new block to all peers
 	p.reactor.comm.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})

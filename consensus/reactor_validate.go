@@ -11,8 +11,6 @@
 package consensus
 
 import (
-	"bytes"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"time"
@@ -23,7 +21,6 @@ import (
 	"github.com/meterio/meter-pov/consensus/governor"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
-	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/xenv"
@@ -194,7 +191,6 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 
 	txUniteHashs := make(map[meter.Bytes32]int)
 	clauseUniteHashs := make(map[meter.Bytes32]int)
-	scriptUniteHashs := make(map[meter.Bytes32]int)
 
 	if parent == nil {
 		c.logger.Error("parent is nil")
@@ -241,26 +237,6 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 						clauseUniteHashs[clauseUH] = 1
 					}
 
-					if (clause.Value().Sign() == 0) && (len(clause.Data()) > runtime.MinScriptEngDataLen) && runtime.ScriptEngineCheck(clause.Data()) {
-						data := clause.Data()[4:]
-						if bytes.Compare(data[:len(script.ScriptPattern)], script.ScriptPattern[:]) != 0 {
-							err := fmt.Errorf("Pattern mismatch, pattern = %v", hex.EncodeToString(data[:len(script.ScriptPattern)]))
-							fmt.Println(err)
-							//return nil, gas, err
-						}
-						scriptStruct, err := script.DecodeScriptData(data[len(script.ScriptPattern):])
-						if err != nil {
-							fmt.Println("Decode script message failed", err)
-							//return nil, gas, err
-						}
-
-						scriptUH := scriptStruct.UniteHash()
-						if _, ok := scriptUniteHashs[scriptUH]; ok {
-							scriptUniteHashs[scriptUH] += 1
-						} else {
-							scriptUniteHashs[scriptUH] = 1
-						}
-					}
 				}
 			}
 		}
@@ -305,26 +281,6 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 					}
 					clauseUniteHashs[clauseUH] -= 1
 
-					if (clause.Value().Sign() == 0) && (len(clause.Data()) > runtime.MinScriptEngDataLen) && runtime.ScriptEngineCheck(clause.Data()) {
-						data := clause.Data()[4:]
-						if !bytes.Equal(data[:len(script.ScriptPattern)], script.ScriptPattern[:]) {
-							err := fmt.Errorf("Pattern mismatch, pattern = %v", hex.EncodeToString(data[:len(script.ScriptPattern)]))
-							return consensusError(err.Error())
-						}
-
-						scriptStruct, err := script.DecodeScriptData(data[len(script.ScriptPattern):])
-						if err != nil {
-							fmt.Println("Decode script message failed", err)
-							return consensusError(err.Error())
-						}
-
-						scriptUH := scriptStruct.UniteHash()
-						if _, ok := scriptUniteHashs[scriptUH]; !ok {
-							return consensusError(fmt.Sprintf("proposed tx %s has script data not exist in local kblock, scriptUH:%s", tx.ID(), scriptUH))
-						}
-						scriptUniteHashs[scriptUH] -= 1
-
-					}
 				}
 
 			}
@@ -354,14 +310,6 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 		for key, value := range clauseUniteHashs {
 			if value < 0 {
 				return consensusError(fmt.Sprintf("local kblock has %v more clause with uniteHash: %v", value, key))
-			}
-		}
-	}
-
-	if len(scriptUniteHashs) != 0 {
-		for key, value := range scriptUniteHashs {
-			if value != 0 {
-				return consensusError(fmt.Sprintf("local kblock has %v more script data with uniteHash: %v", value, key))
 			}
 		}
 	}
@@ -480,27 +428,10 @@ func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, chainTag byte, bestNu
 	// build miner meter reward
 	txs := make([]*tx.Transaction, 0)
 
-	lastKBlockHeight := parentBlock.LastKBlockHeight()
-
 	// edison not support the staking/auciton/slashing
 	if meter.IsTesla(parentBlock.Number()) {
-		stats, err := governor.ComputeStatistics(lastKBlockHeight, parentBlock.Number(), r.chain, r.committee, r.blsMaster, !r.config.InitCfgdDelegates, uint32(r.curEpoch))
-		if err != nil {
-			// TODO: do something about this
-			r.logger.Error("compute stats error", "err", err)
-		}
-		if len(stats) > 0 {
-			statsTx := governor.BuildStatisticsTx(stats, chainTag, bestNum, curEpoch)
-			r.logger.Info(fmt.Sprintf("Built stats tx: %s", statsTx.ID().String()), "clauses", len(statsTx.Clauses()), "uhash", statsTx.UniteHash())
-			txs = append(txs, statsTx)
-		} else {
-			r.logger.Info("Stats empty, skip building stats tx", "from", lastKBlockHeight, "to", parentBlock.Number())
-		}
-		state, err := r.stateCreator.NewState(parentBlock.Header().StateRoot())
-		if tx := governor.BuildAuctionControlTx(uint64(best.Number()+1), uint64(best.GetBlockEpoch()+1), chainTag, bestNum, state, r.chain); tx != nil {
-			r.logger.Info(fmt.Sprintf("Built auction control tx: %s", tx.ID().String()), "clauses", len(tx.Clauses()), "uhash", tx.UniteHash())
-			txs = append(txs, tx)
-		}
+
+		state, _ := r.stateCreator.NewState(parentBlock.Header().StateRoot())
 
 		// exception for staging and testnet env
 		// otherwise (mainnet), build governing && autobid tx only when staking delegates is used
@@ -565,52 +496,13 @@ func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, chainTag byte, bestNu
 					autobidTotal.Add(autobidTotal, rinfo.AutobidAmount)
 				}
 				r.logger.Info("epoch MTR reward", "distTotal", distTotal, "autobidTotal", autobidTotal)
-				if meter.IsTeslaFork6(parentBlock.Number()) {
-					_, _, rewardV2List := rewardMap.ToList()
-					governingV2Tx := governor.BuildStakingGoverningV2Tx(rewardV2List, uint32(r.curEpoch), chainTag, bestNum)
-					if governingV2Tx != nil {
-						r.logger.Info(fmt.Sprintf("Built governV2 tx: %s", governingV2Tx.ID().String()), "clauses", len(governingV2Tx.Clauses()), "uhash", governingV2Tx.UniteHash())
-						txs = append(txs, governingV2Tx)
-					}
-				} else {
-					distList := rewardMap.GetDistList()
-					// fmt.Println("**** Distribute List")
-					// for _, d := range distList {
-					// 	fmt.Println(d.String())
-					// }
-					// fmt.Println("-------------------------")
 
-					governingTx := governor.BuildStakingGoverningTx(distList, uint32(r.curEpoch), chainTag, bestNum)
-					if governingTx != nil {
-						r.logger.Info(fmt.Sprintf("Built govern tx: %s", governingTx.ID().String()), "clauses", len(governingTx.Clauses()), "uhash", governingTx.UniteHash())
-						txs = append(txs, governingTx)
-					}
-
-					autobidList := rewardMap.GetAutobidList()
-					// fmt.Println("**** Autobid List")
-					// for _, a := range autobidList {
-					// 	fmt.Println(a.String())
-					// }
-					// fmt.Println("-------------------------")
-
-					autobidTxs := governor.BuildAutobidTxs(autobidList, chainTag, bestNum)
-					if len(autobidTxs) > 0 {
-						txs = append(txs, autobidTxs...)
-						for _, tx := range autobidTxs {
-							r.logger.Info(fmt.Sprintf("Built autobid tx: %s", tx.ID().String()), "clauses", len(tx.Clauses()), "uhash", tx.UniteHash())
-						}
-					}
-				}
 			} else {
 				r.logger.Info("reward map is empty, skip building govern & autobid tx")
 			}
 		}
 	}
 
-	if tx := governor.BuildAccountLockGoverningTx(chainTag, bestNum, curEpoch); tx != nil {
-		txs = append(txs, tx)
-		r.logger.Info(fmt.Sprintf("Built account lock tx: %s", tx.ID().String()), "clauses", len(tx.Clauses()), "uhash", tx.UniteHash())
-	}
 	r.logger.Info(fmt.Sprintf("Built KBlock with %d txs", len(txs)))
 	return txs
 }

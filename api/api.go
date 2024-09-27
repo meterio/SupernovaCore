@@ -12,26 +12,19 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/meterio/meter-pov/api/accountlock"
-	"github.com/meterio/meter-pov/api/accounts"
-	"github.com/meterio/meter-pov/api/auction"
 	"github.com/meterio/meter-pov/api/blocks"
-	"github.com/meterio/meter-pov/api/debug"
 	"github.com/meterio/meter-pov/api/doc"
 	"github.com/meterio/meter-pov/api/node"
 	"github.com/meterio/meter-pov/api/peers"
-	"github.com/meterio/meter-pov/api/slashing"
-	"github.com/meterio/meter-pov/api/staking"
 	"github.com/meterio/meter-pov/api/transactions"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/p2psrv"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 )
 
 // New return api router
-func New(reactor *consensus.Reactor, chain *chain.Chain, stateCreator *state.Creator, txPool *txpool.TxPool, nw node.Network, allowedOrigins string, backtraceLimit uint32, callGasLimit uint64, p2pServer *p2psrv.Server, pubKey string) (http.HandlerFunc, func()) {
+func New(reactor *consensus.Reactor, chain *chain.Chain, txPool *txpool.TxPool, nw node.Network, allowedOrigins string, backtraceLimit uint32, callGasLimit uint64, p2pServer *p2psrv.Server, pubKey string) (http.HandlerFunc, func()) {
 	origins := strings.Split(strings.TrimSpace(allowedOrigins), ",")
 	for i, o := range origins {
 		origins[i] = strings.ToLower(strings.TrimSpace(o))
@@ -53,26 +46,14 @@ func New(reactor *consensus.Reactor, chain *chain.Chain, stateCreator *state.Cre
 			http.Redirect(w, req, "doc/swagger-ui/", http.StatusTemporaryRedirect)
 		})
 
-	accounts.New(chain, stateCreator, callGasLimit).
-		Mount(router, "/accounts")
-
-	blocks.New(chain, stateCreator).
+	blocks.New(chain).
 		Mount(router, "/blocks")
-	transactions.New(chain, stateCreator, txPool).
+	transactions.New(chain, txPool).
 		Mount(router, "/transactions")
-	debug.New(chain, stateCreator).
-		Mount(router, "/debug")
+
 	node.New(nw, reactor, pubKey).
 		Mount(router, "/node")
 	peers.New(p2pServer).Mount(router, "/peers")
-	staking.New(chain, stateCreator).
-		Mount(router, "/staking")
-	slashing.New(chain, stateCreator).
-		Mount(router, "/slashing")
-	auction.New(chain, stateCreator).
-		Mount(router, "/auction")
-	accountlock.New(chain, stateCreator).
-		Mount(router, "/accountlock")
 
 	return handlers.CORS(
 			handlers.AllowedOrigins(origins),

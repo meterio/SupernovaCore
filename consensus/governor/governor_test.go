@@ -17,7 +17,6 @@ import (
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
-	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/xenv"
 )
@@ -172,9 +171,6 @@ func initRuntime() (*runtime.Runtime, *chain.Chain) {
 	st, _ := state.New(b0.Header().StateRoot(), kv)
 	seeker := c.NewSeeker(b0.ID())
 	meter.InitBlockChainConfig("main")
-	sc := state.NewCreator(kv)
-	se := script.NewScriptEngine(c, sc)
-	se.StartTeslaForkModules()
 
 	rt := runtime.New(seeker, st, &xenv.BlockContext{Time: uint64(time.Now().Unix())})
 
@@ -201,9 +197,6 @@ func initRuntimeAfterFork6() *runtime.Runtime {
 	st, _ := state.New(b0.Header().StateRoot(), kv)
 	seeker := c.NewSeeker(b0.ID())
 	meter.InitBlockChainConfig("main")
-	sc := state.NewCreator(kv)
-	se := script.NewScriptEngine(c, sc)
-	se.StartTeslaForkModules()
 
 	rt := runtime.New(seeker, st, &xenv.BlockContext{Time: uint64(time.Now().Unix()),
 		Number: meter.TeslaFork6_MainnetStartNum + 1})

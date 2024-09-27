@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
+	"github.com/cometbft/cometbft/proxy"
+	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/meterio/meter-pov/block"
@@ -25,8 +27,6 @@ import (
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/script"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
@@ -41,7 +41,6 @@ var (
 
 type Node struct {
 	goes    co.Goes
-	packer  *packer.Packer
 	reactor *consensus.Reactor
 
 	master      *types.Master
@@ -49,8 +48,9 @@ type Node struct {
 	txPool      *txpool.TxPool
 	txStashPath string
 	comm        *comm.Communicator
-	script      *script.ScriptEngine
 	logger      *slog.Logger
+
+	proxyApp cmtproxy.AppConns
 }
 
 func SetGlobNode(node *Node) bool {
@@ -66,25 +66,37 @@ func New(
 	reactor *consensus.Reactor,
 	master *types.Master,
 	chain *chain.Chain,
-	stateCreator *state.Creator,
 	txPool *txpool.TxPool,
 	txStashPath string,
 	comm *comm.Communicator,
-	script *script.ScriptEngine,
+	clientCreator cmtproxy.ClientCreator,
 ) *Node {
+	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
+	proxyApp, err := createAndStartProxyAppConns(clientCreator, cmtproxy.NopMetrics())
+	if err != nil {
+		panic(err)
+	}
 	node := &Node{
 		reactor:     reactor,
-		packer:      packer.New(chain, stateCreator, master.Address()),
 		master:      master,
 		chain:       chain,
 		txPool:      txPool,
 		txStashPath: txStashPath,
 		comm:        comm,
-		script:      script,
 		logger:      slog.With("pkg", "node"),
+		proxyApp:    proxyApp,
 	}
+
 	SetGlobNode(node)
 	return node
+}
+
+func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *cmtproxy.Metrics) (proxy.AppConns, error) {
+	proxyApp := proxy.NewAppConns(clientCreator, metrics)
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+	return proxyApp, nil
 }
 
 func (n *Node) Run(ctx context.Context) error {
@@ -368,12 +380,6 @@ func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert, re
 	fork, err := n.chain.AddBlock(newBlock, escortQC, receipts)
 	if err != nil {
 		return nil, err
-	}
-
-	if meter.IsMainNet() {
-		if newBlock.Number() == meter.TeslaMainnetStartNum {
-			script.EnterTeslaForkInit()
-		}
 	}
 
 	// skip logdb access if no txs

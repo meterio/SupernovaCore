@@ -25,9 +25,6 @@ import (
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/params"
 	"github.com/meterio/meter-pov/runtime/statedb"
-	"github.com/meterio/meter-pov/script"
-	"github.com/meterio/meter-pov/script/accountlock"
-	setypes "github.com/meterio/meter-pov/script/types"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	Tx "github.com/meterio/meter-pov/tx"
@@ -42,7 +39,6 @@ var (
 	prototypeSetMasterEvent       *abi.Event
 	nativeCallReturnGas           uint64 = 1562 // see test case for calculation
 	nativeCallReturnGasAfterFork6 uint64 = 1264
-	MinScriptEngDataLen           int    = 16 //script engine data min size
 
 	EmptyRuntimeBytecode = []byte{0x60, 0x60, 0x60, 0x40, 0x52, 0x60, 0x02, 0x56}
 	log                  = slog.Default().With("pkg", "rt")
@@ -186,14 +182,6 @@ func New(
 func (rt *Runtime) Seeker() *chain.Seeker       { return rt.seeker }
 func (rt *Runtime) State() *state.State         { return rt.state }
 func (rt *Runtime) Context() *xenv.BlockContext { return rt.ctx }
-func (rt *Runtime) ScriptEngineCheck(d []byte) bool {
-	return ScriptEngineCheck(d)
-}
-
-func ScriptEngineCheck(d []byte) bool {
-	return (d[0] == 0xff) && (d[1] == 0xff) && (d[2] == 0xff) && (d[3] == 0xff)
-}
-
 func (rt *Runtime) LoadERC20NativeCotract() {
 	blockNum := rt.Context().Number
 	addr := builtin.MeterTracker.Address
@@ -215,10 +203,6 @@ func (rt *Runtime) EnforceTelsaFork1_Corrections() {
 
 		if meter.IsTeslaFork1(blockNumber) && (enforceFlag == nil || enforceFlag.Sign() == 0) {
 			log.Info("Start fork1 correction")
-			// Tesla 1.1 Fork
-			script.EnforceTeslaFork1_Corrections(rt.State(), rt.Context().Time)
-			log.Info("Finished Tesla 1.0 Error Buckets correction")
-
 			builtin.Params.Native(rt.State()).Set(meter.KeyEnforceTesla1_Correction, big.NewInt(1))
 			log.Info("Finished fork1 correction")
 		}
@@ -238,9 +222,6 @@ func (rt *Runtime) EnforceTeslaFork5_Corrections() {
 			mtrgV1Addr := meter.MustParseAddress("0x228ebBeE999c6a7ad74A6130E81b12f9Fe237Ba3")
 			rt.state.SetCode(mtrgV1Addr, builtin.MeterGovERC20Permit_DeployedBytecode)
 			log.Info("Overriden MTRG with V2 bytecode", "addr", mtrgV1Addr.String())
-
-			script.EnforceTeslaFork5BonusCorrections(rt.State(), rt.Context().Time)
-			log.Info("Finished bonus correction")
 
 			targetAddress := meter.MustParseAddress("0x08ebea6584b3d9bf6fbcacf1a1507d00a61d95b7")
 			bal := rt.state.GetBalance(targetAddress)
@@ -270,7 +251,6 @@ func (rt *Runtime) EnforceTeslaFork6_Corrections() {
 		if blockNumber > meter.TeslaFork6_MainnetStartNum && (enforceFlag == nil || enforceFlag.Sign() == 0) {
 			// Tesla 6 Fork
 			log.Info("Start fork6 correction")
-			script.EnforceTeslaFork6_StakingCorrections(rt.State(), rt.Context().Time)
 			builtin.Params.Native(rt.State()).Set(meter.KeyEnforceTesla_Fork6_Correction, big.NewInt(1))
 			log.Info("Finished fork6 correction")
 		}
@@ -581,34 +561,6 @@ func (rt *Runtime) FromNativeContract(caller meter.Address) bool {
 
 	// non native contract call
 	return false
-}
-
-// retrict enforcement ONLY applies to meterGov, not meter
-func (rt *Runtime) restrictTransfer(stateDB *statedb.StateDB, addr meter.Address, amount *big.Int, token byte, blockNum uint32) bool {
-	restrict, _, lockMtrg := accountlock.RestrictByAccountLock(addr, rt.State())
-	// lock is not there or token meter
-	if restrict == false || token == meter.MTR {
-		return false
-	}
-
-	if meter.IsTeslaFork1(blockNum) {
-		// Tesla 1.1 Fork
-		// only take care meterGov, basic sanity
-		balance := stateDB.GetBalance(common.Address(addr))
-		if balance.Cmp(amount) < 0 {
-			return true
-		}
-
-		// ok to transfer: balance + boundBalance > profile-lock + amount
-		availabe := new(big.Int).Add(balance, stateDB.GetBoundedBalance(common.Address(addr)))
-		needed := new(big.Int).Add(lockMtrg, amount)
-
-		return availabe.Cmp(needed) < 0
-	} else {
-		// Tesla 1.0
-		needed := new(big.Int).Add(lockMtrg, amount)
-		return stateDB.GetBalance(common.Address(addr)).Cmp(needed) < 0
-	}
 }
 
 // SetVMConfig config VM.
@@ -935,45 +887,9 @@ func (rt *Runtime) PrepareClause(
 		vmErr         error
 		contractAddr  *meter.Address
 		interruptFlag uint32
-		seOutput      *setypes.ScriptEngineOutput
 	)
 
-	log := rt.logger
 	exec = func() (*Output, bool) {
-		// does not handle any transfer, it is a pure script running engine
-		if (clause.Value().Sign() == 0) && (len(clause.Data()) > MinScriptEngDataLen) && rt.ScriptEngineCheck(clause.Data()) {
-			se := script.GetScriptGlobInst()
-			if se == nil {
-				log.Error("script engine is not initialized")
-				return nil, true
-			}
-			// exclude 4 bytes of clause data
-			// fmt.Println("Exec Clause: ", hex.EncodeToString(clause.Data()))
-			senv := setypes.NewScriptEnv(rt.state, rt.ctx, txCtx, clauseIndex)
-			seOutput, leftOverGas, vmErr = se.HandleScriptData(senv, clause.Data()[4:], clause.To(), gas)
-			// fmt.Println("scriptEngine handling return", data, leftOverGas, vmErr)
-
-			var data []byte
-			if seOutput != nil {
-				data = seOutput.GetData()
-			}
-			interrupted := false
-			output := &Output{
-				Data:            data,
-				LeftOverGas:     leftOverGas,
-				RefundGas:       stateDB.GetRefund(),
-				VMErr:           vmErr,
-				ContractAddress: contractAddr,
-			}
-			if seOutput != nil {
-				output.Events = seOutput.GetEvents()
-				output.Transfers = seOutput.GetTransfers()
-			}
-			if output.VMErr != nil {
-				log.Info("Output with vmerr from script engine:", "vmerr", output.VMErr.Error())
-			}
-			return output, interrupted
-		}
 
 		// check meterNative after sysContract support
 		rt.LoadERC20NativeCotract()
@@ -998,25 +914,6 @@ func (rt *Runtime) PrepareClause(
 
 		// tesla fork11
 		rt.EnforceTeslaFork11_Corrections(stateDB, evm.BlockNumber, evm)
-
-		// check the restriction of transfer.
-		if rt.restrictTransfer(stateDB, txCtx.Origin, clause.Value(), clause.Token(), rt.ctx.Number) == true {
-			var leftOverGas uint64
-			if gas > meter.ClauseGas {
-				leftOverGas = gas - meter.ClauseGas
-			} else {
-				leftOverGas = 0
-			}
-
-			output := &Output{
-				Data:            []byte{},
-				LeftOverGas:     leftOverGas,
-				RefundGas:       stateDB.GetRefund(),
-				VMErr:           errors.New("account is restricted to transfer"),
-				ContractAddress: contractAddr,
-			}
-			return output, false
-		}
 
 		if clause.To() == nil {
 			var caddr common.Address

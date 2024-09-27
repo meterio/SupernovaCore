@@ -15,7 +15,6 @@ import (
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/pkg/errors"
 )
@@ -46,7 +45,7 @@ func (o *txObject) Origin() meter.Address {
 	return o.resolved.Origin
 }
 
-func (o *txObject) Executable(chain *chain.Chain, state *state.State, headBlock *block.Header) (bool, error) {
+func (o *txObject) Executable(chain *chain.Chain, headBlock *block.Header) (bool, error) {
 	if o == nil {
 		slog.Error("tx object is nil")
 		return false, errors.New("txobject is null")
@@ -83,12 +82,6 @@ func (o *txObject) Executable(chain *chain.Chain, state *state.State, headBlock 
 		return false, nil
 	}
 
-	checkpoint := state.NewCheckpoint()
-	defer state.RevertTo(checkpoint)
-
-	if _, _, _, _, err := o.resolved.BuyGas(state, headBlock.Timestamp()+meter.BlockInterval); err != nil {
-		return false, err
-	}
 	return true, nil
 }
 
