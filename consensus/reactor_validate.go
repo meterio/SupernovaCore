@@ -12,13 +12,11 @@ package consensus
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/consensus/governor"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/runtime"
 	"github.com/meterio/meter-pov/state"
@@ -196,107 +194,6 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 		c.logger.Error("parent is nil")
 		return errors.New("parent is nil")
 	}
-	if blk.IsKBlock() {
-		best := parent
-		chainTag := c.chain.Tag()
-		bestNum := c.chain.BestBlock().Number()
-		curEpoch := uint32(c.curEpoch)
-		// distribute the base reward
-		state, err := c.stateCreator.NewState(c.chain.BestBlock().Header().StateRoot())
-		if err != nil {
-			c.logger.Error("get state failed", "err", err.Error())
-			return err
-		}
-
-		// FIXME: check the current height with epoch start
-		// if it's larger than a threshold, then propose kblock
-		proposalKBlock := true
-		if proposalKBlock && forceValidate {
-			start := time.Now()
-			c.logger.Info("< Begin locally build KBlock txs for validation ")
-			kblockTxs := c.buildKBlockTxs(parent, chainTag, bestNum, curEpoch, best, state)
-			// for _, tx := range kblockTxs {
-			// 	fmt.Println("tx=", tx.ID(), ", uniteHash=", tx.UniteHash(), "gas", tx.Gas())
-			// }
-			c.logger.Info("> End locally build KBlock with %d txs", "txs", len(kblockTxs), "elapsed", meter.PrettyDuration(time.Since(start)))
-
-			// Decode.
-			for _, kblockTx := range kblockTxs {
-				txUH := kblockTx.UniteHash()
-				if _, ok := txUniteHashs[txUH]; ok {
-					txUniteHashs[txUH] += 1
-				} else {
-					txUniteHashs[txUH] = 1
-				}
-
-				for _, clause := range kblockTx.Clauses() {
-					clauseUH := clause.UniteHash()
-					if _, ok := clauseUniteHashs[clauseUH]; ok {
-						clauseUniteHashs[clauseUH] += 1
-					} else {
-						clauseUniteHashs[clauseUH] = 1
-					}
-
-				}
-			}
-		}
-	}
-
-	// Validate txs in proposal
-	for _, tx := range proposedTxs {
-		signer, err := tx.Signer()
-		if err != nil {
-			return consensusError(fmt.Sprintf("tx signer unavailable: %v", err))
-		}
-
-		if forceValidate {
-			if _, err = tx.EthTxValidate(); err != nil {
-				return err
-			}
-		}
-
-		// transaction critiers:
-		// 1. no signature (no signer)
-		// 2. only located in kblock.
-		if signer.IsZero() {
-			if !blk.IsKBlock() {
-				return consensusError("tx signer 0x00..00 can only exist in KBlocks")
-			}
-
-			if forceValidate {
-				c.logger.Info("validating kblock tx", "tx", tx.ID().String(), "uhash", tx.UniteHash().String(), "gas", tx.Gas())
-
-				// Validate.
-				txUH := tx.UniteHash()
-				if _, ok := txUniteHashs[txUH]; !ok {
-					return consensusError(fmt.Sprintf("proposed tx %s don't exist in local kblock, uhash:%s", tx.ID(), txUH))
-				}
-				txUniteHashs[txUH] -= 1
-
-				for _, clause := range tx.Clauses() {
-					clauseUH := clause.UniteHash()
-
-					if _, ok := clauseUniteHashs[clauseUH]; !ok {
-						return consensusError(fmt.Sprintf("proposed tx %s has clause not exist in local kblock, clauseUH:%s", tx.ID(), clauseUH))
-					}
-					clauseUniteHashs[clauseUH] -= 1
-
-				}
-
-			}
-		}
-
-		switch {
-		case tx.ChainTag() != c.chain.Tag():
-			return consensusError(fmt.Sprintf("tx chain tag mismatch: want %v, have %v", c.chain.Tag(), tx.ChainTag()))
-		case header.Number() < tx.BlockRef().Number():
-			return consensusError(fmt.Sprintf("tx ref future block: ref %v, current %v", tx.BlockRef().Number(), header.Number()))
-		case tx.IsExpired(header.Number()):
-			return consensusError(fmt.Sprintf("tx expired: ref %v, current %v, expiration %v", tx.BlockRef().Number(), header.Number(), tx.Expiration()))
-			// case tx.HasReservedFields():
-			// return consensusError(fmt.Sprintf("tx reserved fields not empty"))
-		}
-	}
 
 	if len(txUniteHashs) != 0 {
 		for key, value := range txUniteHashs {
@@ -422,87 +319,4 @@ func (c *Reactor) VerifyBlock(blk *block.Block, state *state.State, forceValidat
 	}
 
 	return stage, receipts, nil
-}
-
-func (r *Reactor) buildKBlockTxs(parentBlock *block.Block, chainTag byte, bestNum uint32, curEpoch uint32, best *block.Block, state *state.State) tx.Transactions {
-	// build miner meter reward
-	txs := make([]*tx.Transaction, 0)
-
-	// edison not support the staking/auciton/slashing
-	if meter.IsTesla(parentBlock.Number()) {
-
-		state, _ := r.stateCreator.NewState(parentBlock.Header().StateRoot())
-
-		// exception for staging and testnet env
-		// otherwise (mainnet), build governing && autobid tx only when staking delegates is used
-		if meter.IsStaging() || meter.IsTestNet() || r.delegateSource != fromDelegatesFile {
-			benefitRatio := governor.GetValidatorBenefitRatio(state)
-			validatorBaseReward := governor.GetValidatorBaseRewards(state)
-			epochBaseReward := governor.ComputeEpochBaseReward(validatorBaseReward)
-			nDays := meter.NDays
-			nAuctionPerDay := meter.NEpochPerDay // wrong number before hardfork
-			nDays = meter.NDaysV2
-			nAuctionPerDay = meter.NAuctionPerDay
-			summaryList := state.GetSummaryList()
-			epochTotalReward, err := governor.ComputeEpochTotalReward(benefitRatio, nDays, nAuctionPerDay, summaryList)
-			if err != nil {
-				epochTotalReward = big.NewInt(0)
-			}
-			var rewardMap governor.RewardMap
-			if meter.IsTeslaFork2(parentBlock.Number()) {
-				// if staging or "locked" testnet
-				// "locked" testnet means when minimum delegates is not met, testnet will have to load delegates from file
-				// and this means all distributor lists of delegate is empty
-				// and then rewardMap is always 0
-				// now it won't build governing tx, and delegates never get re-calced
-				// then it's locked
-				if meter.IsStaging() || (meter.IsTestNet() && r.delegateSource == fromDelegatesFile) {
-					// use staking delegates for calculation during staging
-					best := r.chain.BestBlock()
-					delegates, _ := r.getDelegatesFromStaking(best)
-					if err != nil {
-						r.logger.Error("get delegates from staking FAILED", "err", err)
-					}
-
-					r.logger.Info("Loaded delegateList from staking for staging/testnet only", "len", len(delegates))
-					if len(delegates) < r.config.MinCommitteeSize {
-						delegates = r.config.InitDelegates
-						r.logger.Info("Loaded delegateList from init for staging/testnet only", "len", len(delegates))
-					}
-					// skip member check for delegates in ComputeRewardMapV3
-					r.logger.Info("Compute reward map")
-					rewardMap, err = governor.ComputeRewardMap(epochBaseReward, epochTotalReward, delegates, true)
-				} else {
-					r.logger.Info("Compute reward map V3")
-					rewardMap, err = governor.ComputeRewardMapV3(epochBaseReward, epochTotalReward, r.curDelegates, r.committee)
-				}
-			} else {
-				r.logger.Info("Compute reward map v2")
-				rewardMap, err = governor.ComputeRewardMapV2(epochBaseReward, epochTotalReward, r.curDelegates, r.committee)
-			}
-
-			/*
-				fmt.Println("*** Reward Map ***")
-				_, _, rewardList := rewardMap.ToList()
-				for _, r := range rewardList {
-					fmt.Println(r.String())
-				}
-			*/
-			if err == nil && len(rewardMap) > 0 {
-				distTotal := big.NewInt(0)
-				autobidTotal := big.NewInt(0)
-				for _, rinfo := range rewardMap {
-					distTotal.Add(distTotal, rinfo.DistAmount)
-					autobidTotal.Add(autobidTotal, rinfo.AutobidAmount)
-				}
-				r.logger.Info("epoch MTR reward", "distTotal", distTotal, "autobidTotal", autobidTotal)
-
-			} else {
-				r.logger.Info("reward map is empty, skip building govern & autobid tx")
-			}
-		}
-	}
-
-	r.logger.Info(fmt.Sprintf("Built KBlock with %d txs", len(txs)))
-	return txs
 }

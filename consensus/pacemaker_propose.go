@@ -278,19 +278,12 @@ func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *bl
 	qc := justify.QC
 	best := parentBlock
 
-	// startTime := time.Now()
-
-	chainTag := p.reactor.chain.Tag()
-	bestNum := p.reactor.chain.BestBlock().Number()
-	curEpoch := uint32(p.reactor.curEpoch)
 	// distribute the base reward
 	state, err := p.reactor.stateCreator.NewState(p.reactor.chain.BestBlock().Header().StateRoot())
 	if err != nil {
 		// panic("get state failed")
 		return errors.New("state creater not ready"), nil
 	}
-
-	txs := p.reactor.buildKBlockTxs(parentBlock, chainTag, bestNum, curEpoch, best, state)
 
 	pker := p.reactor.packer
 	if pker == nil {
@@ -308,22 +301,6 @@ func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *bl
 
 	//create checkPoint before build block
 	checkPoint := state.NewCheckpoint()
-
-	for _, tx := range txs {
-		start := time.Now()
-		if err := flow.Adopt(tx); err != nil {
-			if packer.IsGasLimitReached(err) {
-				p.logger.Warn("tx thrown away due to gas limit", "txid", tx.ID())
-				break
-			}
-			if packer.IsTxNotAdoptableNow(err) {
-				p.logger.Warn("tx not adoptable", "txid", tx.ID())
-				continue
-			}
-			p.logger.Warn("kBlock flow.Adopt(tx) failed...", "txid", tx.ID(), "elapsed", meter.PrettyDuration(time.Since(start)), "error", err)
-		}
-		p.logger.Debug("adopted tx", "tx", tx.ID(), "elapsed", meter.PrettyDuration(time.Since(start)))
-	}
 
 	newBlock, stage, receipts, err := flow.Pack(&p.reactor.myPrivKey, block.KBlockType, p.reactor.lastKBlockHeight)
 	if err != nil {
