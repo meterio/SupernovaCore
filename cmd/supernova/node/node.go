@@ -51,15 +51,6 @@ type Node struct {
 	proxyApp cmtproxy.AppConns
 }
 
-func SetGlobNode(node *Node) bool {
-	GlobNodeInst = node
-	return true
-}
-
-func GetGlobNode() *Node {
-	return GlobNodeInst
-}
-
 func New(
 	reactor *consensus.Reactor,
 	chain *chain.Chain,
@@ -83,7 +74,6 @@ func New(
 		proxyApp:    proxyApp,
 	}
 
-	SetGlobNode(node)
 	return node
 }
 

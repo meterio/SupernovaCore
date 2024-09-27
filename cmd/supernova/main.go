@@ -40,7 +40,6 @@ import (
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
 	"github.com/meterio/meter-pov/preset"
 	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/trie"
@@ -337,8 +336,8 @@ func defaultAction(ctx *cli.Context) error {
 
 	proxyApp := cmtproxy.NewLocalClientCreator(NewDumbApplication())
 	stateCreator := state.NewCreator(mainDB)
-	pker := packer.New(chain, blsMaster, stateCreator)
-	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, pker, stateCreator, consensusMagic, blsMaster, initDelegates)
+
+	reactor := consensus.NewConsensusReactor(ctx, chain, p2pcom.comm, txPool, stateCreator, consensusMagic, blsMaster, initDelegates)
 	// calculate committee so that relay is not an issue
 
 	apiHandler, apiCloser := api.New(reactor, chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv)

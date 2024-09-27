@@ -104,7 +104,7 @@ type Reactor struct {
 }
 
 // NewConsensusReactor returns a new Reactor with config
-func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, packer *packer.Packer, state *state.Creator, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
+func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, stateCreator *state.Creator, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(lastKBlockHeightGauge)
@@ -112,12 +112,13 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 	prometheus.Register(inCommitteeGauge)
 	prometheus.Register(pmRoleGauge)
 
+	packer := packer.New(chain, blsMaster, stateCreator)
 	r := &Reactor{
 		comm:         comm,
 		txpool:       txpool,
 		packer:       packer,
 		chain:        chain,
-		stateCreator: state,
+		stateCreator: stateCreator,
 		logger:       slog.With("pkg", "r"),
 		SyncDone:     false,
 		magic:        magic,

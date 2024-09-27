@@ -1139,11 +1139,10 @@ func syncVerifyAction(ctx *cli.Context) error {
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	cons := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	for i := uint32(fromNum); i < uint32(toNum); i++ {
 		b, _ := meterChain.GetTrunkBlock(i)
@@ -1193,10 +1192,9 @@ func verifyBlockAction(ctx *cli.Context) error {
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
@@ -1293,10 +1291,9 @@ func runLocalBlockAction(ctx *cli.Context) error {
 
 	start := time.Now()
 	initDelegates := types.LoadDelegatesFile(ctx, blsMaster)
-	pker := packer.New(meterChain, blsMaster, stateCreator)
 	txPool := txpool.New(meterChain, state.NewCreator(mainDB), defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, pker, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
+	reactor := consensus.NewConsensusReactor(ctx, meterChain, nil /* empty communicator */, txPool, stateCreator, [4]byte{0x0, 0x0, 0x0, 0x0}, blsMaster, initDelegates)
 
 	var blk *block.Block
 	var err error
