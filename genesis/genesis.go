@@ -11,7 +11,6 @@ import (
 	"github.com/meterio/meter-pov/abi"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 )
 
@@ -27,8 +26,8 @@ type Genesis struct {
 }
 
 // Build build the genesis block.
-func (g *Genesis) Build(stateCreator *state.Creator) (*block.Block, tx.Events, error) {
-	blk, events, err := g.builder.Build(stateCreator)
+func (g *Genesis) Build() (*block.Block, tx.Events, error) {
+	blk, events, err := g.builder.Build()
 	if err != nil {
 		return nil, nil, err
 	}

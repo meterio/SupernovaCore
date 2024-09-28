@@ -12,7 +12,6 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
 )
 
 var (
@@ -134,44 +133,26 @@ func loadBlockNumberIndexTrieRoot(r kv.Getter, id meter.Bytes32) (meter.Bytes32,
 }
 
 // saveTxMeta save locations of a tx.
-func saveTxMeta(w kv.Putter, txID meter.Bytes32, meta []TxMeta) error {
+func saveTxMeta(w kv.Putter, txID []byte, meta []TxMeta) error {
 	return saveRLP(w, append(txMetaPrefix, txID[:]...), meta)
 }
 
-func deleteTxMeta(w kv.Putter, txID meter.Bytes32) error {
+func deleteTxMeta(w kv.Putter, txID []byte) error {
 	return w.Delete(append(txMetaPrefix, txID[:]...))
 }
 
 // loadTxMeta load tx meta info by tx id.
-func hasTxMeta(r kv.Getter, txID meter.Bytes32) (bool, error) {
+func hasTxMeta(r kv.Getter, txID []byte) (bool, error) {
 	return r.Has(append(txMetaPrefix, txID[:]...))
 }
 
 // loadTxMeta load tx meta info by tx id.
-func loadTxMeta(r kv.Getter, txID meter.Bytes32) ([]TxMeta, error) {
+func loadTxMeta(r kv.Getter, txID []byte) ([]TxMeta, error) {
 	var meta []TxMeta
 	if err := loadRLP(r, append(txMetaPrefix, txID[:]...), &meta); err != nil {
 		return nil, err
 	}
 	return meta, nil
-}
-
-// saveBlockReceipts save tx receipts of a block.
-func saveBlockReceipts(w kv.Putter, blockID meter.Bytes32, receipts tx.Receipts) error {
-	return saveRLP(w, append(blockReceiptsPrefix, blockID[:]...), receipts)
-}
-
-func deleteBlockReceipts(w kv.Putter, blockID meter.Bytes32) error {
-	return w.Delete(append(blockReceiptsPrefix, blockID[:]...))
-}
-
-// loadBlockReceipts load tx receipts of a block.
-func loadBlockReceipts(r kv.Getter, blockID meter.Bytes32) (tx.Receipts, error) {
-	var receipts tx.Receipts
-	if err := loadRLP(r, append(blockReceiptsPrefix, blockID[:]...), &receipts); err != nil {
-		return nil, err
-	}
-	return receipts, nil
 }
 
 func deleteBlock(rw kv.GetPutter, blockID meter.Bytes32) (*block.Block, error) {
@@ -186,15 +167,10 @@ func deleteBlock(rw kv.GetPutter, blockID meter.Bytes32) (*block.Block, error) {
 	}
 
 	for _, tx := range blk.Transactions() {
-		err = deleteTxMeta(rw, tx.ID())
+		err = deleteTxMeta(rw, tx.Hash())
 		if err != nil {
 			return blk, err
 		}
-	}
-
-	err = deleteBlockReceipts(rw, blockID)
-	if err != nil {
-		return blk, err
 	}
 
 	err = deleteBlockRaw(rw, blockID)

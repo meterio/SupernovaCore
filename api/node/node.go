@@ -10,19 +10,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/meterio/meter-pov/api/utils"
-	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/meter"
 )
 
 type Node struct {
-	nw      Network
-	reactor *consensus.Reactor
+	nw Network
 }
 
-func New(nw Network, reactor *consensus.Reactor) *Node {
+func New(nw Network) *Node {
 	return &Node{
 		nw,
-		reactor,
 	}
 }
 
@@ -32,15 +29,6 @@ func (n *Node) PeersStats() []*PeerStats {
 
 func (n *Node) handleNetwork(w http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(w, n.PeersStats())
-}
-
-func (n *Node) handleCommittee(w http.ResponseWriter, req *http.Request) error {
-	list, err := n.reactor.GetLatestCommitteeList()
-	if err != nil {
-		return err
-	}
-	committeeList := convertCommitteeList(list)
-	return utils.WriteJSON(w, committeeList)
 }
 
 func (n *Node) handleGetChainId(w http.ResponseWriter, req *http.Request) error {
@@ -54,6 +42,5 @@ func (n *Node) Mount(root *mux.Router, pathPrefix string) {
 	sub := root.PathPrefix(pathPrefix).Subrouter()
 
 	sub.Path("/network/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleNetwork))
-	sub.Path("/consensus/committee").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleCommittee))
 	sub.Path("/chainid").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleGetChainId))
 }

@@ -7,15 +7,10 @@ package genesis
 
 import (
 	"crypto/ecdsa"
-	"math/big"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/meterio/meter-pov/builtin"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/tx"
-	"github.com/meterio/meter-pov/vm"
 )
 
 // DevAccount account for development.
@@ -61,46 +56,9 @@ func DevAccounts() []DevAccount {
 func NewDevnet() *Genesis {
 	launchTime := uint64(1526400000) // 'Wed May 16 2018 00:00:00 GMT+0800 (CST)'
 
-	executor := DevAccounts()[0].Address
-
 	builder := new(Builder).
 		GasLimit(meter.InitialGasLimit).
-		Timestamp(launchTime).
-		State(func(state *state.State) error {
-			// alloc precompiled contracts
-			for addr := range vm.PrecompiledContractsByzantium {
-				state.SetCode(meter.Address(addr), emptyRuntimeBytecode)
-			}
-
-			// setup builtin contracts
-			state.SetCode(builtin.Meter.Address, builtin.Meter.RuntimeBytecodes())
-			state.SetCode(builtin.MeterGov.Address, builtin.MeterGov.RuntimeBytecodes())
-			state.SetCode(builtin.MeterTracker.Address, builtin.MeterTracker.RuntimeBytecodes())
-			state.SetCode(builtin.Params.Address, builtin.Params.RuntimeBytecodes())
-			state.SetCode(builtin.Prototype.Address, builtin.Prototype.RuntimeBytecodes())
-			state.SetCode(builtin.Extension.Address, builtin.Extension.RuntimeBytecodes())
-
-			tokenSupply := &big.Int{}
-			energySupply := &big.Int{}
-			for _, a := range DevAccounts() {
-				bal, _ := new(big.Int).SetString("1000000000000000000000000000", 10)
-				state.SetBalance(a.Address, bal)
-				state.SetEnergy(a.Address, bal)
-				tokenSupply.Add(tokenSupply, bal)
-				energySupply.Add(energySupply, bal)
-			}
-			builtin.MeterTracker.Native(state).SetInitialSupply(tokenSupply, energySupply)
-			return nil
-		}).
-		Call(
-			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyExecutorAddress, new(big.Int).SetBytes(executor[:]))),
-			meter.Address{}).
-		Call(
-			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyBaseGasPrice, meter.InitialBaseGasPrice)),
-			executor).
-		Call(
-			tx.NewClause(&builtin.Params.Address).WithData(mustEncodeInput(builtin.Params.ABI, "set", meter.KeyProposerEndorsement, meter.InitialProposerEndorsement)),
-			executor)
+		Timestamp(launchTime)
 
 	id, err := builder.ComputeID()
 	if err != nil {

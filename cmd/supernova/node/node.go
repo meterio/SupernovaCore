@@ -10,6 +10,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
 	"runtime"
 	"sort"
 	"time"
@@ -22,15 +24,17 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/cache"
 	"github.com/meterio/meter-pov/chain"
+	"github.com/meterio/meter-pov/cmd/supernova/probe"
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/comm"
 	"github.com/meterio/meter-pov/consensus"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/meter-pov/types"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 var (
@@ -52,18 +56,25 @@ type Node struct {
 }
 
 func New(
-	reactor *consensus.Reactor,
+	version string,
 	chain *chain.Chain,
+	blsMaster *types.BlsMaster,
 	txPool *txpool.TxPool,
 	txStashPath string,
 	comm *comm.Communicator,
 	clientCreator cmtproxy.ClientCreator,
+	config consensus.ReactorConfig,
 ) *Node {
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp, err := createAndStartProxyAppConns(clientCreator, cmtproxy.NopMetrics())
 	if err != nil {
 		panic(err)
 	}
+
+	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
+
+	startObserveServer(reactor, version, blsMaster.GetPublicKey(), comm, chain)
+
 	node := &Node{
 		reactor:     reactor,
 		chain:       chain,
@@ -75,6 +86,46 @@ func New(
 	}
 
 	return node
+}
+
+func startObserveServer(cons *consensus.Reactor, version string, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain) (string, func()) {
+	addr := ":8670"
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+	}
+	probe := &probe.Probe{cons, blsPubKey, chain, version, nw}
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/probe", probe.HandleProbe)
+	mux.HandleFunc("/probe/version", probe.HandleVersion)
+	mux.HandleFunc("/probe/peers", probe.HandlePeers)
+
+	// dispatch the msg to reactor/pacemaker
+	mux.HandleFunc("/pacemaker", cons.OnReceiveMsg)
+
+	srv := &http.Server{
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	var goes co.Goes
+	goes.Go(func() {
+		err := srv.Serve(listener)
+		if err != nil {
+			if err != http.ErrServerClosed {
+				fmt.Println("observe server stopped, error:", err)
+			}
+		}
+
+	})
+	return "http://" + listener.Addr().String() + "/", func() {
+		err := srv.Close()
+		if err != nil {
+			fmt.Println("can't close observe http service, error:", err)
+		}
+		goes.Wait()
+	}
 }
 
 func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *cmtproxy.Metrics) (proxy.AppConns, error) {
@@ -107,7 +158,7 @@ func (n *Node) printStats(duration time.Duration) {
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
 			// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-			n.logger.Info("<Stats>", "peerSet", n.comm.PeerCount(), "rawBlocksCache", n.chain.RawBlocksCacheLen(), "receiptsCache", n.chain.ReceiptsCacheLen(), "stateCache", state.CacheLen(), "inQueue", n.reactor.IncomingQueueLen(), "outQueue", n.reactor.OutgoingQueueLen(), "txPool", n.txPool.Len())
+			n.logger.Info("<Stats>", "peerSet", n.comm.PeerCount(), "rawBlocksCache", n.chain.RawBlocksCacheLen(), "receiptsCache", "inQueue", n.reactor.IncomingQueueLen(), "outQueue", n.reactor.OutgoingQueueLen(), "txPool", n.txPool.Len())
 			n.logger.Info("<Memory>", "alloc", meter.PrettyStorage(m.Alloc), "sys", meter.PrettyStorage(m.Sys), "numGC", m.NumGC)
 			if counter%10 == 0 {
 				runtime.GC()
@@ -261,7 +312,7 @@ func (n *Node) txStashLoop(ctx context.Context) {
 	{
 		txs := stash.LoadAll()
 		bestBlock := n.chain.BestBlock()
-		n.txPool.Fill(txs, func(txID meter.Bytes32) bool {
+		n.txPool.Fill(txs, func(txID []byte) bool {
 			if _, err := n.chain.GetTransactionMeta(txID, bestBlock.ID()); err != nil {
 				return false
 			} else {
@@ -287,16 +338,15 @@ func (n *Node) txStashLoop(ctx context.Context) {
 			}
 			// only stash non-executable txs
 			if err := stash.Save(txEv.Tx); err != nil {
-				n.logger.Warn("stash tx", "id", txEv.Tx.ID(), "err", err)
+				n.logger.Warn("stash tx", "id", txEv.Tx.Hash(), "err", err)
 			} else {
-				n.logger.Debug("stashed tx", "id", txEv.Tx.ID())
+				n.logger.Debug("stashed tx", "id", txEv.Tx.Hash())
 			}
 		}
 	}
 }
 
 func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats *blockStats) (bool, error) {
-	startTime := mclock.Now()
 	now := uint64(time.Now().Unix())
 
 	best := n.chain.BestBlock()
@@ -310,7 +360,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		}
 	}
 	start := time.Now()
-	stage, receipts, err := n.reactor.ProcessSyncedBlock(blk, now)
+	err := n.reactor.ProcessSyncedBlock(blk, now)
 	if time.Since(start) > time.Millisecond*500 {
 		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", meter.PrettyDuration(time.Since(start)))
 	}
@@ -318,10 +368,9 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	if err != nil {
 		switch {
 		case consensus.IsKnownBlock(err):
-			stats.UpdateIgnored(1)
 			return false, nil
 		case consensus.IsFutureBlock(err) || consensus.IsParentMissing(err):
-			stats.UpdateQueued(1)
+			return false, nil
 		case consensus.IsCritical(err):
 			msg := fmt.Sprintf(`failed to process block due to consensus failure \n%v\n`, blk.Header())
 			n.logger.Error(msg, "err", err)
@@ -331,23 +380,9 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		return false, err
 	}
 
-	execElapsed := mclock.Now() - startTime
-
-	if _, err := stage.Commit(); err != nil {
-		n.logger.Error("failed to commit state", "err", err)
-		return false, err
-	}
-
-	fork, err := n.commitBlock(blk, escortQC, receipts)
-	if err != nil {
-		if !n.chain.IsBlockExist(err) {
-			n.logger.Error("failed to commit block", "err", err)
-		}
-		return false, err
-	}
-	commitElapsed := mclock.Now() - startTime - execElapsed
-	stats.UpdateProcessed(1, len(receipts), execElapsed, commitElapsed, blk.Header().GasUsed())
-	n.processFork(fork)
+	stats.UpdateProcessed(1, len(blk.Txs))
+	// FIXME: process fork
+	// n.processFork(fork)
 
 	// shortcut to refresh epoch
 	updated, _ := n.reactor.UpdateCurEpoch()
@@ -357,13 +392,15 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		n.reactor.SchedulePacemakerRegulate()
 	}
 	// end of shortcut
-	return len(fork.Trunk) > 0, nil
+	// return len(fork.Trunk) > 0, nil
+	//  FIXME: help
+	return true, nil
 }
 
-func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert, receipts tx.Receipts) (*chain.Fork, error) {
+func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*chain.Fork, error) {
 	start := time.Now()
 	// fmt.Println("Calling AddBlock from node.commitBlock, newBlock=", newBlock.ID())
-	fork, err := n.chain.AddBlock(newBlock, escortQC, receipts)
+	fork, err := n.chain.AddBlock(newBlock, escortQC)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +444,7 @@ branch:   %v  %v`, fork.Ancestor,
 		}
 		for _, tx := range body.Txs {
 			if err := n.txPool.Add(tx); err != nil {
-				n.logger.Debug("failed to add tx to tx pool", "err", err, "id", tx.ID())
+				n.logger.Debug("failed to add tx to tx pool", "err", err, "id", tx.Hash())
 			}
 		}
 	}

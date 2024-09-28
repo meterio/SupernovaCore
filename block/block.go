@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/tx"
@@ -41,18 +42,6 @@ type Violation struct {
 	MsgHash    [32]byte
 	Signature1 []byte
 	Signature2 []byte
-}
-
-type PowRawBlock []byte
-
-type KBlockData struct {
-	Nonce uint64 // the last of the pow block
-}
-
-func (d KBlockData) ToString() string {
-	hexs := make([]string, 0)
-
-	return fmt.Sprintf("KBlockData(Nonce:%v, Data:%v)", d.Nonce, strings.Join(hexs, ","))
 }
 
 type CommitteeInfo struct {
@@ -89,7 +78,6 @@ type Block struct {
 	Txs            tx.Transactions
 	QC             *QuorumCert
 	CommitteeInfos CommitteeInfos
-	KBlockData     KBlockData
 	Magic          [4]byte
 	cache          struct {
 		size atomic.Uint64
@@ -240,37 +228,9 @@ func (b *Block) IsMBlock() bool {
 	return b.BlockHeader.BlockType() == MBlockType
 }
 
-// TotalScore returns total score that cumulated from genesis block to this one.
-func (b *Block) TotalScore() uint64 {
-	return b.BlockHeader.TotalScore()
-}
-
-// GasLimit returns gas limit of this block.
-func (b *Block) GasLimit() uint64 {
-	return b.BlockHeader.GasLimit()
-}
-
-// GasUsed returns gas used by txs.
-func (b *Block) GasUsed() uint64 {
-	return b.BlockHeader.GasUsed()
-}
-
 // TxsRoot returns merkle root of txs contained in this block.
 func (b *Block) TxsRoot() meter.Bytes32 {
 	return b.BlockHeader.TxsRoot()
-}
-
-// StateRoot returns account state merkle root just afert this block being applied.
-func (b *Block) StateRoot() meter.Bytes32 {
-	if b != nil && b.BlockHeader != nil {
-		return b.BlockHeader.StateRoot()
-	}
-	return meter.Bytes32{}
-}
-
-// ReceiptsRoot returns merkle root of tx receipts.
-func (b *Block) ReceiptsRoot() meter.Bytes32 {
-	return b.BlockHeader.ReceiptsRoot()
 }
 
 func (b *Block) Signer() (signer meter.Address, err error) {
@@ -284,7 +244,7 @@ func (b *Block) Transactions() tx.Transactions {
 
 // Body returns body of a block.
 func (b *Block) Body() *Body {
-	return &Body{append(tx.Transactions(nil), b.Txs...)}
+	return &Body{append(make([]cmttypes.Tx, 0), b.Txs...)}
 }
 
 // EncodeRLP implements rlp.Encoder.
@@ -296,7 +256,6 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		b.BlockHeader,
 		b.Txs,
-		b.KBlockData,
 		b.CommitteeInfos,
 		b.QC,
 		b.Magic,
@@ -313,7 +272,6 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	payload := struct {
 		Header         Header
 		Txs            tx.Transactions
-		KBlockData     KBlockData
 		CommitteeInfos CommitteeInfos
 		QC             *QuorumCert
 		Magic          [4]byte
@@ -326,7 +284,6 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	*b = Block{
 		BlockHeader:    &payload.Header,
 		Txs:            payload.Txs,
-		KBlockData:     payload.KBlockData,
 		CommitteeInfos: payload.CommitteeInfos,
 		QC:             payload.QC,
 		Magic:          payload.Magic,
@@ -361,9 +318,6 @@ func (b *Block) String() string {
   BlockHeader: %v
   QuorumCert:  %v
   Transactions: %v`, canonicalName, b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
-
-	s += fmt.Sprintf(`
-  KBlockData:    %v`, b.KBlockData.ToString())
 
 	if len(b.CommitteeInfos.CommitteeInfo) > 0 {
 		s += fmt.Sprintf(`
@@ -433,16 +387,6 @@ func (b *Block) GetQC() *QuorumCert {
 	return b.QC
 }
 
-// Serialization for KBlockData and ComitteeInfo
-func (b *Block) GetKBlockData() (*KBlockData, error) {
-	return &b.KBlockData, nil
-}
-
-func (b *Block) SetKBlockData(data KBlockData) error {
-	b.KBlockData = data
-	return nil
-}
-
 func (b *Block) GetCommitteeEpoch() uint64 {
 	return b.CommitteeInfos.Epoch
 }
@@ -499,6 +443,10 @@ func (b *Block) SetBlockSignature(sig []byte) error {
 	return nil
 }
 
+func (b *Block) Nonce() uint64 {
+	return b.Header().Nonce()
+}
+
 // --------------
 func BlockEncodeBytes(blk *Block) []byte {
 	blockBytes, err := rlp.EncodeToBytes(blk)
@@ -531,6 +479,6 @@ func (b *Block) VotingHash() [32]byte {
 		"Height", hex.EncodeToString(h),
 		"BlockID", b.ID().String(),
 		"TxRoot", b.TxsRoot().String(),
-		"StateRoot", b.StateRoot().String())
+	)
 	return sha256.Sum256([]byte(msg))
 }

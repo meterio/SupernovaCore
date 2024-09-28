@@ -10,7 +10,6 @@ import (
 
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/state"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,9 +17,8 @@ func TestTestnetGenesis(t *testing.T) {
 	kv, _ := lvldb.NewMem()
 	gene := genesis.NewTestnet()
 
-	b0, _, err := gene.Build(state.NewCreator(kv))
+	b0, _, err := gene.Build()
 	assert.Nil(t, err)
 
-	_, err = state.New(b0.Header().StateRoot(), kv)
 	assert.Nil(t, err)
 }

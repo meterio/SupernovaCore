@@ -17,11 +17,11 @@ import (
 
 // PeerStats records stats of a peer.
 type PeerStats struct {
-	Name        string
-	BestBlockID meter.Bytes32
-	TotalScore  uint64
-	PeerID      string
-	NetAddr     string
-	Inbound     bool
-	Duration    uint64 // in seconds
+	Name         string
+	BestBlockID  meter.Bytes32
+	BestBlockNum uint32
+	PeerID       string
+	NetAddr      string
+	Inbound      bool
+	Duration     uint64 // in seconds
 }

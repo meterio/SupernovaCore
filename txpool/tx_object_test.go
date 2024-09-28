@@ -18,14 +18,13 @@ import (
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/stretchr/testify/assert"
 )
 
 func newChain(kv kv.GetPutter) *chain.Chain {
 	gene := genesis.NewDevnet()
-	b0, _, _ := gene.Build(state.NewCreator(kv))
+	b0, _, _ := gene.Build()
 	chain, _ := chain.New(kv, b0, false)
 	return chain
 }
@@ -86,7 +85,6 @@ func TestExecutable(t *testing.T) {
 	b1.SetQC(&qc1)
 	escortQC := &block.QuorumCert{QCHeight: b1.Number(), QCRound: b1.QC.QCRound + 1, EpochID: b1.QC.EpochID, VoterMsgHash: b1.VotingHash()}
 	chain.AddBlock(b1, escortQC, nil)
-	st, _ := state.New(chain.GenesisBlock().Header().StateRoot(), kv)
 
 	tests := []struct {
 		tx          *tx.Transaction
@@ -104,7 +102,7 @@ func TestExecutable(t *testing.T) {
 		txObj, err := resolveTx(tt.tx)
 		assert.Nil(t, err)
 
-		exe, err := txObj.Executable(chain, st, b1.Header())
+		exe, err := txObj.Executable(chain, b1.Header())
 		if tt.expectedErr != "" {
 			assert.Equal(t, tt.expectedErr, err.Error())
 		} else {

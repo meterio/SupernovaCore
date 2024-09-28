@@ -55,7 +55,7 @@ func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
 }
 
 func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.DraftBlock, tc *types.TimeoutCert) (*block.PMProposalMessage, error) {
-	raw, err := rlp.EncodeToBytes(bnew.ProposedBlock)
+	raw, err := rlp.EncodeToBytes(bnew)
 	if err != nil {
 		return nil, err
 	}

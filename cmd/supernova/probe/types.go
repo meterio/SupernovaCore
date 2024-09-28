@@ -102,7 +102,7 @@ func convertBlock(b *block.Block) (*Block, error) {
 		BlockType:        blockType,
 		LastKBlockHeight: header.LastKBlockHeight(),
 		HasCommitteeInfo: len(b.CommitteeInfos.CommitteeInfo) > 0,
-		Nonce:            b.KBlockData.Nonce,
+		Nonce:            b.Nonce(),
 	}
 	var err error
 	if b.QC != nil {
@@ -140,13 +140,13 @@ type Network interface {
 }
 
 type PeerStats struct {
-	Name        string        `json:"name"`
-	BestBlockID meter.Bytes32 `json:"bestBlockID"`
-	TotalScore  uint64        `json:"totalScore"`
-	PeerID      string        `json:"peerID"`
-	NetAddr     string        `json:"netAddr"`
-	Inbound     bool          `json:"inbound"`
-	Duration    uint64        `json:"duration"`
+	Name         string        `json:"name"`
+	BestBlockID  meter.Bytes32 `json:"bestBlockID"`
+	BestBlockNum uint32        `json:"bestBlockNum"`
+	PeerID       string        `json:"peerID"`
+	NetAddr      string        `json:"netAddr"`
+	Inbound      bool          `json:"inbound"`
+	Duration     uint64        `json:"duration"`
 }
 
 func ConvertPeersStats(ss []*comm.PeerStats) []*PeerStats {
@@ -156,13 +156,13 @@ func ConvertPeersStats(ss []*comm.PeerStats) []*PeerStats {
 	peersStats := make([]*PeerStats, len(ss))
 	for i, peerStats := range ss {
 		peersStats[i] = &PeerStats{
-			Name:        peerStats.Name,
-			BestBlockID: peerStats.BestBlockID,
-			TotalScore:  peerStats.TotalScore,
-			PeerID:      peerStats.PeerID,
-			NetAddr:     peerStats.NetAddr,
-			Inbound:     peerStats.Inbound,
-			Duration:    peerStats.Duration,
+			Name:         peerStats.Name,
+			BestBlockID:  peerStats.BestBlockID,
+			BestBlockNum: peerStats.BestBlockNum,
+			PeerID:       peerStats.PeerID,
+			NetAddr:      peerStats.NetAddr,
+			Inbound:      peerStats.Inbound,
+			Duration:     peerStats.Duration,
 		}
 	}
 	return peersStats

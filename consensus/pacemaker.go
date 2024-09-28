@@ -6,20 +6,22 @@
 package consensus
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"sync"
 	"time"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
+	cmttypes "github.com/cometbft/cometbft/types"
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
+	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/types"
 )
 
@@ -74,9 +76,8 @@ type Pacemaker struct {
 	broadcastTimer *time.Timer
 
 	//
-	newTxCh              chan meter.Bytes32
+	newTxCh              chan []byte
 	curProposal          *block.DraftBlock
-	curFlow              *packer.Flow
 	txsAddedAfterPropose int
 }
 
@@ -113,32 +114,26 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		targetTime = now
 	}
 
-	// propose SBlock only if I'm still in the epoch
-	proposeStopCommitteeBlock := (parentBlock.IsKBlock() || parentBlock.IsSBlock()) && p.reactor.curEpoch == parentBlock.QC.EpochID
-	if proposeStopCommitteeBlock {
-		grandFather := p.chain.GetDraftByEscortQC(parentBlock.QC)
-		if grandFather != nil {
-			grandGrandFather := p.chain.GetDraftByEscortQC(grandFather.ProposedBlock.QC)
-			if grandGrandFather != nil && grandGrandFather.ProposedBlock.IsKBlock() {
-				p.logger.Info(fmt.Sprintf("skip proposing SBlock on R:%v due to grand grand father is KBlock", round))
-				return errors.New("skip proposing SBlock due to grand grand father is kblock"), nil
-			}
-		}
-		p.logger.Info(fmt.Sprintf("proposing SBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
-		return p.buildStopCommitteeBlock(uint64(targetTime.Unix()), parent, justify, round)
+	res, err := p.reactor.proxyApp.Consensus().PrepareProposal(context.TODO(), &v1.PrepareProposalRequest{Height: int64(parent.Height) + 1})
+	if err != nil {
+		return err, nil
 	}
 
+	// FIXME: handle epoch chagne
 	proposeKBlock := false
 
+	var txs tx.Transactions
+	for _, txBytes := range res.Txs {
+		txs = append(txs, cmttypes.Tx(txBytes))
+	}
 	// propose appropriate block info
 	if proposeKBlock {
 		// TODO: check if this nonce is correct
 		codeHash := crypto.Keccak256(parent.ProposedBlock.ID().Bytes())
 		nonce := binary.LittleEndian.Uint64(codeHash[:8])
 		parent.ProposedBlock.ID()
-		kblockData := &block.KBlockData{Nonce: nonce}
 		p.logger.Info(fmt.Sprintf("proposing KBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
-		return p.buildKBlock(uint64(targetTime.Unix()), parent, justify, round, kblockData)
+		return p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, nonce, txs, block.KBlockType)
 	} else {
 		if !parent.ProposedBlock.IsKBlock() { // only check round if parent is not KBlock
 			if p.reactor.curEpoch != 0 && round != 0 && round <= justify.QC.QCRound {
@@ -151,7 +146,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 			}
 		}
 		p.logger.Info(fmt.Sprintf("proposing MBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
-		err, draftBlock := p.buildMBlock(uint64(targetTime.Unix()), parent, justify, round)
+		err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs, block.MBlockType)
 		if time.Now().Before(targetTime) {
 			d := time.Until(targetTime)
 			p.logger.Info("sleep until", "targetTime", targetTime, "for", meter.PrettyDuration(d))
@@ -241,13 +236,6 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) {
 				} else {
 					p.logger.Warn("commit failed !!!", "err", err)
 				}
-				//revert to checkpoint
-				best := p.reactor.chain.BestBlock()
-				state, err := p.reactor.stateCreator.NewState(best.Header().StateRoot())
-				if err != nil {
-					panic(fmt.Sprintf("revert the state faild ... %v", err))
-				}
-				state.RevertTo(blk.CheckPoint)
 			} else {
 				if blk != nil && blk.ProposedBlock != nil {
 					p.logger.Debug(fmt.Sprintf("block %d already in chain", blk.ProposedBlock.Number()), "id", blk.ProposedBlock.ShortID())
@@ -259,7 +247,7 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) {
 
 		if err != chain.ErrBlockExist && err != errKnownBlock {
 			if blk.ProposedBlock.IsKBlock() {
-				if blk.ProposedBlock.QC.EpochID >= p.reactor.curEpoch && blk.ProposedBlock.KBlockData.Nonce != p.reactor.curNonce {
+				if blk.ProposedBlock.QC.EpochID >= p.reactor.curEpoch && blk.ProposedBlock.Nonce() != p.reactor.curNonce {
 					p.logger.Info("committed a kblock, schedule regulate", "height", blk.Height, "round", blk.Round)
 					p.scheduleRegulate()
 				} else {
@@ -462,6 +450,7 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 }
 
 func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock {
+
 	parent := p.chain.GetDraftByEscortQC(qc.QC)
 	err, bnew := p.CreateLeaf(parent, qc, round)
 	if err != nil {
@@ -708,9 +697,6 @@ CleanBroadcastCh:
 }
 
 func (p *Pacemaker) OnBroadcastProposal() {
-	if p.txsAddedAfterPropose > 0 {
-		p.packMBlock()
-	}
 	if p.curProposal == nil {
 		p.logger.Warn("proposal is empty, skip broadcasting ...")
 		return
@@ -786,7 +772,7 @@ func (p *Pacemaker) mainLoop() {
 			}
 			p.OnRoundTimeout(ti)
 		case newTxID := <-p.newTxCh:
-			if p.reactor.inCommittee && p.reactor.amIRoundProproser(p.currentRound) && p.curFlow != nil && p.curProposal != nil && p.curProposal.ProposedBlock != nil && p.curProposal.ProposedBlock.BlockHeader != nil && p.curProposal.Round == p.currentRound {
+			if p.reactor.inCommittee && p.reactor.amIRoundProproser(p.currentRound) && p.curProposal != nil && p.curProposal.ProposedBlock != nil && p.curProposal.ProposedBlock.BlockHeader != nil && p.curProposal.Round == p.currentRound {
 				if time.Since(p.roundStartedAt) < ProposeTimeLimit {
 					p.AddTxToCurProposal(newTxID)
 				}

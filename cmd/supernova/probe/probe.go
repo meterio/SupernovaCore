@@ -6,51 +6,27 @@
 package probe
 
 import (
-	"bytes"
 	"encoding/hex"
 	"net/http"
-	"strings"
 
 	"github.com/meterio/meter-pov/api/utils"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/consensus"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 type Probe struct {
-	Cons         *consensus.Reactor
-	BlsPubKey    bls.PublicKey
-	Chain        *chain.Chain
-	Version      string
-	Network      Network
-	StateCreator *state.Creator
+	Cons      *consensus.Reactor
+	BlsPubKey bls.PublicKey
+	Chain     *chain.Chain
+	Version   string
+	Network   Network
 }
 
 func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 	name := ""
 	pubkeyMatch := false
-	best := p.Chain.BestBlock()
-	state, err := p.StateCreator.NewState(best.StateRoot())
-	var delegateList *meter.DelegateList
-	if err != nil {
-		delegateList = meter.NewDelegateList([]*meter.Delegate{})
-	} else {
-		delegateList = state.GetDelegateList()
-	}
 
-	inDelegateList := false
-	for _, d := range delegateList.Delegates {
-		registeredPK := hex.EncodeToString(d.PubKey)
-		trimedPK := strings.TrimSpace(registeredPK)
-		if strings.Compare(trimedPK, hex.EncodeToString(p.BlsPubKey.Marshal())) == 0 {
-			name = string(d.Name)
-			pubkeyMatch = bytes.Equal(d.PubKey, p.BlsPubKey.Marshal())
-			inDelegateList = true
-			break
-		}
-	}
 	bestBlock, _ := convertBlock(p.Chain.BestBlock())
 	bestQC, _ := convertQC(p.Chain.BestQC())
 	pmProbe := p.Cons.PacemakerProbe()
@@ -73,7 +49,7 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 		CommitteeSize:   uint32(pmProbe.CommitteeSize),
 		CommitteeIndex:  uint32(pmProbe.CommitteeIndex),
 
-		InDelegateList: inDelegateList,
+		InDelegateList: true, // FIXME: correct value
 		BestQC:         bestQC.Height,
 		BestBlock:      bestBlock.Number,
 		Pacemaker:      pacemaker,

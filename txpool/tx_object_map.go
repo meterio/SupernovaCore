@@ -6,7 +6,7 @@
 package txpool
 
 import (
-	"errors"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -18,21 +18,21 @@ import (
 // txObjectMap to maintain mapping of ID to tx object, and account quota.
 type txObjectMap struct {
 	lock     sync.RWMutex
-	txObjMap map[meter.Bytes32]*txObject
+	txObjMap map[string]*txObject
 	quota    map[meter.Address]int
 }
 
 func newTxObjectMap() *txObjectMap {
 	return &txObjectMap{
-		txObjMap: make(map[meter.Bytes32]*txObject),
+		txObjMap: make(map[string]*txObject),
 		quota:    make(map[meter.Address]int),
 	}
 }
 
-func (m *txObjectMap) Contains(txID meter.Bytes32) bool {
+func (m *txObjectMap) Contains(txId []byte) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	_, found := m.txObjMap[txID]
+	_, found := m.txObjMap[hex.EncodeToString(txId)]
 	return found
 }
 
@@ -40,38 +40,28 @@ func (m *txObjectMap) Add(txObj *txObject, limitPerAccount int) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, found := m.txObjMap[txObj.ID()]; found {
+	if _, found := m.txObjMap[hex.EncodeToString(txObj.Hash())]; found {
 		return nil
 	}
 
-	if m.quota[txObj.Origin()] >= limitPerAccount {
-		return errors.New("account quota exceeded")
-	}
-
-	m.quota[txObj.Origin()]++
-	m.txObjMap[txObj.ID()] = txObj
-	slog.Debug(fmt.Sprintf("added tx %s", txObj.ID()), "poolSize", len(m.txObjMap))
+	m.txObjMap[hex.EncodeToString(txObj.Hash())] = txObj
+	slog.Debug(fmt.Sprintf("added tx %s", hex.EncodeToString(txObj.Hash())), "poolSize", len(m.txObjMap))
 	return nil
 }
 
-func (m *txObjectMap) GetByID(id meter.Bytes32) *txObject {
+func (m *txObjectMap) GetByID(id []byte) *txObject {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.txObjMap[id]
+	return m.txObjMap[hex.EncodeToString(id)]
 }
 
-func (m *txObjectMap) Remove(txID meter.Bytes32) bool {
+func (m *txObjectMap) Remove(txId []byte) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if txObj, ok := m.txObjMap[txID]; ok {
-		if m.quota[txObj.Origin()] > 1 {
-			m.quota[txObj.Origin()]--
-		} else {
-			delete(m.quota, txObj.Origin())
-		}
-		delete(m.txObjMap, txID)
-		slog.Debug("removed tx", "id", txID, "mapSize", len(m.txObjMap))
+	if _, ok := m.txObjMap[hex.EncodeToString(txId)]; ok {
+		delete(m.txObjMap, hex.EncodeToString(txId))
+		slog.Debug("removed tx", "id", txId, "mapSize", len(m.txObjMap))
 		return true
 	}
 	return false
@@ -94,7 +84,7 @@ func (m *txObjectMap) ToTxs() tx.Transactions {
 
 	txs := make(tx.Transactions, 0, len(m.txObjMap))
 	for _, txObj := range m.txObjMap {
-		txs = append(txs, txObj.Transaction)
+		txs = append(txs, txObj.Tx)
 	}
 	return txs
 }
@@ -103,13 +93,12 @@ func (m *txObjectMap) Fill(txObjs []*txObject) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	for _, txObj := range txObjs {
-		if _, found := m.txObjMap[txObj.ID()]; found {
+		if _, found := m.txObjMap[hex.EncodeToString(txObj.Hash())]; found {
 			continue
 		}
 		// skip account limit check
 
-		m.quota[txObj.Origin()]++
-		m.txObjMap[txObj.ID()] = txObj
+		m.txObjMap[hex.EncodeToString(txObj.Hash())] = txObj
 	}
 }
 

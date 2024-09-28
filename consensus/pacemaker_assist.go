@@ -7,13 +7,14 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
 	"github.com/meterio/meter-pov/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -74,40 +75,10 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 		return nil
 	}
 
-	var txsInBlk []*tx.Transaction
+	var txsInBlk []cmttypes.Tx
 	for _, tx := range blk.Transactions() {
 		txsInBlk = append(txsInBlk, tx)
 	}
-	var txsToRemoved, returnTxsToPool func()
-	if b.ProposedBlock.IsKBlock() {
-		txsToRemoved = func() {}
-		returnTxsToPool = func() {}
-	} else {
-		txsToRemoved = func() {
-			for _, tx := range txsInBlk {
-				pool.Remove(tx.ID())
-			}
-		}
-		returnTxsToPool = func() {
-			for _, tx := range txsInBlk {
-				// only return txs if they are not in database
-				meta, err := p.chain.GetTrunkTransactionMeta(tx.ID())
-				if meta == nil || err != nil {
-					pool.Add(tx)
-				}
-			}
-		}
-	}
-
-	checkpointStart := time.Now()
-	//create checkPoint before validate block
-	state, err := p.reactor.stateCreator.NewState(p.reactor.chain.BestBlock().Header().StateRoot())
-	if err != nil {
-		p.logger.Error("revert state failed ...", "height", blk.Number(), "id", blk.ID(), "error", err)
-		return nil
-	}
-	checkPoint := state.NewCheckpoint()
-	checkpointElapsed := time.Since(checkpointStart)
 
 	// make sure tx does not exist in draft cache
 	if len(blk.Transactions()) > 0 {
@@ -115,13 +86,13 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 		tmp := parent
 		for tmp != nil && !tmp.Committed {
 			for _, knownTx := range tmp.ProposedBlock.Transactions() {
-				txsInCache[knownTx.ID().String()] = true
+				txsInCache[hex.EncodeToString(knownTx.Hash())] = true
 			}
 			tmp = p.chain.GetDraft(tmp.ProposedBlock.ParentID())
 		}
 		for _, tx := range blk.Transactions() {
-			if _, existed := txsInCache[tx.ID().String()]; existed {
-				p.logger.Error("tx already existed in cache", "id", tx.ID(), "containedInBlock", parent.ProposedBlock.ID())
+			if _, existed := txsInCache[hex.EncodeToString(tx.Hash())]; existed {
+				p.logger.Error("tx already existed in cache", "id", tx.Hash(), "containedInBlock", parent.ProposedBlock.ID())
 				return errors.New("tx already existed in cache")
 
 			}
@@ -130,7 +101,7 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 
 	processStart := time.Now()
 	now := uint64(time.Now().Unix())
-	stage, receipts, err := p.reactor.ProcessProposedBlock(parentBlock, blk, now)
+	err := p.reactor.ProcessProposedBlock(parentBlock, blk, now)
 	if err != nil && err != errKnownBlock {
 		p.logger.Error("process proposed failed", "proposed", blk.Oneliner(), "err", err)
 		b.SuccessProcessed = false
@@ -139,33 +110,12 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	}
 	processElapsed := time.Since(processStart)
 
-	stageCommitStart := time.Now()
-	if stage == nil {
-		// FIXME: probably should not handle this proposal any more
-		p.logger.Warn("Empty stage !!!")
-		p.logger.Error("empty stage", "err", err)
-	} else if _, err := stage.Commit(); err != nil {
-		p.logger.Warn("commit stage failed: ", "err", err)
-		b.SuccessProcessed = false
-		b.ProcessError = err
-		return err
-	}
-	stageCommitElapsed := time.Since(stageCommitStart)
-
 	// p.logger.Info(fmt.Sprintf("cached %s", blk.ID().ToBlockShortID()))
 
-	b.Stage = stage
-	b.Receipts = &receipts
-	b.CheckPoint = checkPoint
-	b.ReturnTxsToPool = returnTxsToPool
 	b.SuccessProcessed = true
 	b.ProcessError = err
 
-	txRemoveStart := time.Now()
-	txsToRemoved()
-	txRemoveElapsed := time.Since(txRemoveStart)
-
-	p.logger.Info(fmt.Sprintf("validated proposal %s R:%v, %v, txs:%d", b.ProposedBlock.GetCanonicalName(), b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", meter.PrettyDuration(time.Since(start)), "checkpointElapsed", meter.PrettyDuration(checkpointElapsed), "processElapsed", meter.PrettyDuration(processElapsed), "stageCommitElapsed", meter.PrettyDuration(stageCommitElapsed), "txRemoveElapsed", meter.PrettyDuration(txRemoveElapsed))
+	p.logger.Info(fmt.Sprintf("validated proposal %s R:%v, %v, txs:%d", b.ProposedBlock.GetCanonicalName(), b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", meter.PrettyDuration(time.Since(start)), "processElapsed", meter.PrettyDuration(processElapsed))
 	return nil
 }
 

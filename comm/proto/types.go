@@ -8,6 +8,7 @@ package proto
 import (
 	"context"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
@@ -20,7 +21,7 @@ type (
 		GenesisBlockID meter.Bytes32
 		SysTimestamp   uint64
 		BestBlockID    meter.Bytes32
-		TotalScore     uint64
+		BestBlockNum   uint32
 	}
 )
 
@@ -59,7 +60,7 @@ func NotifyNewBlock(ctx context.Context, rpc RPC, block *block.EscortedBlock) er
 }
 
 // NotifyNewTx notify new tx to remote peer.
-func NotifyNewTx(ctx context.Context, rpc RPC, tx *tx.Transaction) error {
+func NotifyNewTx(ctx context.Context, rpc RPC, tx cmttypes.Tx) error {
 	return rpc.Notify(ctx, MsgNewTx, tx)
 }
 

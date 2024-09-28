@@ -13,6 +13,7 @@ import (
 	"github.com/meterio/meter-pov/comm/proto"
 	"github.com/meterio/meter-pov/meter"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -40,8 +41,8 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 		write(&proto.Status{
 			GenesisBlockID: c.chain.GenesisBlock().ID(),
 			SysTimestamp:   uint64(time.Now().Unix()),
-			TotalScore:     best.TotalScore(),
 			BestBlockID:    best.ID(),
+			BestBlockNum:   best.Number(),
 		})
 	case proto.MsgNewBlock:
 		var newBlock *block.EscortedBlock
@@ -51,7 +52,7 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 
 		c.logger.Debug(fmt.Sprintf(`notify in: NewBlock(%s) from %s`, newBlock.Block.ShortID(), meter.Addr2IP(peer.RemoteAddr())))
 		peer.MarkBlock(newBlock.Block.ID())
-		peer.UpdateHead(newBlock.Block.ID(), newBlock.Block.TotalScore())
+		peer.UpdateHead(newBlock.Block.ID(), newBlock.Block.Number())
 		c.newBlockFeed.Send(&NewBlockEvent{EscortedBlock: newBlock})
 		write(&struct{}{})
 	case proto.MsgNewBlockID:
@@ -68,12 +69,12 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 		}
 		write(&struct{}{})
 	case proto.MsgNewTx:
-		var newTx *tx.Transaction
+		var newTx cmttypes.Tx
 		if err := msg.Decode(&newTx); err != nil {
 			return errors.WithMessage(err, "decode msg")
 		}
-		c.logger.Debug(fmt.Sprintf(`notify in: NewTx(%s) from %s`, newTx.ID(), meter.Addr2IP(peer.RemoteAddr())))
-		peer.MarkTransaction(newTx.ID())
+		c.logger.Debug(fmt.Sprintf(`notify in: NewTx(%s) from %s`, newTx.Hash(), meter.Addr2IP(peer.RemoteAddr())))
+		peer.MarkTransaction(newTx.Hash())
 		c.txPool.StrictlyAdd(newTx)
 		write(&struct{}{})
 	case proto.MsgGetBlockByID:
@@ -190,21 +191,16 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 
 			var (
 				toSend tx.Transactions
-				size   uint64
 				n      int
 			)
 
 			for _, tx := range txsToSync.txs {
 				n++
-				if peer.IsTransactionKnown(tx.ID()) {
+				if peer.IsTransactionKnown(tx.Hash()) {
 					continue
 				}
-				peer.MarkTransaction(tx.ID())
+				peer.MarkTransaction(tx.Hash())
 				toSend = append(toSend, tx)
-				size += tx.Size()
-				if size >= maxTxSyncSize {
-					break
-				}
 			}
 
 			txsToSync.txs = txsToSync.txs[n:]

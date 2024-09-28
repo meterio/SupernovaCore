@@ -55,8 +55,8 @@ type Peer struct {
 	// knownPowBlocks *lru.Cache
 	head struct {
 		sync.Mutex
-		id         meter.Bytes32
-		totalScore uint64
+		id     meter.Bytes32
+		number uint32
 	}
 }
 
@@ -96,23 +96,24 @@ func newPeer(peer *p2p.Peer, rw p2p.MsgReadWriter, magic [4]byte) (*Peer, string
 }
 
 // Head returns head block ID and total score.
-func (p *Peer) Head() (id meter.Bytes32, totalScore uint64) {
+func (p *Peer) Head() (id meter.Bytes32, number uint32) {
 	p.head.Lock()
 	defer p.head.Unlock()
-	return p.head.id, p.head.totalScore
+	return p.head.id, p.head.number
 }
 
 // UpdateHead update ID and total score of head block.
-func (p *Peer) UpdateHead(id meter.Bytes32, totalScore uint64) {
+func (p *Peer) UpdateHead(id meter.Bytes32, number uint32) {
 	p.head.Lock()
 	defer p.head.Unlock()
-	if totalScore > p.head.totalScore {
-		p.head.id, p.head.totalScore = id, totalScore
+	if number > p.head.number {
+		p.head.id = id
+		p.head.number = number
 	}
 }
 
 // MarkTransaction marks a transaction to known.
-func (p *Peer) MarkTransaction(id meter.Bytes32) {
+func (p *Peer) MarkTransaction(id []byte) {
 	p.knownTxs.Add(id, struct{}{})
 }
 
@@ -126,7 +127,7 @@ func (p *Peer) MarkBlock(id meter.Bytes32) {
 }
 
 // IsTransactionKnown returns if the transaction is known.
-func (p *Peer) IsTransactionKnown(id meter.Bytes32) bool {
+func (p *Peer) IsTransactionKnown(id []byte) bool {
 	return p.knownTxs.Contains(id)
 }
 

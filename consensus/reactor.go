@@ -27,8 +27,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
-	cli "gopkg.in/urfave/cli.v1"
 
+	cmtproxy "github.com/cometbft/cometbft/proxy"
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/meter-pov/block"
@@ -36,8 +36,6 @@ import (
 	"github.com/meterio/meter-pov/comm"
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/meterio/meter-pov/types"
 )
@@ -63,14 +61,13 @@ type ReactorConfig struct {
 // -----------------------------------------------------------------------------
 // Reactor defines a reactor for the consensus service.
 type Reactor struct {
-	txpool       *txpool.TxPool
-	comm         *comm.Communicator
-	packer       *packer.Packer
-	chain        *chain.Chain
-	stateCreator *state.Creator
-	logger       *slog.Logger
-	config       ReactorConfig
-	SyncDone     bool
+	txpool   *txpool.TxPool
+	comm     *comm.Communicator
+	chain    *chain.Chain
+	logger   *slog.Logger
+	config   ReactorConfig
+	SyncDone bool
+	proxyApp cmtproxy.AppConns
 
 	// copy of master/node
 	myPubKey  bls.PublicKey // this is my public identification !!
@@ -104,7 +101,7 @@ type Reactor struct {
 }
 
 // NewConsensusReactor returns a new Reactor with config
-func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, stateCreator *state.Creator, magic [4]byte, blsMaster *types.BlsMaster, initDelegates []*types.Delegate) *Reactor {
+func NewConsensusReactor(config ReactorConfig, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(lastKBlockHeightGauge)
@@ -112,34 +109,22 @@ func NewConsensusReactor(ctx *cli.Context, chain *chain.Chain, comm *comm.Commun
 	prometheus.Register(inCommitteeGauge)
 	prometheus.Register(pmRoleGauge)
 
-	packer := packer.New(chain, blsMaster, stateCreator)
 	r := &Reactor{
-		comm:         comm,
-		txpool:       txpool,
-		packer:       packer,
-		chain:        chain,
-		stateCreator: stateCreator,
-		logger:       slog.With("pkg", "r"),
-		SyncDone:     false,
-		magic:        magic,
-		inCommittee:  false,
-		knownIPs:     make(map[string]string),
+		comm:        comm,
+		txpool:      txpool,
+		chain:       chain,
+		logger:      slog.With("pkg", "r"),
+		SyncDone:    false,
+		magic:       [4]byte{0x01, 0x02, 0x03, 0x04},
+		inCommittee: false,
+		knownIPs:    make(map[string]string),
+		config:      config,
+		proxyApp:    proxyApp,
 
 		inQueue:  NewIncomingQueue(),
 		outQueue: NewOutgoingQueue(),
 
 		blsMaster: blsMaster,
-	}
-
-	if ctx != nil {
-		r.config = ReactorConfig{
-			InitCfgdDelegates: ctx.Bool("init-configured-delegates"),
-			EpochMBlockCount:  uint32(ctx.Uint("epoch-mblock-count")),
-			MinCommitteeSize:  ctx.Int("committee-min-size"),
-			MaxCommitteeSize:  ctx.Int("committee-max-size"),
-			MaxDelegateSize:   ctx.Int("delegate-max-size"),
-			InitDelegates:     initDelegates,
-		}
 	}
 
 	// initialize consensus common
@@ -410,7 +395,7 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 	if bestK.Number() == 0 {
 		nonce = genesis.GenesisNonce
 	} else {
-		nonce = bestK.KBlockData.Nonce
+		nonce = bestK.Nonce()
 		epoch = bestK.GetBlockEpoch() + 1
 	}
 	if epoch >= r.curEpoch && r.curNonce != nonce {
@@ -442,7 +427,7 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 				if err != nil {
 					r.logger.Error("could not get trunk block", "err", err)
 				} else {
-					lastNonce = lastBestK.KBlockData.Nonce
+					lastNonce = lastBestK.Nonce()
 				}
 			}
 
@@ -632,7 +617,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	if b.IsKBlock() && b.Number() > 0 && b.Number() >= r.chain.BestBlock().Number() && meter.IsStaging() {
 		bestK, _ := r.chain.BestKBlock()
 		lastBestK, _ := r.chain.GetTrunkBlock(bestK.LastKBlockHeight())
-		_, lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.curDelegates, lastBestK.KBlockData.Nonce)
+		_, lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.curDelegates, lastBestK.Nonce())
 		valid, err = b.VerifyQC(escortQC, r.blsMaster, lastStagingCommitee)
 		if valid && err == nil {
 			validQCs.Add(qcID, true)

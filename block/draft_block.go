@@ -2,9 +2,6 @@ package block
 
 import (
 	"fmt"
-
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/tx"
 )
 
 // definition for DraftBlock
@@ -19,12 +16,6 @@ type DraftBlock struct {
 
 	// local derived data structure, re-exec all txs and get
 	// states. If states are match proposer, then vote, otherwise decline.
-
-	// executed results
-	Stage           *state.Stage
-	Receipts        *tx.Receipts
-	ReturnTxsToPool func()
-	CheckPoint      int
 
 	SuccessProcessed bool
 	ProcessError     error

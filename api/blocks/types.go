@@ -9,8 +9,6 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
@@ -28,8 +26,6 @@ type JSONBlockSummary struct {
 	TotalScore       uint64             `json:"totalScore"`
 	TxsRoot          meter.Bytes32      `json:"txsRoot"`
 	TxsFeatures      uint32             `json:"txsFeatures"`
-	StateRoot        meter.Bytes32      `json:"stateRoot"`
-	ReceiptsRoot     meter.Bytes32      `json:"receiptsRoot"`
 	Signer           meter.Address      `json:"signer"`
 	IsTrunk          bool               `json:"isTrunk"`
 	BlockType        string             `json:"blockType"`
@@ -38,13 +34,11 @@ type JSONBlockSummary struct {
 	QC               *QC                `json:"qc"`
 	Nonce            uint64             `json:"nonce"`
 	Epoch            uint64             `json:"epoch"`
-	LogsBloom        string             `json:"logsBloom"`
-	BaseFeePerGas    uint64             `json:"baseFeePerGas"`
 }
 
 type JSONCollapsedBlock struct {
 	*JSONBlockSummary
-	Transactions []meter.Bytes32 `json:"transactions"`
+	Transactions []string `json:"transactions"`
 }
 
 type JSONClause struct {
@@ -74,36 +68,8 @@ type JSONOutput struct {
 }
 
 type JSONEmbeddedTx struct {
-	ID           meter.Bytes32       `json:"id"`
-	ChainTag     byte                `json:"chainTag"`
-	BlockRef     string              `json:"blockRef"`
-	Expiration   uint32              `json:"expiration"`
-	Clauses      []*JSONClause       `json:"clauses"`
-	GasPriceCoef uint8               `json:"gasPriceCoef"`
-	Gas          uint64              `json:"gas"`
-	GasPrice     uint64              `json:"gasPrice"`
-	Origin       meter.Address       `json:"origin"`
-	Delegator    *meter.Address      `json:"delegator"`
-	Nonce        math.HexOrDecimal64 `json:"nonce"`
-	DependsOn    *meter.Bytes32      `json:"dependsOn"`
-	Size         uint32              `json:"size"`
-
-	// receipt part
-	GasUsed  uint64                `json:"gasUsed"`
-	GasPayer meter.Address         `json:"gasPayer"`
-	Paid     *math.HexOrDecimal256 `json:"paid"`
-	Reward   *math.HexOrDecimal256 `json:"reward"`
-	Reverted bool                  `json:"reverted"`
-	Outputs  []*JSONOutput         `json:"outputs"`
-	V        *math.HexOrDecimal256 `json:"v"`
-	R        *math.HexOrDecimal256 `json:"r"`
-	S        *math.HexOrDecimal256 `json:"s"`
-
-	Type byte `json:"type"`
-	// only exist on type-2 tx
-	ChainId              *math.HexOrDecimal256 `json:"chainId"`
-	MaxFeePerGas         *math.HexOrDecimal256 `json:"maxFeePerGas"`
-	MaxPriorityFeePerGas *math.HexOrDecimal256 `json:"maxPriorityFeePerGas"`
+	Hash string `json:"hash"`
+	Raw  string `json:"chainTag"`
 }
 
 type JSONEpoch struct {
@@ -114,7 +80,7 @@ type JSONEpoch struct {
 
 func buildJSONEpoch(blk *block.Block) *JSONEpoch {
 	return &JSONEpoch{
-		Nonce:   blk.KBlockData.Nonce,
+		Nonce:   blk.Nonce(),
 		EpochID: blk.GetBlockEpoch(),
 		Number:  blk.Number(),
 	}
@@ -125,7 +91,7 @@ type JSONExpandedBlock struct {
 	Transactions []*JSONEmbeddedTx `json:"transactions"`
 }
 
-func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, baseFeePerGas *big.Int) *JSONBlockSummary {
+func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.Int) *JSONBlockSummary {
 	header := blk.Header()
 	signer, _ := header.Signer()
 
@@ -147,24 +113,20 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, bas
 		epoch = blk.QC.EpochID
 	}
 	result := &JSONBlockSummary{
-		Number:           header.Number(),
-		ID:               header.ID(),
-		ParentID:         header.ParentID(),
-		Timestamp:        header.Timestamp(),
-		TotalScore:       header.TotalScore(),
+		Number:    header.Number(),
+		ID:        header.ID(),
+		ParentID:  header.ParentID(),
+		Timestamp: header.Timestamp(),
+
 		GasLimit:         header.GasLimit(),
-		GasUsed:          header.GasUsed(),
 		Signer:           signer,
 		Size:             uint32(blk.Size()),
-		StateRoot:        header.StateRoot(),
-		ReceiptsRoot:     header.ReceiptsRoot(),
 		TxsRoot:          header.TxsRoot(),
 		IsTrunk:          isTrunk,
 		BlockType:        blockType,
 		LastKBlockHeight: header.LastKBlockHeight(),
 		Epoch:            epoch,
-		LogsBloom:        logsBloom,
-		BaseFeePerGas:    baseFeePerGas.Uint64(),
+		Nonce:            blk.Nonce(),
 	}
 	var err error
 	if blk.QC != nil {
@@ -179,128 +141,15 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, logsBloom string, bas
 	} else {
 		result.CommitteeInfo = make([]*CommitteeMember, 0)
 	}
-	if blk.KBlockData.Nonce > 0 {
-		result.Nonce = blk.KBlockData.Nonce
-	}
+
 	return result
 }
 
-func buildJSONOutput(c *tx.Clause, contractAddr *meter.Address, o *tx.Output) *JSONOutput {
-	jo := &JSONOutput{
-		ContractAddress: nil,
-		Events:          make([]*JSONEvent, 0, len(o.Events)),
-		Transfers:       make([]*JSONTransfer, 0, len(o.Transfers)),
-	}
-	if c.To() == nil {
-		jo.ContractAddress = contractAddr
-	}
-	for _, e := range o.Events {
-		jo.Events = append(jo.Events, &JSONEvent{
-			Address: e.Address,
-			Data:    hexutil.Encode(e.Data),
-			Topics:  e.Topics,
-		})
-	}
-	for _, t := range o.Transfers {
-		jo.Transfers = append(jo.Transfers, &JSONTransfer{
-			Sender:    t.Sender,
-			Recipient: t.Recipient,
-			Amount:    (*math.HexOrDecimal256)(t.Amount),
-			Token:     uint32(t.Token),
-		})
-	}
-	return jo
-}
-
-func buildJSONEmbeddedTxs(txs tx.Transactions, receipts tx.Receipts, baseGasFee *big.Int) []*JSONEmbeddedTx {
+func buildJSONEmbeddedTxs(txs tx.Transactions) []*JSONEmbeddedTx {
 	jTxs := make([]*JSONEmbeddedTx, 0, len(txs))
-	for itx, tx := range txs {
-		receipt := receipts[itx]
+	for _, tx := range txs {
+		jTxs = append(jTxs, &JSONEmbeddedTx{Hash: hex.EncodeToString(tx.Hash()), Raw: hex.EncodeToString(tx)})
 
-		clauses := tx.Clauses()
-		blockRef := tx.BlockRef()
-		origin, _ := tx.Signer()
-		txID := tx.ID()
-		nonce := tx.Nonce()
-
-		jcs := make([]*JSONClause, 0, len(clauses))
-		jos := make([]*JSONOutput, 0, len(receipt.Outputs))
-
-		for i, c := range clauses {
-			jcs = append(jcs, &JSONClause{
-				c.To(),
-				math.HexOrDecimal256(*c.Value()),
-				uint32(c.Token()),
-				hexutil.Encode(c.Data()),
-			})
-			if !receipt.Reverted {
-				contractAddr := meter.Address{}
-				if meter.IsTesla(blockRef.Number()) {
-					contractAddr = meter.Address(meter.EthCreateContractAddress(common.Address(origin), uint32(i)+uint32(nonce)))
-				} else {
-					contractAddr = meter.CreateContractAddress(txID, uint32(i), 0)
-				}
-
-				jos = append(jos, buildJSONOutput(c, &contractAddr, receipt.Outputs[i]))
-			}
-		}
-
-		v := big.NewInt(0)
-		r := big.NewInt(0)
-		s := big.NewInt(0)
-		chainId := big.NewInt(0)
-		if meter.IsMainNet() {
-			chainId = big.NewInt(82) // mainnet
-		} else {
-			chainId = big.NewInt(83) // testnet
-		}
-		maxFeePerGas := big.NewInt(0)
-		maxPriorityFeePerGas := big.NewInt(0)
-		if tx.IsEthTx() {
-			ethTx, _ := tx.GetEthTx()
-			v, r, s = ethTx.RawSignatureValues()
-			chainId = ethTx.ChainId()
-			if ethTx.Type() == uint8(2) {
-				maxFeePerGas = ethTx.GasFeeCap()
-				maxPriorityFeePerGas = ethTx.GasTipCap()
-			}
-
-		} else {
-			sig := tx.Signature()
-			if len(sig) >= 65 {
-				r.SetBytes(sig[:32])
-				s.SetBytes(sig[32:64])
-				v.SetBytes(sig[64:65])
-			}
-		}
-		jTxs = append(jTxs, &JSONEmbeddedTx{
-			ID:           tx.ID(),
-			Type:         tx.Type(),
-			ChainId:      (*math.HexOrDecimal256)(chainId),
-			ChainTag:     tx.ChainTag(),
-			BlockRef:     hexutil.Encode(blockRef[:]),
-			Expiration:   tx.Expiration(),
-			Clauses:      jcs,
-			GasPrice:     tx.GasPrice(baseGasFee).Uint64(),
-			GasPriceCoef: tx.GasPriceCoef(),
-			Gas:          tx.Gas(),
-			Origin:       origin,
-			Nonce:        math.HexOrDecimal64(tx.Nonce()),
-			DependsOn:    tx.DependsOn(),
-			Size:         uint32(tx.Size()),
-
-			GasUsed:              receipt.GasUsed,
-			GasPayer:             receipt.GasPayer,
-			Paid:                 (*math.HexOrDecimal256)(receipt.Paid),
-			Reward:               (*math.HexOrDecimal256)(receipt.Reward),
-			Reverted:             receipt.Reverted,
-			Outputs:              jos,
-			V:                    (*math.HexOrDecimal256)(v),
-			R:                    (*math.HexOrDecimal256)(r),
-			S:                    (*math.HexOrDecimal256)(s),
-			MaxFeePerGas:         (*math.HexOrDecimal256)(maxFeePerGas),
-			MaxPriorityFeePerGas: (*math.HexOrDecimal256)(maxPriorityFeePerGas),
-		})
 	}
 	return jTxs
 }

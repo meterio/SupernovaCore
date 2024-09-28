@@ -16,7 +16,6 @@ import (
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/preset"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
-	"gopkg.in/urfave/cli.v1"
 )
 
 type Distributor struct {
@@ -74,18 +73,17 @@ const (
 	COMMISSION_RATE_DEFAULT = uint64(10 * 1e07)  // 10%
 )
 
-func LoadDelegatesFile(ctx *cli.Context, blsMaster *BlsMaster) []*Delegate {
+func LoadDelegatesFile(network string, dataDir string, blsMaster *BlsMaster) []*Delegate {
 	delegates1 := make([]*DelegateDef, 0)
 
 	// load delegates from presets
 	var content []byte
-	if ctx.String("network") == "warringstakes" {
+	if network == "warringstakes" {
 		content = preset.MustAsset("shoal/delegates.json")
-	} else if ctx.String("network") == "main" {
+	} else if network == "main" {
 		content = preset.MustAsset("mainnet/delegates.json")
 	} else {
 		// load delegates from file system
-		dataDir := ctx.String("data-dir")
 		filePath := path.Join(dataDir, "delegates.json")
 		file, err := os.ReadFile(filePath)
 		content = file

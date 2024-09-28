@@ -7,17 +7,16 @@ package txpool
 
 import (
 	"log/slog"
-	"math/big"
 	"sync/atomic"
 	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/pkg/errors"
 )
@@ -36,7 +35,7 @@ type Options struct {
 
 // TxEvent will be posted when tx is added or status changed.
 type TxEvent struct {
-	Tx         *tx.Transaction
+	Tx         cmttypes.Tx
 	Executable *bool
 }
 
@@ -54,20 +53,20 @@ type TxPool struct {
 	scope  event.SubscriptionScope
 	goes   co.Goes
 
-	newTxFeed chan meter.Bytes32
+	newTxFeed chan []byte
 	logger    *slog.Logger
 }
 
 // New create a new TxPool instance.
 // Shutdown is required to be called at end.
-func New(chain *chain.Chain, stateCreator *state.Creator, options Options) *TxPool {
+func New(chain *chain.Chain, options Options) *TxPool {
 	pool := &TxPool{
 		options: options,
 		chain:   chain,
 		all:     newTxObjectMap(),
 		done:    make(chan struct{}),
 
-		newTxFeed: make(chan meter.Bytes32, options.Limit),
+		newTxFeed: make(chan []byte, options.Limit),
 		logger:    slog.With("pkg", "txpool"),
 	}
 	pool.goes.Go(pool.housekeeping)
@@ -145,31 +144,10 @@ func (p *TxPool) SubscribeTxEvent(ch chan *TxEvent) event.Subscription {
 	return p.scope.Track(p.txFeed.Subscribe(ch))
 }
 
-func (p *TxPool) add(newTx *tx.Transaction, rejectNonexecutable bool) error {
-	if p.all.Contains(newTx.ID()) {
+func (p *TxPool) add(newTx cmttypes.Tx, rejectNonexecutable bool) error {
+	if p.all.Contains(newTx.Hash()) {
 		// tx already in the pool
 		return nil
-	}
-
-	// validation
-	switch {
-	case newTx.ChainTag() != p.chain.Tag():
-		return badTxError{"chain tag mismatch"}
-	// case newTx.HasReservedFields():
-	// return badTxError{"reserved fields not empty"}
-	case newTx.Size() > maxTxSize:
-		return txRejectedError{"size too large"}
-	}
-	signer, err := newTx.Signer()
-	if err != nil {
-		return txRejectedError{err.Error()}
-	}
-	if signer.IsZero() {
-		return txRejectedError{"no signer specified"}
-	}
-
-	if _, err := newTx.EthTxValidate(); err != nil {
-		return badTxError{err.Error()}
 	}
 
 	txObj, err := resolveTx(newTx)
@@ -191,7 +169,7 @@ func (p *TxPool) add(newTx *tx.Transaction, rejectNonexecutable bool) error {
 		if err := p.all.Add(txObj, p.options.LimitPerAccount); err != nil {
 			return txRejectedError{err.Error()}
 		}
-		p.logger.Debug("tx added, chain is synced", "id", newTx.ID(), "pool size", p.all.Len())
+		p.logger.Debug("tx added, chain is synced", "id", newTx.Hash(), "pool size", p.all.Len())
 		txObj.executable = executable
 		p.goes.Go(func() {
 			p.txFeed.Send(&TxEvent{newTx, &executable})
@@ -206,45 +184,45 @@ func (p *TxPool) add(newTx *tx.Transaction, rejectNonexecutable bool) error {
 		if err := p.all.Add(txObj, p.options.LimitPerAccount); err != nil {
 			return txRejectedError{err.Error()}
 		}
-		p.logger.Debug("tx added, chain is not synced", "id", newTx.ID(), "pool size", p.all.Len())
+		p.logger.Debug("tx added, chain is not synced", "id", newTx.Hash(), "pool size", p.all.Len())
 		p.txFeed.Send(&TxEvent{newTx, nil})
 	}
-	p.logger.Debug("tx added to pool", "id", newTx.ID())
+	p.logger.Debug("tx added to pool", "id", newTx.Hash())
 
 	if len(p.newTxFeed) < cap(p.newTxFeed) {
-		p.newTxFeed <- newTx.ID()
-		p.logger.Debug("new tx feed: ", "id", newTx.ID())
+		p.newTxFeed <- newTx.Hash()
+		p.logger.Debug("new tx feed: ", "id", newTx.Hash())
 	} else {
 		select {
 		case <-p.newTxFeed:
 		default:
 			break
 		}
-		p.newTxFeed <- newTx.ID()
-		p.logger.Debug("new tx feed: ", "id", newTx.ID())
+		p.newTxFeed <- newTx.Hash()
+		p.logger.Debug("new tx feed: ", "id", newTx.Hash())
 	}
 	atomic.AddUint32(&p.addedAfterWash, 1)
 	return nil
 }
 
-func (p *TxPool) GetNewTxFeed() chan meter.Bytes32 {
+func (p *TxPool) GetNewTxFeed() chan []byte {
 	return p.newTxFeed
 }
 
 // Add add new tx into pool.
 // It's not assumed as an error if the tx to be added is already in the pool,
-func (p *TxPool) Add(newTx *tx.Transaction) error {
+func (p *TxPool) Add(newTx cmttypes.Tx) error {
 	return p.add(newTx, false)
 }
 
-func (p *TxPool) Get(id meter.Bytes32) *tx.Transaction {
+func (p *TxPool) Get(id []byte) cmttypes.Tx {
 	if txObj := p.all.GetByID(id); txObj != nil {
-		return txObj.Transaction
+		return txObj.Tx
 	}
 	return nil
 }
 
-func (p *TxPool) GetTxObj(id meter.Bytes32) *txObject {
+func (p *TxPool) GetTxObj(id []byte) *txObject {
 	if txObj := p.all.GetByID(id); txObj != nil {
 		return txObj
 	}
@@ -252,14 +230,14 @@ func (p *TxPool) GetTxObj(id meter.Bytes32) *txObject {
 }
 
 // StrictlyAdd add new tx into pool. A rejection error will be returned, if tx is not executable at this time.
-func (p *TxPool) StrictlyAdd(newTx *tx.Transaction) error {
+func (p *TxPool) StrictlyAdd(newTx cmttypes.Tx) error {
 	return p.add(newTx, true)
 }
 
 // Remove removes tx from pool by its ID.
-func (p *TxPool) Remove(txID meter.Bytes32) bool {
-	if p.all.Remove(txID) {
-		p.logger.Debug("tx removed", "id", txID)
+func (p *TxPool) Remove(id []byte) bool {
+	if p.all.Remove(id) {
+		p.logger.Debug("tx removed", "id", id)
 		return true
 	}
 	return false
@@ -274,14 +252,14 @@ func (p *TxPool) Executables() tx.Transactions {
 }
 
 // Fill fills txs into pool.
-func (p *TxPool) Fill(txs tx.Transactions, executed func(txID meter.Bytes32) bool) {
+func (p *TxPool) Fill(txs tx.Transactions, executed func(txID []byte) bool) {
 	txObjs := make([]*txObject, 0, len(txs))
 	for _, tx := range txs {
 		// here we ignore errors
 		if txObj, err := resolveTx(tx); err == nil {
 			// skip executed
-			if executed(tx.ID()) {
-				p.logger.Debug("tx skipped", "id", txObj.ID(), "err", "executed")
+			if executed(tx.Hash()) {
+				p.logger.Debug("tx skipped", "id", txObj.Hash(), "err", "executed")
 				continue
 			}
 
@@ -300,7 +278,7 @@ func (p *TxPool) Dump() tx.Transactions {
 // this method should only be called in housekeeping go routine
 func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executables tx.Transactions, removed int, err error) {
 	all := p.all.ToTxObjects()
-	var toRemove []meter.Bytes32
+	var toRemove [][]byte
 	defer func() {
 		if err != nil {
 			// in case of error, simply cut pool size to limit
@@ -309,7 +287,7 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 					break
 				}
 				removed++
-				p.all.Remove(txObj.ID())
+				p.all.Remove(txObj.Hash())
 			}
 		} else {
 			for _, id := range toRemove {
@@ -328,23 +306,19 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 	for _, txObj := range all {
 		// out of lifetime
 		if now > txObj.timeAdded+int64(p.options.MaxLifetime) {
-			toRemove = append(toRemove, txObj.ID())
-			p.logger.Debug("tx washed out", "id", txObj.ID(), "err", "out of lifetime")
+			toRemove = append(toRemove, txObj.Hash())
+			p.logger.Debug("tx washed out", "id", txObj.Hash(), "err", "out of lifetime")
 			continue
 		}
 		// settled, out of energy or dep broken
 		executable, err := txObj.Executable(p.chain, headBlock)
 		if err != nil {
-			toRemove = append(toRemove, txObj.ID())
-			p.logger.Debug("tx washed out", "id", txObj.ID(), "err", err)
+			toRemove = append(toRemove, txObj.Hash())
+			p.logger.Debug("tx washed out", "id", txObj.Hash(), "err", err)
 			continue
 		}
 
 		if executable {
-			txObj.overallGasPrice = txObj.OverallGasPrice(
-				big.NewInt(0), // FIXME: get the right one
-				headBlock.Number(),
-				seeker.GetID)
 			executableObjs = append(executableObjs, txObj)
 		} else {
 			nonExecutableObjs = append(nonExecutableObjs, txObj)
@@ -367,19 +341,19 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 	// remove over limit txs, from non-executables to low priced
 	if len(executableObjs) > limit {
 		for _, txObj := range nonExecutableObjs {
-			toRemove = append(toRemove, txObj.ID())
-			p.logger.Debug("non-executable tx washed out due to pool limit", "id", txObj.ID())
+			toRemove = append(toRemove, txObj.Hash())
+			p.logger.Debug("non-executable tx washed out due to pool limit", "id", txObj.Hash())
 		}
 		for _, txObj := range executableObjs[limit:] {
-			toRemove = append(toRemove, txObj.ID())
-			p.logger.Debug("executable tx washed out due to pool limit", "id", txObj.ID())
+			toRemove = append(toRemove, txObj.Hash())
+			p.logger.Debug("executable tx washed out due to pool limit", "id", txObj.Hash())
 		}
 		executableObjs = executableObjs[:limit]
 	} else if len(executableObjs)+len(nonExecutableObjs) > limit {
 		// executableObjs + nonExecutableObjs over pool limit
 		for _, txObj := range nonExecutableObjs[limit-len(executableObjs):] {
-			toRemove = append(toRemove, txObj.ID())
-			p.logger.Debug("non-executable tx washed out due to pool limit", "id", txObj.ID())
+			toRemove = append(toRemove, txObj.Hash())
+			p.logger.Debug("non-executable tx washed out due to pool limit", "id", txObj.Hash())
 		}
 	}
 
@@ -387,10 +361,10 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 	var toBroadcast tx.Transactions
 
 	for _, obj := range executableObjs {
-		executables = append(executables, obj.Transaction)
+		executables = append(executables, obj.Tx)
 		if !obj.executable {
 			obj.executable = true
-			toBroadcast = append(toBroadcast, obj.Transaction)
+			toBroadcast = append(toBroadcast, obj.Tx)
 		}
 	}
 

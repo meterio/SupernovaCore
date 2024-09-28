@@ -40,7 +40,7 @@ func loadStashAction(ctx *cli.Context) error {
 		} else {
 			var raw bytes.Buffer
 			tx.EncodeRLP(&raw)
-			slog.Info("found tx: ", "id", tx.ID(), "raw", hex.EncodeToString(raw.Bytes()))
+			slog.Info("found tx: ", "id", tx.Hash(), "raw", hex.EncodeToString(raw.Bytes()))
 		}
 	}
 	return nil

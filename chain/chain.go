@@ -13,19 +13,18 @@ import (
 	"sync"
 	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	blockCacheLimit    = 512
-	receiptsCacheLimit = 512
+	blockCacheLimit = 512
 )
 
 var ErrNotFound = errors.New("not found")
@@ -64,7 +63,6 @@ type Chain struct {
 
 type caches struct {
 	rawBlocks *cache
-	receipts  *cache
 }
 
 // New create an instance of Chain.
@@ -164,10 +162,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 		return &rawBlock{raw: raw}, nil
 	})
 
-	receiptsCache := newCache(receiptsCacheLimit, func(key interface{}) (interface{}, error) {
-		return loadBlockReceipts(kv, key.(meter.Bytes32))
-	})
-
 	bestIDBeforeFlattern, err := loadBestBlockIDBeforeFlattern(kv)
 	var bestBlockBeforeFlattern *block.Block
 	if !bytes.Equal(bestIDBeforeFlattern.Bytes(), meter.Bytes32{}.Bytes()) || err == nil {
@@ -247,7 +241,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 		tag:          genesisBlock.ID()[31],
 		caches: caches{
 			rawBlocks: rawBlocksCache,
-			receipts:  receiptsCache,
 		},
 
 		bestBlockBeforeIndexFlattern: bestBlockBeforeFlattern,
@@ -321,59 +314,10 @@ func (c *Chain) BestQC() *block.QuorumCert {
 	return c.bestQC
 }
 
-func (c *Chain) RemoveBlock(blockID meter.Bytes32) error {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	_, err := c.getBlockHeader(blockID)
-	if err != nil {
-		if c.IsNotFound(err) {
-			return err
-		}
-		if block.Number(blockID) <= c.bestBlock.Number() {
-			return errors.New("could not remove finalized block")
-		}
-		return removeBlockRaw(c.kv, blockID)
-	}
-	return err
-}
-
-func (c *Chain) PruneBlock(batch kv.Batch, blockID meter.Bytes32) error {
-	b, err := c.getBlock(blockID)
-	if err != nil {
-		return err
-	}
-	if c.BestBlockBeforeIndexFlattern() != nil {
-		// could not delete this special block
-		if b.Number() == c.bestBlockBeforeIndexFlattern.Number() {
-			return nil
-		}
-	}
-	blkKey := append(blockPrefix, blockID.Bytes()...)
-	batch.Delete(blkKey)
-	for _, tx := range b.Txs {
-		metaKey := append(txMetaPrefix, tx.ID().Bytes()...)
-		batch.Delete(metaKey)
-	}
-	receiptKey := append(blockReceiptsPrefix, b.ID().Bytes()...)
-	batch.Delete(receiptKey)
-
-	indexHead, err := c.GetPruneIndexHead()
-	if err != nil {
-		return err
-	}
-	if b.Number() <= indexHead || (c.BestBlockBeforeIndexFlattern() != nil && b.Number() > c.BestBlockBeforeIndexFlattern().Number()) {
-		// if this block has pruned index or it's after falttern
-		// delete related hash as well
-		hashKey := append(hashKeyPrefix, numberAsKey(b.Number())...)
-		batch.Delete(hashKey)
-	}
-	return nil
-}
-
 // AddBlock add a new block into block chain.
 // Once reorg happened (len(Trunk) > 0 && len(Branch) >0), Fork.Branch will be the chain transitted from trunk to branch.
 // Reorg happens when isTrunk is true.
-func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert, receipts tx.Receipts) (*Fork, error) {
+func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fork, error) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 
@@ -391,7 +335,6 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert, rece
 		if header.Number() == newHeader.Number() &&
 			header.ParentID() == newHeader.ParentID() &&
 			string(header.Signature()) == string(newHeader.Signature()) &&
-			header.ReceiptsRoot() == newHeader.ReceiptsRoot() &&
 			header.Timestamp() == newHeader.Timestamp() &&
 			parentFinalized {
 			// if the current block is the finalized version of saved block, update it accordingly
@@ -423,28 +366,24 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert, rece
 	if err := saveBlockRaw(batch, newBlockID, raw); err != nil {
 		return nil, err
 	}
-	if err := saveBlockReceipts(batch, newBlockID, receipts); err != nil {
-		return nil, err
-	}
 
 	if err := c.ancestorTrie.Update(batch, newBlock.Number(), newBlockID, newBlock.ParentID()); err != nil {
 		return nil, err
 	}
 
 	for i, tx := range newBlock.Transactions() {
-		c.logger.Debug(fmt.Sprintf("saving tx meta for %s", tx.ID()), "block", newBlock.Number())
-		meta, err := loadTxMeta(c.kv, tx.ID())
+		c.logger.Debug(fmt.Sprintf("saving tx meta for %s", tx.Hash()), "block", newBlock.Number())
+		meta, err := loadTxMeta(c.kv, tx.Hash())
 		if err != nil {
 			if !c.IsNotFound(err) {
 				return nil, err
 			}
 		}
 		meta = append(meta, TxMeta{
-			BlockID:  newBlockID,
-			Index:    uint64(i),
-			Reverted: receipts[i].Reverted,
+			BlockID: newBlockID,
+			Index:   uint64(i),
 		})
-		if err := saveTxMeta(batch, tx.ID(), meta); err != nil {
+		if err := saveTxMeta(batch, tx.Hash(), meta); err != nil {
 			return nil, err
 		}
 	}
@@ -475,12 +414,10 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert, rece
 		c.bestQC = escortQC
 
 		if newBlock.IsKBlock() {
-			err = saveBestPowNonce(batch, newBlock.KBlockData.Nonce)
 			if err != nil {
 				fmt.Println("Error during update pow nonce:", err)
 			}
-			c.logger.Info("saved best pow nonce", "powNonce", newBlock.KBlockData.Nonce)
-			c.bestPowNonce = newBlock.KBlockData.Nonce
+			c.logger.Info("saved best pow nonce", "powNonce", newBlock.Nonce())
 		}
 
 	} else {
@@ -492,7 +429,6 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert, rece
 	}
 
 	c.caches.rawBlocks.Add(newBlockID, newRawBlock(raw, newBlock))
-	c.caches.receipts.Add(newBlockID, receipts)
 
 	c.tick.Broadcast()
 	return fork, nil
@@ -535,13 +471,6 @@ func (c *Chain) GetBlockRaw(id meter.Bytes32) (block.Raw, error) {
 	return raw.raw, nil
 }
 
-// GetBlockReceipts get all tx receipts in the block for given block id.
-func (c *Chain) GetBlockReceipts(id meter.Bytes32) (tx.Receipts, error) {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	return c.getBlockReceipts(id)
-}
-
 // GetAncestorBlockID get ancestor block ID of descendant for given ancestor block.
 func (c *Chain) GetAncestorBlockID(descendantID meter.Bytes32, ancestorNum uint32) (meter.Bytes32, error) {
 	c.rw.RLock()
@@ -551,38 +480,24 @@ func (c *Chain) GetAncestorBlockID(descendantID meter.Bytes32, ancestorNum uint3
 }
 
 // GetTransactionMeta get transaction meta info, on the chain defined by head block ID.
-func (c *Chain) GetTransactionMeta(txID meter.Bytes32, headBlockID meter.Bytes32) (*TxMeta, error) {
+func (c *Chain) GetTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxMeta, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getTransactionMeta(txID, headBlockID)
 }
 
 // GetTransactionMeta get transaction meta info, on the chain defined by head block ID.
-func (c *Chain) HasTransactionMeta(txID meter.Bytes32) (bool, error) {
+func (c *Chain) HasTransactionMeta(txID []byte) (bool, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.hasTransactionMeta(txID)
 }
 
 // GetTransaction get transaction for given block and index.
-func (c *Chain) GetTransaction(blockID meter.Bytes32, index uint64) (*tx.Transaction, error) {
+func (c *Chain) GetTransaction(blockID meter.Bytes32, index uint64) (cmttypes.Tx, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getTransaction(blockID, index)
-}
-
-// GetTransactionReceipt get tx receipt for given block and index.
-func (c *Chain) GetTransactionReceipt(blockID meter.Bytes32, index uint64) (*tx.Receipt, error) {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-	receipts, err := c.getBlockReceipts(blockID)
-	if err != nil {
-		return nil, err
-	}
-	if index >= uint64(len(receipts)) {
-		return nil, errors.New("receipt index out of range")
-	}
-	return receipts[index], nil
 }
 
 // GetTrunkBlockID get block id on trunk by given block number.
@@ -637,14 +552,14 @@ func (c *Chain) GetTrunkBlockRaw(num uint32) (block.Raw, error) {
 }
 
 // GetTrunkTransactionMeta get transaction meta info on trunk by given tx id.
-func (c *Chain) GetTrunkTransactionMeta(txID meter.Bytes32) (*TxMeta, error) {
+func (c *Chain) GetTrunkTransactionMeta(txID []byte) (*TxMeta, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getTransactionMeta(txID, c.bestBlock.ID())
 }
 
 // GetTrunkTransaction get transaction on trunk by given tx id.
-func (c *Chain) GetTrunkTransaction(txID meter.Bytes32) (*tx.Transaction, *TxMeta, error) {
+func (c *Chain) GetTrunkTransaction(txID []byte) (cmttypes.Tx, *TxMeta, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	meta, err := c.getTransactionMeta(txID, c.bestBlock.ID())
@@ -666,14 +581,6 @@ func (c *Chain) NewSeeker(headBlockID meter.Bytes32) *Seeker {
 func (c *Chain) isTrunk(header *block.Header) bool {
 	bestHeader := c.bestBlock.Header()
 	// fmt.Println(fmt.Sprintf("IsTrunk: header: %s, bestHeader: %s", header.ID().String(), bestHeader.ID().String()))
-
-	if header.TotalScore() < bestHeader.TotalScore() {
-		return false
-	}
-
-	if header.TotalScore() > bestHeader.TotalScore() {
-		return true
-	}
 
 	// total scores are equal
 	if bytes.Compare(header.ID().Bytes(), bestHeader.ID().Bytes()) < 0 {
@@ -772,31 +679,16 @@ func (c *Chain) getBlock(id meter.Bytes32) (*block.Block, error) {
 	return raw.Block()
 }
 
-func (c *Chain) getBlockReceipts(blockID meter.Bytes32) (tx.Receipts, error) {
-	receipts, err := c.caches.receipts.GetOrLoad(blockID)
-	if err != nil {
-		return nil, err
-	}
-	return receipts.(tx.Receipts), nil
-}
-
-func (c *Chain) hasTransactionMeta(txID meter.Bytes32) (bool, error) {
+func (c *Chain) hasTransactionMeta(txID []byte) (bool, error) {
 	return c.kv.Has(txID[:])
 }
 
-func (c *Chain) getTransactionMeta(txID meter.Bytes32, headBlockID meter.Bytes32) (*TxMeta, error) {
+func (c *Chain) getTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxMeta, error) {
 	meta, err := loadTxMeta(c.kv, txID)
 	if err != nil {
 		return nil, err
 	}
 	for _, m := range meta {
-		mBlockNum := tx.NewBlockRefFromID(m.BlockID).Number()
-		headBlockNum := tx.NewBlockRefFromID(headBlockID).Number()
-		if mBlockNum > headBlockNum {
-			c.logger.Warn("load tx meta from future blocks", "headBlock", headBlockNum, "headID", headBlockID, "metaBlock", mBlockNum, "metaID", m.BlockID)
-			continue
-		}
-
 		ancestorID, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), block.Number(m.BlockID))
 		if err != nil {
 			if c.IsNotFound(err) {
@@ -811,7 +703,7 @@ func (c *Chain) getTransactionMeta(txID meter.Bytes32, headBlockID meter.Bytes32
 	return nil, ErrNotFound
 }
 
-func (c *Chain) getTransaction(blockID meter.Bytes32, index uint64) (*tx.Transaction, error) {
+func (c *Chain) getTransaction(blockID meter.Bytes32, index uint64) (cmttypes.Tx, error) {
 	body, err := c.getBlockBody(blockID)
 	if err != nil {
 		return nil, err
@@ -1020,8 +912,4 @@ func (c *Chain) GetDraftsUpTo(commitedBlkID meter.Bytes32, qcHigh *block.QuorumC
 
 func (c *Chain) RawBlocksCacheLen() int {
 	return c.caches.rawBlocks.Len()
-}
-
-func (c *Chain) ReceiptsCacheLen() int {
-	return c.caches.receipts.Len()
 }

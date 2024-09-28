@@ -47,12 +47,9 @@ type HeaderBody struct {
 	BlockType        BlockType
 	Proposer         meter.Address
 
-	GasUsed    uint64
-	TotalScore uint64
+	Nonce uint64 // the last of the pow block
 
 	TxsRoot          meter.Bytes32
-	StateRoot        meter.Bytes32
-	ReceiptsRoot     meter.Bytes32
 	EvidenceDataRoot meter.Bytes32 // deprecated, saved just for compatibility
 
 	Signature []byte
@@ -84,34 +81,19 @@ func (h *Header) BlockType() BlockType {
 	return h.Body.BlockType
 }
 
-// TotalScore returns total score that cumulated from genesis block to this one.
-func (h *Header) TotalScore() uint64 {
-	return h.Body.TotalScore
-}
-
 // GasLimit returns gas limit of this block.
 func (h *Header) GasLimit() uint64 {
 	return h.Body.GasLimit
 }
 
 // GasUsed returns gas used by txs.
-func (h *Header) GasUsed() uint64 {
-	return h.Body.GasUsed
+func (h *Header) Nonce() uint64 {
+	return h.Body.Nonce
 }
 
 // TxsRoot returns merkle root of txs contained in this block.
 func (h *Header) TxsRoot() meter.Bytes32 {
 	return h.Body.TxsRoot
-}
-
-// StateRoot returns account state merkle root just afert this block being applied.
-func (h *Header) StateRoot() meter.Bytes32 {
-	return h.Body.StateRoot
-}
-
-// ReceiptsRoot returns merkle root of tx receipts.
-func (h *Header) ReceiptsRoot() meter.Bytes32 {
-	return h.Body.ReceiptsRoot
 }
 
 // ID computes id of block.
@@ -153,13 +135,9 @@ func (h *Header) SigningHash() (hash meter.Bytes32) {
 		h.Body.GasLimit,
 		h.Body.BlockType,
 		h.Body.LastKBlockHeight,
-
-		h.Body.GasUsed,
-		h.Body.TotalScore,
+		h.Body.Nonce,
 
 		h.Body.TxsRoot,
-		h.Body.StateRoot,
-		h.Body.ReceiptsRoot,
 		h.Body.EvidenceDataRoot,
 	})
 	if err != nil {
@@ -219,12 +197,10 @@ func (h *Header) String() string {
     Timestamp:    %v
     LastKBlock:   %v
     TxsRoot:      %v
-    StateRoot:    %v
-    ReceiptsRoot: %v
-    Signer / TotalScore: %v / %v
-    GasUsed / GasLimit:  %v / %v
-    Signature:    0x%x`, h.Body.ParentID, h.Body.Timestamp, h.Body.LastKBlockHeight, h.Body.TxsRoot, h.Body.StateRoot, h.Body.ReceiptsRoot, signerStr, h.Body.TotalScore,
-		h.Body.GasUsed, h.Body.GasLimit, h.Body.Signature)
+    Signer:       %v
+    Nonce:        %v
+    Signature:    0x%x`, h.Body.ParentID, h.Body.Timestamp, h.Body.LastKBlockHeight, h.Body.TxsRoot, signerStr, h.Body.Nonce,
+		h.Body.Signature)
 }
 
 // Number extract block number from block id.

@@ -1,9 +1,11 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/meter"
@@ -11,18 +13,24 @@ import (
 
 // finalize the block with its own QC
 func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.QuorumCert) error {
+
 	start := time.Now()
 	blk := draftBlk.ProposedBlock
-	//stage := blkInfo.Stage
-	receipts := draftBlk.Receipts
-
 	p.logger.Debug("Try to finalize block", "block", blk.Oneliner())
+
+	txs := make([][]byte, 0)
+	for _, tx := range blk.Txs {
+		txs = append(txs, tx)
+	}
+	p.reactor.proxyApp.Consensus().FinalizeBlock(context.TODO(), &v1.FinalizeBlockRequest{Txs: txs, Height: int64(draftBlk.Height), Hash: blk.ID().Bytes()})
+	p.reactor.proxyApp.Consensus().Commit(context.TODO())
+	//stage := blkInfo.Stage
 
 	// fmt.Println("Calling AddBlock from consensus_block.commitBlock, newBlock=", blk.ID())
 	if blk.Number() <= p.reactor.chain.BestBlock().Number() {
 		return errKnownBlock
 	}
-	fork, err := p.reactor.chain.AddBlock(blk, escortQC, *receipts)
+	fork, err := p.reactor.chain.AddBlock(blk, escortQC)
 	if err != nil {
 		if err != chain.ErrBlockExist {
 			p.logger.Warn("add block failed ...", "err", err, "id", blk.ID(), "num", blk.Number())

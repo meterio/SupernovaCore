@@ -6,13 +6,7 @@
 package genesis
 
 import (
-	"math/big"
-
-	"github.com/meterio/meter-pov/builtin"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/tx"
-	"github.com/meterio/meter-pov/vm"
 )
 
 // NewMainnet create mainnet genesis.
@@ -21,60 +15,9 @@ func NewMainnet() *Genesis {
 
 	builder := new(Builder).
 		Timestamp(launchTime).
-		GasLimit(meter.InitialGasLimit).
-		State(func(state *state.State) error {
-			// alloc precompiled contracts
-			for addr := range vm.PrecompiledContractsByzantium {
-				state.SetCode(meter.Address(addr), emptyRuntimeBytecode)
-			}
-
-			// alloc builtin contracts
-			state.SetCode(builtin.Meter.Address, builtin.Meter.RuntimeBytecodes())
-			state.SetCode(builtin.MeterGov.Address, builtin.MeterGov.RuntimeBytecodes())
-			state.SetCode(builtin.MeterTracker.Address, builtin.MeterTracker.RuntimeBytecodes())
-			state.SetCode(builtin.Executor.Address, builtin.Executor.RuntimeBytecodes())
-			state.SetCode(builtin.Extension.Address, builtin.Extension.RuntimeBytecodes())
-			state.SetCode(builtin.Params.Address, builtin.Params.RuntimeBytecodes())
-			state.SetCode(builtin.Prototype.Address, builtin.Prototype.RuntimeBytecodes())
-
-			tokenSupply := &big.Int{}
-			energySupply := &big.Int{}
-
-			// accountlock states
-			profiles := LoadVestProfile()
-			for _, p := range profiles {
-				state.SetBalance(p.Addr, p.MeterGovAmount)
-				tokenSupply.Add(tokenSupply, p.MeterGovAmount)
-
-				state.SetEnergy(p.Addr, p.MeterAmount)
-				energySupply.Add(energySupply, p.MeterAmount)
-			}
-			SetAccountLockProfileState(profiles, state)
-
-			builtin.MeterTracker.Native(state).SetInitialSupply(tokenSupply, energySupply)
-			return nil
-		})
+		GasLimit(meter.InitialGasLimit)
 
 	///// initialize builtin contracts
-
-	// initialize params
-	data := mustEncodeInput(builtin.Params.ABI, "set", meter.KeyExecutorAddress, new(big.Int).SetBytes(builtin.Executor.Address[:]))
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), meter.Address{})
-
-	data = mustEncodeInput(builtin.Params.ABI, "set", meter.KeyBaseGasPrice, meter.InitialBaseGasPrice)
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), builtin.Executor.Address)
-
-	data = mustEncodeInput(builtin.Params.ABI, "set", meter.KeyProposerEndorsement, meter.InitialProposerEndorsement)
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), builtin.Executor.Address)
-
-	data = mustEncodeInput(builtin.Params.ABI, "set", meter.KeyValidatorBaseReward, meter.InitialValidatorBaseReward)
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), builtin.Executor.Address)
-
-	data = mustEncodeInput(builtin.Params.ABI, "set", meter.KeyConsensusCommitteeSize, meter.InitialConsensusCommitteeSize)
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), builtin.Executor.Address)
-
-	data = mustEncodeInput(builtin.Params.ABI, "set", meter.KeyConsensusDelegateSize, meter.InitialConsensusDelegateSize)
-	builder.Call(tx.NewClause(&builtin.Params.Address).WithData(data), builtin.Executor.Address)
 
 	var extra [28]byte
 	copy(extra[:], "In Math We Trust !!!")

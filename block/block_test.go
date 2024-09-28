@@ -40,13 +40,8 @@ func TestSerialize(t *testing.T) {
 	)
 
 	block := new(Builder).
-		GasUsed(gasUsed).
 		Transaction(tx1).
 		Transaction(tx2).
-		GasLimit(gasLimit).
-		TotalScore(totalScore).
-		StateRoot(emptyRoot).
-		ReceiptsRoot(emptyRoot).
 		Timestamp(now).
 		ParentID(emptyRoot).
 		Build()
@@ -60,10 +55,6 @@ func TestSerialize(t *testing.T) {
 	assert.Equal(t, body.Txs, txs)
 	assert.Equal(t, Compose(h, txs), block)
 	assert.Equal(t, gasLimit, h.GasLimit())
-	assert.Equal(t, gasUsed, h.GasUsed())
-	assert.Equal(t, totalScore, h.TotalScore())
-	assert.Equal(t, emptyRoot, h.StateRoot())
-	assert.Equal(t, emptyRoot, h.ReceiptsRoot())
 	assert.Equal(t, now, h.Timestamp())
 	assert.Equal(t, emptyRoot, h.ParentID())
 	assert.Equal(t, txsRootHash, h.TxsRoot())
@@ -72,19 +63,16 @@ func TestSerialize(t *testing.T) {
 	sig, _ := crypto.Sign(block.Header().SigningHash().Bytes(), key)
 
 	block = block.WithSignature(sig)
-	kBlockData := KBlockData{Nonce: 1111}
-	block.SetKBlockData(kBlockData)
 
 	qc := QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 1, VoterAggSig: []byte{1, 2, 3}, VoterBitArrayStr: "**-", VoterMsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
 	block.SetQC(&qc)
 
 	addr := types.NetAddress{IP: []byte{}, Port: 4444}
 	committeeInfo := []CommitteeInfo{CommitteeInfo{
-		Name:     "Testee",
-		CSIndex:  0,
-		CSPubKey: []byte{},
-		PubKey:   []byte{},
-		NetAddr:  addr,
+		Name:      "Testee",
+		Index:     0,
+		BlsPubKey: []byte{},
+		NetAddr:   addr,
 	}}
 	_, err := rlp.EncodeToBytes(addr)
 	_, err = rlp.EncodeToBytes(committeeInfo)

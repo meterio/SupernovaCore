@@ -43,39 +43,14 @@ func (b *Builder) BlockType(t BlockType) *Builder {
 	return b
 }
 
-// TotalScore set total score.
-func (b *Builder) TotalScore(score uint64) *Builder {
-	b.headerBody.TotalScore = score
-	return b
-}
-
-// GasLimit set gas limit.
-func (b *Builder) GasLimit(limit uint64) *Builder {
-	b.headerBody.GasLimit = limit
-	return b
-}
-
-// GasUsed set gas used.
-func (b *Builder) GasUsed(used uint64) *Builder {
-	b.headerBody.GasUsed = used
-	return b
-}
-
-// StateRoot set state root.
-func (b *Builder) StateRoot(hash meter.Bytes32) *Builder {
-	b.headerBody.StateRoot = hash
-	return b
-}
-
-// ReceiptsRoot set receipts root.
-func (b *Builder) ReceiptsRoot(hash meter.Bytes32) *Builder {
-	b.headerBody.ReceiptsRoot = hash
-	return b
-}
-
 // Transaction add a transaction.
-func (b *Builder) Transaction(tx *tx.Transaction) *Builder {
+func (b *Builder) Transaction(tx []byte) *Builder {
 	b.txs = append(b.txs, tx)
+	return b
+}
+
+func (b *Builder) Nonce(nonce uint64) *Builder {
+	b.headerBody.Nonce = nonce
 	return b
 }
 

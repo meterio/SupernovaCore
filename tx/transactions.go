@@ -6,6 +6,7 @@
 package tx
 
 import (
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/trie"
@@ -16,7 +17,7 @@ var (
 )
 
 // Transactions a slice of transactions.
-type Transactions []*Transaction
+type Transactions []cmttypes.Tx
 
 // RootHash computes merkle root hash of transactions.
 func (txs Transactions) RootHash() meter.Bytes32 {

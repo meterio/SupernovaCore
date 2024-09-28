@@ -15,10 +15,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/rlp"
-
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 )
 
 // "address", "meter amount", "mterGov amount", "memo", "release epoch"
@@ -96,21 +93,6 @@ func LoadVestProfile() []*meter.Profile {
 	})
 
 	return plans
-}
-
-func SetProfileList(lockList *meter.ProfileList, state *state.State) {
-	state.EncodeStorage(meter.AccountLockModuleAddr, meter.ProfileListKey, func() ([]byte, error) {
-		// buf := bytes.NewBuffer([]byte{})
-		// encoder := gob.NewEncoder(buf)
-		// err := encoder.Encode(lockList)
-		// return buf.Bytes(), err
-		return rlp.EncodeToBytes(lockList.Profiles)
-	})
-}
-
-func SetAccountLockProfileState(list []*meter.Profile, state *state.State) {
-	pList := meter.NewProfileList(list)
-	SetProfileList(pList, state)
 }
 
 func FloatToBigInt(val float64) *big.Int {

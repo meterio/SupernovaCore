@@ -85,9 +85,7 @@ func (c *Communicator) download(peer *Peer, fromNum uint32, handler HandleBlockS
 					for _, tx := range blk.Block.Transactions() {
 						tx := tx
 						queue <- func() {
-							tx.ID()
-							tx.UnprovedWork()
-							tx.IntrinsicGas()
+							tx.Hash()
 						}
 					}
 				}
@@ -205,7 +203,7 @@ func (c *Communicator) syncTxs(peer *Peer) {
 		}
 
 		for _, tx := range result {
-			peer.MarkTransaction(tx.ID())
+			peer.MarkTransaction(tx.Hash())
 			c.txPool.StrictlyAdd(tx)
 			select {
 			case <-c.ctx.Done():

@@ -56,23 +56,8 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 		return err
 	}
 
-	var receipts tx.Receipts
-	if block.ID().String() == b.chain.GenesisBlock().ID().String() {
-		// if is genesis
-
-	} else {
-		receipts, err = b.chain.GetBlockReceipts(block.ID())
-		if err != nil {
-			// ignore errors
-			receipts = make([]*tx.Receipt, 0)
-		}
-	}
-	bloom := tx.CreateEthBloom(receipts)
-	logsBloom := "0x" + hex.EncodeToString(bloom.Bytes())
-
-	jSummary := buildJSONBlockSummary(block, isTrunk, logsBloom, big.NewInt(0) /* FIXME: get the correct value */)
+	jSummary := buildJSONBlockSummary(block, isTrunk, big.NewInt(0) /* FIXME: get the correct value */)
 	if expanded == "true" {
-		var receipts tx.Receipts
 		var err error
 		var txs tx.Transactions
 		if block.ID().String() == b.chain.GenesisBlock().ID().String() {
@@ -80,7 +65,6 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 
 		} else {
 			txs = block.Txs
-			receipts, err = b.chain.GetBlockReceipts(block.ID())
 			if err != nil {
 				return err
 			}
@@ -88,12 +72,12 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 
 		return utils.WriteJSON(w, &JSONExpandedBlock{
 			jSummary,
-			buildJSONEmbeddedTxs(txs, receipts, big.NewInt(0) /*FIXME: get the correct baseGasFee*/),
+			buildJSONEmbeddedTxs(txs /*FIXME: get the correct baseGasFee*/),
 		})
 	}
-	txIds := make([]meter.Bytes32, 0)
+	txIds := make([]string, 0)
 	for _, tx := range block.Txs {
-		txIds = append(txIds, tx.ID())
+		txIds = append(txIds, hex.EncodeToString(tx.Hash()))
 	}
 	return utils.WriteJSON(w, &JSONCollapsedBlock{jSummary, txIds})
 }

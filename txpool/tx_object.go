@@ -11,38 +11,25 @@ import (
 	"sort"
 	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/runtime"
-	"github.com/meterio/meter-pov/tx"
 	"github.com/pkg/errors"
 )
 
 type txObject struct {
-	*tx.Transaction
-	resolved *runtime.ResolvedTransaction
+	cmttypes.Tx
 
 	timeAdded       int64
 	executable      bool
 	overallGasPrice *big.Int // don't touch this value, it's only be used in pool's housekeeping
 }
 
-func resolveTx(tx *tx.Transaction) (*txObject, error) {
-	resolved, err := runtime.ResolveTransaction(tx)
-	if err != nil {
-		return nil, err
-	}
-
+func resolveTx(tx cmttypes.Tx) (*txObject, error) {
 	return &txObject{
-		Transaction: tx,
-		resolved:    resolved,
-		timeAdded:   time.Now().UnixNano(),
+		Tx:        tx,
+		timeAdded: time.Now().UnixNano(),
 	}, nil
-}
-
-func (o *txObject) Origin() meter.Address {
-	return o.resolved.Origin
 }
 
 func (o *txObject) Executable(chain *chain.Chain, headBlock *block.Header) (bool, error) {
@@ -50,36 +37,11 @@ func (o *txObject) Executable(chain *chain.Chain, headBlock *block.Header) (bool
 		slog.Error("tx object is nil")
 		return false, errors.New("txobject is null")
 	}
-	switch {
-	case o.Gas() > headBlock.GasLimit():
-		return false, errors.New("gas too large")
-	case o.IsExpired(headBlock.Number()):
-		return false, errors.New("head block expired")
-	case o.BlockRef().Number() > headBlock.Number()+uint32(3600*24/meter.BlockInterval):
-		return false, errors.New("block ref out of schedule")
-	}
 
-	if has, err := chain.HasTransactionMeta(o.ID()); err != nil {
+	if has, err := chain.HasTransactionMeta(o.Hash()); err != nil {
 		return false, err
 	} else if has {
 		return false, errors.New("known tx")
-	}
-
-	if dep := o.DependsOn(); dep != nil {
-		txMeta, err := chain.GetTransactionMeta(*dep, headBlock.ID())
-		if err != nil {
-			if chain.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		}
-		if txMeta.Reverted {
-			return false, errors.New("dep reverted")
-		}
-	}
-
-	if o.BlockRef().Number() > headBlock.Number() {
-		return false, nil
 	}
 
 	return true, nil

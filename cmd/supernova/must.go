@@ -31,7 +31,6 @@ import (
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/p2psrv"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/meterio/meter-pov/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -175,7 +174,7 @@ func openMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 }
 
 func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
-	genesisBlock, _, err := gene.Build(state.NewCreator(mainDB))
+	genesisBlock, _, err := gene.Build()
 	if err != nil {
 		fatal("build genesis block: ", err)
 	}
@@ -366,13 +365,13 @@ func (d *Dispatcher) handlePeers(w http.ResponseWriter, r *http.Request) {
 	// api_utils.WriteJSON(w, d.nw.PeersStats())
 }
 
-func startObserveServer(ctx *cli.Context, cons *consensus.Reactor, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain, stateCreator *state.Creator) (string, func()) {
+func startObserveServer(cons *consensus.Reactor, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain) (string, func()) {
 	addr := ":8670"
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		fatal(fmt.Sprintf("listen observe addr [%v]: %v", addr, err))
 	}
-	probe := &probe.Probe{cons, blsPubKey, chain, fullVersion(), nw, stateCreator}
+	probe := &probe.Probe{cons, blsPubKey, chain, fullVersion(), nw}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/probe", probe.HandleProbe)
@@ -494,7 +493,6 @@ func printStartupMessage(
 	blsMaster *types.BlsMaster,
 	dataDir string,
 	apiURL string,
-	observeURL string,
 ) {
 	bestBlock := chain.BestBlock()
 
@@ -507,7 +505,6 @@ func printStartupMessage(
     BlsPubKey       [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
-    Observe service [ %v ]
 `,
 		meter.MakeName("Meter", fullVersion()),
 		topic,
@@ -517,7 +514,7 @@ func printStartupMessage(
 		meter.GetForkConfig(gene.ID()),
 		hex.EncodeToString(blsMaster.PubKey.Marshal()),
 		dataDir,
-		apiURL, observeURL)
+		apiURL)
 }
 
 func openMemMainDB() *lvldb.LevelDB {

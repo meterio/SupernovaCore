@@ -13,7 +13,6 @@ import (
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/tx"
 	Tx "github.com/meterio/meter-pov/tx"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func init() {
 func newPool() *TxPool {
 	kv, _ := lvldb.NewMem()
 	chain := newChain(kv)
-	return New(chain, state.NewCreator(kv), Options{
+	return New(chain, Options{
 		Limit:           10,
 		LimitPerAccount: 2,
 		MaxLifetime:     time.Hour,

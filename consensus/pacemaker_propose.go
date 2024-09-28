@@ -7,14 +7,8 @@ package consensus
 
 import (
 	"errors"
-	"fmt"
-	"strings"
-	"time"
 
 	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/runtime"
 	"github.com/meterio/meter-pov/tx"
 )
 
@@ -36,284 +30,30 @@ func (p *Pacemaker) packCommitteeInfo(blk *block.Block) {
 }
 
 // Build MBlock
-func (p *Pacemaker) buildMBlock(ts uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32) (error, *block.DraftBlock) {
-	parentBlock := parent.ProposedBlock
-	best := parentBlock
-	qc := justify.QC
-
-	// start := time.Now()
-	pool := p.reactor.txpool
-	if pool == nil {
-		p.logger.Error("get tx pool failed ...")
-		// panic("get tx pool failed ...")
-		return errors.New("tx pool not ready"), nil
-	}
-
-	var txsInBlk []*tx.Transaction
-	returnTxsToPool := func() {
-		for _, tx := range txsInBlk {
-			pool.Add(tx)
-		}
-	}
-
-	pker := p.reactor.packer
-	if pker == nil {
-		p.logger.Error("get packer failed ...")
-		// panic("get packer failed")
-		return ErrPackerEmpty, nil
-	}
-
-	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit)
-	if err != nil {
-		p.logger.Error("mock packer", "error", err)
-		return ErrFlowEmpty, nil
-	}
-
-	//create checkPoint before build block
-	state, err := p.reactor.stateCreator.NewState(parentBlock.StateRoot())
-	if err != nil {
-		p.logger.Error("revert state failed ...", "error", err)
-		return ErrStateCreaterNotReady, nil
-	}
-	checkPoint := state.NewCheckpoint()
-
-	// collect all the txs in cache
-	txsInCache := make(map[string]bool)
-	tmp := parent
-	for tmp != nil && !tmp.Committed {
-		for _, knownTx := range tmp.ProposedBlock.Transactions() {
-			txsInCache[knownTx.ID().String()] = true
-		}
-		tmp = p.chain.GetDraft(tmp.ProposedBlock.ParentID())
-	}
-
-	for _, txObj := range p.reactor.txpool.All() {
-		id := txObj.ID()
-		// prevent to include txs already in previous drafts
-		if _, existed := txsInCache[id.String()]; existed {
-			continue
-		}
-		executable, err := txObj.Executable(p.chain, parentBlock.BlockHeader)
-		if err != nil || !executable {
-			p.logger.Debug(fmt.Sprintf("tx %s not executable", id), "err", err)
-			continue
-		}
-		tx := txObj.Transaction
-		resolvedTx, _ := runtime.ResolveTransaction(tx)
-		if strings.ToLower(resolvedTx.Origin.String()) == "0x0e369a2e02912dba872e72d6c0b661e9617e0d9c" {
-			p.logger.Warn("blacklisted address: ", resolvedTx.Origin.String())
-			continue
-		}
-		if err := flow.Adopt(tx); err != nil {
-			if packer.IsGasLimitReached(err) {
-				break
-			}
-			if packer.IsTxNotAdoptableNow(err) {
-				continue
-			}
-			p.logger.Warn("mBlock flow.Adopt(tx) failed...", "txid", tx.ID(), "err", err.Error())
-		} else {
-			txsInBlk = append(txsInBlk, tx)
-		}
-		if time.Since(p.roundStartedAt) > ProposeTimeLimit {
-			p.logger.Warn("stop adopting txs due to time limit", "adopted", len(txsInBlk), "limit", meter.PrettyDuration(ProposeTimeLimit))
-			break
-		}
-	}
-	newBlock, stage, receipts, err := flow.Pack(block.MBlockType, p.reactor.lastKBlockHeight)
-	if err != nil {
-		p.logger.Error("build block failed", "error", err)
-		return err, nil
-	}
-	newBlock.SetMagic(block.BlockMagicVersion1)
-	newBlock.SetQC(qc)
-
-	// p.logger.Info("Built MBlock", "num", newBlock.Number(), "id", newBlock.ID(), "txs", len(newBlock.Txs), "elapsed", meter.PrettyDuration(time.Since(start)))
-
-	lastKBlockHeight := newBlock.LastKBlockHeight()
-	blockNumber := newBlock.Number()
-	if round == 0 || blockNumber == lastKBlockHeight+1 {
-		// set committee info
-		p.packCommitteeInfo(newBlock)
-	}
-
-	proposed := &block.DraftBlock{
-		Height:           newBlock.Number(),
-		Round:            round,
-		Parent:           parent,
-		Justify:          justify,
-		ProposedBlock:    newBlock,
-		Stage:            stage,
-		Receipts:         &receipts,
-		ReturnTxsToPool:  returnTxsToPool,
-		CheckPoint:       checkPoint,
-		SuccessProcessed: true,
-		ProcessError:     nil,
-	}
-	p.curFlow = flow
-
-	return nil, proposed
-}
-
-// Build MBlock
-func (p *Pacemaker) AddTxToCurProposal(newTxID meter.Bytes32) error {
-	if p.curFlow == nil {
-		return ErrFlowEmpty
-	}
-	if p.curProposal == nil {
-		return ErrProposalEmpty
-	}
-	p.logger.Info("add tx to cur proposal", "tx", newTxID, "proposed", p.curProposal.ProposedBlock.ShortID())
-	parentBlock := p.curProposal.Parent.ProposedBlock
-	//create checkPoint before build block
-
-	// collect all the txs in cache
-	txsInCache := make(map[string]bool)
-	tmp := p.curProposal.Parent
-	for tmp != nil && !tmp.Committed {
-		for _, knownTx := range tmp.ProposedBlock.Transactions() {
-			txsInCache[knownTx.ID().String()] = true
-		}
-		tmp = p.chain.GetDraft(tmp.ProposedBlock.ParentID())
-	}
-
-	id := newTxID
-	// prevent to include txs already in previous drafts
-	if _, existed := txsInCache[id.String()]; existed {
-		return errors.New("tx already in cache")
-	}
-	txObj := p.reactor.txpool.GetTxObj(id)
-	if txObj == nil {
-		p.logger.Error("tx obj is nil", "id", id)
-		return errors.New("tx obj is nil")
-	}
-	executable, err := txObj.Executable(p.chain, parentBlock.BlockHeader)
-	if err != nil || !executable {
-		p.logger.Warn(fmt.Sprintf("tx %s not executable", id), "err", err)
-		return err
-	}
-	tx := txObj.Transaction
-	resolvedTx, _ := runtime.ResolveTransaction(tx)
-	if strings.ToLower(resolvedTx.Origin.String()) == "0x0e369a2e02912dba872e72d6c0b661e9617e0d9c" {
-		p.logger.Warn("blacklisted address: ", "origin", resolvedTx.Origin.String())
-		return errors.New("blacklisted address")
-	}
-	if err := p.curFlow.Adopt(tx); err != nil {
-		if packer.IsGasLimitReached(err) {
-			return err
-		}
-		if packer.IsTxNotAdoptableNow(err) {
-			return err
-		}
-		p.logger.Warn("mBlock flow.Adopt(tx) failed...", "txid", tx.ID(), "err", err.Error())
-	}
-	p.logger.Debug("added tx to cur proposal", "tx", newTxID)
-	return nil
-}
-
-// Build MBlock
-func (p *Pacemaker) packMBlock() error {
-	p.logger.Info("packed MBlock")
-	if p.curFlow == nil {
-		return ErrFlowEmpty
-	}
-	newBlock, stage, receipts, err := p.curFlow.Pack(block.MBlockType, p.reactor.lastKBlockHeight)
-	if err != nil {
-		p.logger.Error("build block failed", "error", err)
-		return err
-	}
-	prevProposedBlock := p.curProposal.ProposedBlock
-	newBlock.SetMagic(block.BlockMagicVersion1)
-	newBlock.SetQC(prevProposedBlock.QC)
-
-	// p.logger.Info("Built MBlock", "num", newBlock.Number(), "id", newBlock.ID(), "txs", len(newBlock.Txs), "elapsed", meter.PrettyDuration(time.Since(start)))
-
-	lastKBlockHeight := newBlock.LastKBlockHeight()
-	blockNumber := newBlock.Number()
-	if p.curProposal.Round == 0 || blockNumber == lastKBlockHeight+1 {
-		// set committee info
-		p.packCommitteeInfo(newBlock)
-	}
-
-	txsInBlk := make([]*tx.Transaction, 0)
-	for _, tx := range newBlock.Txs {
-		txsInBlk = append(txsInBlk, tx)
-	}
-	pool := p.reactor.txpool
-
-	proposed := &block.DraftBlock{
-		Height:        newBlock.Number(),
-		Round:         p.curProposal.Round,
-		Parent:        p.curProposal.Parent,
-		Justify:       p.curProposal.Justify,
-		ProposedBlock: newBlock,
-		Stage:         stage,
-		Receipts:      &receipts,
-		ReturnTxsToPool: func() {
-			for _, tx := range txsInBlk {
-				pool.Add(tx)
-			}
-		},
-		CheckPoint:       p.curProposal.CheckPoint,
-		SuccessProcessed: true,
-		ProcessError:     nil,
-	}
-
-	msg, err := p.BuildProposalMessage(proposed.Height, proposed.Round, proposed, p.curProposal.Msg.(*block.PMProposalMessage).TimeoutCert)
-	if err != nil {
-		p.logger.Error("could not build proposal message", "err", err)
-		return nil
-	}
-	proposed.Msg = msg
-
-	p.curProposal = proposed
-	p.curFlow = nil
-
-	return nil
-}
-
-func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, kblockData *block.KBlockData) (error, *block.DraftBlock) {
+func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs tx.Transactions, blockType block.BlockType) (error, *block.DraftBlock) {
 	parentBlock := parent.ProposedBlock
 	qc := justify.QC
-	best := parentBlock
 
-	// distribute the base reward
-	state, err := p.reactor.stateCreator.NewState(p.reactor.chain.BestBlock().Header().StateRoot())
-	if err != nil {
-		// panic("get state failed")
-		return errors.New("state creater not ready"), nil
+	lastKBlock := uint32(0)
+	if parent.ProposedBlock.BlockType() == block.KBlockType {
+		lastKBlock = parent.ProposedBlock.Number()
+	} else {
+		lastKBlock = parent.ProposedBlock.LastKBlockHeight()
+	}
+	builder := new(block.Builder).
+		ParentID(parentBlock.ID()).
+		Timestamp(timestamp).
+		Nonce(nonce).
+		BlockType(blockType).
+		LastKBlockHeight(lastKBlock)
+
+	for _, tx := range txs {
+		builder.Transaction(tx)
 	}
 
-	pker := p.reactor.packer
-	if pker == nil {
-		p.logger.Warn("get packer failed ...")
-		// panic("get packer failed")
-		return ErrPackerEmpty, nil
-	}
-
-	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit)
-	if err != nil {
-		p.logger.Warn("mock packer", "error", err)
-		return ErrFlowEmpty, nil
-	}
-
-	//create checkPoint before build block
-	checkPoint := state.NewCheckpoint()
-
-	newBlock, stage, receipts, err := flow.Pack(block.KBlockType, p.reactor.lastKBlockHeight)
-	if err != nil {
-		p.logger.Error("build block failed...", "error", err)
-		return err, nil
-	}
-
-	//serialize KBlockData
-	newBlock.SetKBlockData(*kblockData)
+	newBlock := builder.Build()
 	newBlock.SetMagic(block.BlockMagicVersion1)
 	newBlock.SetQC(qc)
-
-	// p.logger.Info("Built KBlock", "num", newBlock.Number(), "id", newBlock.ID(), "txs", len(newBlock.Txs), "elapsed", meter.PrettyDuration(time.Since(startTime)))
 
 	proposed := &block.DraftBlock{
 		Height:        newBlock.Number(),
@@ -322,56 +62,53 @@ func (p *Pacemaker) buildKBlock(ts uint64, parent *block.DraftBlock, justify *bl
 		Justify:       justify,
 		ProposedBlock: newBlock,
 
-		Stage:            stage,
-		Receipts:         &receipts,
-		ReturnTxsToPool:  func() {},
-		CheckPoint:       checkPoint,
 		SuccessProcessed: true,
 		ProcessError:     nil,
 	}
+
 	return nil, proposed
 }
 
-func (p *Pacemaker) buildStopCommitteeBlock(ts uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32) (error, *block.DraftBlock) {
-	parentBlock := parent.ProposedBlock
-	qc := justify.QC
-	best := parentBlock
+// Build MBlock
+func (p *Pacemaker) AddTxToCurProposal(newTxID []byte) error {
 
-	pker := p.reactor.packer
-	if pker == nil {
-		p.logger.Error("get packer failed ...")
-		return ErrPackerEmpty, nil
-	}
+	// if p.curProposal == nil {
+	// 	return ErrProposalEmpty
+	// }
+	// p.logger.Info("add tx to cur proposal", "tx", newTxID, "proposed", p.curProposal.ProposedBlock.ShortID())
+	// parentBlock := p.curProposal.Parent.ProposedBlock
+	// //create checkPoint before build block
 
-	gasLimit := pker.GasLimit(best.GasLimit())
-	flow, err := pker.Mock(best.Header(), ts, gasLimit)
-	if err != nil {
-		p.logger.Error("mock packer", "error", err)
-		return ErrFlowEmpty, nil
-	}
+	// // collect all the txs in cache
+	// txsInCache := make(map[string]bool)
+	// tmp := p.curProposal.Parent
+	// for tmp != nil && !tmp.Committed {
+	// 	for _, knownTx := range tmp.ProposedBlock.Transactions() {
+	// 		txsInCache[knowntx.Hash().String()] = true
+	// 	}
+	// 	tmp = p.chain.GetDraft(tmp.ProposedBlock.ParentID())
+	// }
 
-	newBlock, stage, receipts, err := flow.Pack(block.SBlockType, p.reactor.lastKBlockHeight)
-	if err != nil {
-		p.logger.Error("build block failed", "error", err)
-		return err, nil
-	}
-	newBlock.SetMagic(block.BlockMagicVersion1)
-	newBlock.SetQC(qc)
+	// id := newTxID
+	// // prevent to include txs already in previous drafts
+	// if _, existed := txsInCache[id.String()]; existed {
+	// 	return errors.New("tx already in cache")
+	// }
+	// txObj := p.reactor.txpool.GetTxObj(id)
+	// if txObj == nil {
+	// 	p.logger.Error("tx obj is nil", "id", id)
+	// 	return errors.New("tx obj is nil")
+	// }
+	// executable, err := txObj.Executable(p.chain, parentBlock.BlockHeader)
+	// if err != nil || !executable {
+	// 	p.logger.Warn(fmt.Sprintf("tx %s not executable", id), "err", err)
+	// 	return err
+	// }
+	// tx := txObj.Transaction
 
-	// p.logger.Info("Built SBlock", "num", newBlock.Number(), "elapsed", meter.PrettyDuration(time.Since(startTime)))
-	proposed := &block.DraftBlock{
-		Height:        newBlock.Number(),
-		Round:         round,
-		Parent:        parent,
-		Justify:       justify,
-		ProposedBlock: newBlock,
+	// p.logger.Debug("added tx to cur proposal", "tx", newTxID)
+	return nil
 
-		Stage:            stage,
-		Receipts:         &receipts,
-		ReturnTxsToPool:  func() {},
-		CheckPoint:       0,
-		SuccessProcessed: true,
-		ProcessError:     nil,
-	}
-	return nil, proposed
+	// // FIXME: implement this
+
 }

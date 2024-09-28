@@ -9,6 +9,7 @@ import (
 	"container/list"
 	"log/slog"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/meter"
@@ -27,8 +28,8 @@ func newTxStash(kv kv.GetPutter, maxSize int) *txStash {
 	return &txStash{kv, list.New(), maxSize}
 }
 
-func (ts *txStash) Save(tx *tx.Transaction) error {
-	has, err := ts.kv.Has(tx.ID().Bytes())
+func (ts *txStash) Save(tx cmttypes.Tx) error {
+	has, err := ts.kv.Has(tx.Hash())
 	if err != nil {
 		return err
 	}
@@ -41,10 +42,10 @@ func (ts *txStash) Save(tx *tx.Transaction) error {
 		return err
 	}
 
-	if err := ts.kv.Put(tx.ID().Bytes(), data); err != nil {
+	if err := ts.kv.Put(tx.Hash(), data); err != nil {
 		return err
 	}
-	ts.fifo.PushBack(tx.ID())
+	ts.fifo.PushBack(tx.Hash())
 	for ts.fifo.Len() > ts.maxSize {
 		keyToDelete := ts.fifo.Remove(ts.fifo.Front()).(meter.Bytes32).Bytes()
 		if err := ts.kv.Delete(keyToDelete); err != nil {
@@ -58,15 +59,15 @@ func (ts *txStash) LoadAll() tx.Transactions {
 	var txs tx.Transactions
 	iter := ts.kv.NewIterator(*kv.NewRangeWithBytesPrefix(nil))
 	for iter.Next() {
-		var tx tx.Transaction
+		var tx cmttypes.Tx
 		if err := rlp.DecodeBytes(iter.Value(), &tx); err != nil {
 			slog.Warn("decode stashed tx", "err", err)
 			if err := ts.kv.Delete(iter.Key()); err != nil {
 				slog.Warn("delete corrupted stashed tx", "err", err)
 			}
 		} else {
-			txs = append(txs, &tx)
-			ts.fifo.PushBack(tx.ID())
+			txs = append(txs, tx)
+			ts.fifo.PushBack(tx.Hash())
 		}
 	}
 	return txs

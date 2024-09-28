@@ -115,9 +115,9 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 				best := c.chain.BestBlock().Header()
 				// choose peer which has the head block with higher total score
 				peer := c.peerSet.Slice().Find(func(peer *Peer) bool {
-					_, totalScore := peer.Head()
-					c.logger.Debug("compare score from peer", "myScore", best.TotalScore(), "peerScore", totalScore, "peer", peer.Node().IP())
-					return totalScore >= best.TotalScore()
+					_, num := peer.Head()
+					c.logger.Debug("compare score from peer", "myScore", best.Number(), "peerScore", num, "peer", peer.Node().IP())
+					return num >= best.Number()
 				})
 				if peer == nil {
 					// original setting was 3, changed to 1 for cold start
@@ -241,7 +241,7 @@ func (c *Communicator) runPeer(peer *Peer, dir string) {
 		return
 	}
 
-	peer.UpdateHead(status.BestBlockID, status.TotalScore)
+	peer.UpdateHead(status.BestBlockID, status.BestBlockNum)
 	c.peerSet.Add(peer, dir)
 	peersCountGauge.Set(float64(c.peerSet.Len()))
 	peer.logger.Info(fmt.Sprintf("peer added (%v)", c.peerSet.Len()))
@@ -319,15 +319,15 @@ func (c *Communicator) PeerCount() int {
 func (c *Communicator) PeersStats() []*PeerStats {
 	var stats []*PeerStats
 	for _, peer := range c.peerSet.Slice() {
-		bestID, totalScore := peer.Head()
+		bestID, bestNum := peer.Head()
 		stats = append(stats, &PeerStats{
-			Name:        peer.Name(),
-			BestBlockID: bestID,
-			TotalScore:  totalScore,
-			PeerID:      peer.ID().String(),
-			NetAddr:     peer.RemoteAddr().String(),
-			Inbound:     peer.Inbound(),
-			Duration:    uint64(time.Duration(peer.Duration()) / time.Second),
+			Name:         peer.Name(),
+			BestBlockID:  bestID,
+			BestBlockNum: bestNum,
+			PeerID:       peer.ID().String(),
+			NetAddr:      peer.RemoteAddr().String(),
+			Inbound:      peer.Inbound(),
+			Duration:     uint64(time.Duration(peer.Duration()) / time.Second),
 		})
 	}
 	sort.Slice(stats, func(i, j int) bool {

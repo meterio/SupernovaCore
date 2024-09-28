@@ -7,7 +7,6 @@ package main
 
 import (
 	"log/slog"
-	"math"
 
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -23,15 +22,6 @@ var (
 		Value:  defaultDataDir(),
 		Usage:  "directory for block-chain databases",
 		EnvVar: "METER_DATA_DIR",
-	}
-	enableStatePruneFlag = cli.BoolFlag{
-		Name:  "enable-state-pruning",
-		Usage: "enable state pruning (default will preserve lastest 26280000 state and prune the rest)",
-	}
-	preserveBlocksFlag = cli.IntFlag{
-		Name:  "preserve-blocks",
-		Usage: "state pruning will preserve the last n blocks",
-		Value: int(math.Ceil(365 * 24 * 60 * 60 / 1.8 * 1.5)),
 	}
 	apiAddrFlag = cli.StringFlag{
 		Name:  "api-addr",
