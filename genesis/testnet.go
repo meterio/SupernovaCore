@@ -5,17 +5,12 @@
 
 package genesis
 
-import (
-	"github.com/meterio/meter-pov/meter"
-)
-
 // NewTestnet create genesis for testnet.
 func NewTestnet() *Genesis {
 	launchTime := uint64(1530014400) // 'Tue Jun 26 2018 20:00:00 GMT+0800 (CST)'
 
 	builder := new(Builder).
-		Timestamp(launchTime).
-		GasLimit(meter.InitialGasLimit)
+		Timestamp(launchTime)
 
 		// set initial params
 		// use an external account as executor to manage testnet easily

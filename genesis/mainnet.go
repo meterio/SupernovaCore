@@ -5,17 +5,12 @@
 
 package genesis
 
-import (
-	"github.com/meterio/meter-pov/meter"
-)
-
 // NewMainnet create mainnet genesis.
 func NewMainnet() *Genesis {
 	launchTime := uint64(1593907199) // 2020-07-04T23:59:59+00:00
 
 	builder := new(Builder).
-		Timestamp(launchTime).
-		GasLimit(meter.InitialGasLimit)
+		Timestamp(launchTime)
 
 	///// initialize builtin contracts
 

@@ -15,7 +15,6 @@ import (
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -85,7 +84,7 @@ func selectGenesis(ctx *cli.Context) *genesis.Genesis {
 }
 
 func initChain(ctx *cli.Context, gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
-	genesisBlock, _, err := gene.Build(state.NewCreator(mainDB))
+	genesisBlock, err := gene.Build()
 	if err != nil {
 		fatal("build genesis block: ", err)
 	}

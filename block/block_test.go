@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	. "github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
 
 	// "crypto/rand"
 	// cmn "github.com/meterio/meter-pov/libs/common"
@@ -25,18 +24,12 @@ import (
 
 func TestSerialize(t *testing.T) {
 
-	tx1 := new(tx.Builder).Clause(tx.NewClause(&meter.Address{})).Clause(tx.NewClause(&meter.Address{})).Build()
-	tx2 := new(tx.Builder).Clause(tx.NewClause(nil)).Build()
-
 	privKey := string("dce1443bd2ef0c2631adc1c67e5c93f13dc23a41c18b536effbbdcbcdb96fb65")
 
 	now := uint64(time.Now().UnixNano())
 
 	var (
-		gasUsed    uint64        = 1000
-		gasLimit   uint64        = 14000
-		totalScore uint64        = 101
-		emptyRoot  meter.Bytes32 = meter.BytesToBytes32([]byte("0"))
+		emptyRoot meter.Bytes32 = meter.BytesToBytes32([]byte("0"))
 	)
 
 	block := new(Builder).
@@ -54,7 +47,6 @@ func TestSerialize(t *testing.T) {
 
 	assert.Equal(t, body.Txs, txs)
 	assert.Equal(t, Compose(h, txs), block)
-	assert.Equal(t, gasLimit, h.GasLimit())
 	assert.Equal(t, now, h.Timestamp())
 	assert.Equal(t, emptyRoot, h.ParentID())
 	assert.Equal(t, txsRootHash, h.TxsRoot())

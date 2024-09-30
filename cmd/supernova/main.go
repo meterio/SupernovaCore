@@ -87,7 +87,6 @@ func main() {
 			apiAddrFlag,
 			apiCorsFlag,
 			apiTimeoutFlag,
-			apiCallGasLimitFlag,
 			apiBacktraceLimitFlag,
 			verbosityFlag,
 			maxPeersFlag,
@@ -192,10 +191,6 @@ func defaultAction(ctx *cli.Context) error {
 
 	chain := initChain(gene, mainDB)
 
-	// if flattern index start flag is not set, mark it in db
-	pruneIndexHead, _ := chain.GetPruneIndexHead()
-
-	fmt.Printf("PruneIndexHead: %v, needPruning: %v\n", pruneIndexHead, pruneIndexHead < chain.BestBlockBeforeIndexFlattern().Number())
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
@@ -324,7 +319,7 @@ func defaultAction(ctx *cli.Context) error {
 		InitDelegates:     initDelegates,
 	}
 
-	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), uint64(ctx.Int(apiCallGasLimitFlag.Name)), p2pcom.p2pSrv)
+	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), p2pcom.p2pSrv)
 	defer func() { slog.Info("closing API..."); apiCloser() }()
 
 	apiURL, srvCloser := startAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())

@@ -174,7 +174,7 @@ func openMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 }
 
 func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
-	genesisBlock, _, err := gene.Build()
+	genesisBlock, err := gene.Build()
 	if err != nil {
 		fatal("build genesis block: ", err)
 	}
@@ -351,8 +351,7 @@ func pubkeyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Dispatcher struct {
-	cons        *consensus.Reactor
-	comboPubkey string
+	cons *consensus.Reactor
 }
 
 func handleVersion(w http.ResponseWriter, r *http.Request) {

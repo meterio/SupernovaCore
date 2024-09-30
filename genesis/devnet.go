@@ -57,7 +57,6 @@ func NewDevnet() *Genesis {
 	launchTime := uint64(1526400000) // 'Wed May 16 2018 00:00:00 GMT+0800 (CST)'
 
 	builder := new(Builder).
-		GasLimit(meter.InitialGasLimit).
 		Timestamp(launchTime)
 
 	id, err := builder.ComputeID()

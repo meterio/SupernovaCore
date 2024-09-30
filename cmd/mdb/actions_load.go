@@ -1,21 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"path"
 	"strings"
-	"time"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/trie"
-	"github.com/meterio/meter-pov/tx"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -31,16 +26,14 @@ func loadStashAction(ctx *cli.Context) error {
 
 	iter := db.NewIterator(*kv.NewRangeWithBytesPrefix(nil))
 	for iter.Next() {
-		var tx tx.Transaction
+		var tx cmttypes.Tx
 		if err := rlp.DecodeBytes(iter.Value(), &tx); err != nil {
 			slog.Warn("decode stashed tx", "err", err)
 			if err := db.Delete(iter.Key()); err != nil {
 				slog.Warn("delete corrupted stashed tx", "err", err)
 			}
 		} else {
-			var raw bytes.Buffer
-			tx.EncodeRLP(&raw)
-			slog.Info("found tx: ", "id", tx.Hash(), "raw", hex.EncodeToString(raw.Bytes()))
+			slog.Info("found tx: ", "id", tx.Hash(), "raw", hex.EncodeToString(tx))
 		}
 	}
 	return nil
@@ -98,103 +91,6 @@ func loadBlockAction(ctx *cli.Context) error {
 	return nil
 }
 
-func loadAccountAction(ctx *cli.Context) error {
-	mainDB, gene := openMainDB(ctx)
-	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
-
-	meterChain := initChain(ctx, gene, mainDB)
-
-	blk, err := loadBlockByRevision(meterChain, ctx.String(revisionFlag.Name))
-	if err != nil {
-		panic("could not load block")
-	}
-	t, err := trie.NewSecure(blk.StateRoot(), mainDB, 1024)
-	if err != nil {
-		panic("could not load secure trie")
-	}
-	addr := ctx.String(addressFlag.Name)
-	parsedAddr := meter.MustParseAddress(addr)
-	fmt.Println("parsed address : ", parsedAddr)
-
-	start := time.Now()
-	data, err := t.TryGet(parsedAddr[:])
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	acct := &state.Account{}
-	err = rlp.DecodeBytes(data, &acct)
-	if err != nil {
-		fmt.Println("error: ", err)
-		return err
-	}
-	fmt.Println("Load account elapsed: ", meter.PrettyDuration(time.Since(start)))
-	fmt.Println("Account found: ", acct)
-	return nil
-}
-
-func loadStorageAction(ctx *cli.Context) error {
-	mainDB, gene := openMainDB(ctx)
-	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
-
-	meterChain := initChain(ctx, gene, mainDB)
-
-	blk, err := loadBlockByRevision(meterChain, ctx.String(revisionFlag.Name))
-	if err != nil {
-		panic("could not load block")
-	}
-	fmt.Println("Revision block: ", blk.Number(), blk.ID())
-	stateC := state.NewCreator(mainDB)
-	s, err := stateC.NewState(blk.StateRoot())
-	if err != nil {
-		panic("could not load state")
-	}
-
-	addr := ctx.String(addressFlag.Name)
-	key := ctx.String(keyFlag.Name)
-	_, err = hex.DecodeString(key)
-	if err == nil {
-		key = "0x" + key
-	}
-	_, err = meter.ParseBytes32(key)
-	if err != nil {
-		fmt.Println("String key: ", key)
-		key = meter.Blake2b([]byte(key)).String()
-	}
-	fmt.Println("Actual key: ", key)
-
-	parsedAddr, err := meter.ParseAddress(addr)
-	if err != nil {
-		panic(err)
-	}
-	parsedKey, err := meter.ParseBytes32(key)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Address: ", parsedAddr)
-
-	raw := s.GetRawStorage(parsedAddr, parsedKey)
-	fmt.Println("Raw Storage: ", hex.EncodeToString(raw))
-	return nil
-}
-
-func loadIndexTrieRootAction(ctx *cli.Context) error {
-	mainDB, gene := openMainDB(ctx)
-	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
-
-	meterChain := initChain(ctx, gene, mainDB)
-	blk, err := loadBlockByRevision(meterChain, ctx.String(revisionFlag.Name))
-	if err != nil {
-		fmt.Println("could not get block", err)
-	}
-	val, err := mainDB.Get(append(indexTrieRootPrefix, blk.ID().Bytes()...))
-	if err != nil {
-		fmt.Println("could not get index trie root", err)
-	}
-	fmt.Println("index trie root for ", blk.Number(), "is ", hex.EncodeToString(val))
-	return nil
-}
-
 func loadHashAction(ctx *cli.Context) error {
 	mainDB, _ := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
@@ -227,20 +123,6 @@ func peekAction(ctx *cli.Context) error {
 	fmt.Println("Network: ", network)
 	fmt.Println("-------------------------------")
 
-	head, err := meterChain.GetPruneIndexHead()
-	if err == nil {
-		fmt.Println("Prune Index Head: ", head)
-	}
-
-	head, err = meterChain.GetPruneHead()
-	if err == nil {
-		fmt.Println("Prune Head: ", head)
-	}
-	snapshot, err := meterChain.GetStateSnapshotNum()
-	if err == nil {
-		fmt.Println("Snapshot Num:", snapshot)
-	}
-
 	// Read Best QC
 	val, err := readBestQC(mainDB)
 	if err != nil {
@@ -260,28 +142,6 @@ func peekAction(ctx *cli.Context) error {
 		panic("could not read best block")
 	}
 	fmt.Println("Best Block (Decoded): \n", bestBlk.String())
-
-	bestBlockIDBeforeFlattern, err := loadBestBlockIDBeforeFlattern(mainDB)
-	if err != nil {
-		fmt.Println("could not read flattern-index-start")
-	} else {
-		blk, _ := meterChain.GetBlock(bestBlockIDBeforeFlattern)
-		fmt.Println("Best Block Before Flattern: ", bestBlockIDBeforeFlattern, "\n", blk.String())
-	}
-
-	pruneIndexHead, err := loadPruneIndexHead(mainDB)
-	if err != nil {
-		fmt.Println("could not read prune-index-head")
-	} else {
-		fmt.Println("Prune Index Head: ", pruneIndexHead)
-	}
-
-	pruneHead, err := loadPruneHead(mainDB)
-	if err != nil {
-		fmt.Println("could not read prune-state-head")
-	} else {
-		fmt.Println("Prune Head ", pruneHead)
-	}
 
 	return nil
 }

@@ -30,7 +30,6 @@ func initLogger() {
 func buildGenesis(kv kv.GetPutter, proc func(state *state.State) error) *block.Block {
 	blk, _, err := new(genesis.Builder).
 		Timestamp(uint64(time.Now().Unix())).
-		State(proc).
 		Build(state.NewCreator(kv))
 	if err != nil {
 		fmt.Println("ERROR: ", err)

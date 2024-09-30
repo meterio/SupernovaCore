@@ -41,11 +41,7 @@ func TestSubscribeNewTx(t *testing.T) {
 
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
-		Timestamp(uint64(time.Now().Unix())).
-		TotalScore(100).
-		GasLimit(10000000).
-		StateRoot(pool.chain.GenesisBlock().Header().StateRoot()).
-		Build()
+		Timestamp(uint64(time.Now().Unix())).Build()
 	qc := block.QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 0}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil, nil)

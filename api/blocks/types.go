@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"math/big"
 
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
@@ -21,10 +22,9 @@ type JSONBlockSummary struct {
 	Size             uint32             `json:"size"`
 	ParentID         meter.Bytes32      `json:"parentID"`
 	Timestamp        uint64             `json:"timestamp"`
-	GasLimit         uint64             `json:"gasLimit"`
 	GasUsed          uint64             `json:"gasUsed"`
 	TotalScore       uint64             `json:"totalScore"`
-	TxsRoot          meter.Bytes32      `json:"txsRoot"`
+	TxsRoot          cmtbytes.HexBytes  `json:"txsRoot"`
 	TxsFeatures      uint32             `json:"txsFeatures"`
 	Signer           meter.Address      `json:"signer"`
 	IsTrunk          bool               `json:"isTrunk"`
@@ -118,7 +118,6 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.In
 		ParentID:  header.ParentID(),
 		Timestamp: header.Timestamp(),
 
-		GasLimit:         header.GasLimit(),
 		Signer:           signer,
 		Size:             uint32(blk.Size()),
 		TxsRoot:          header.TxsRoot(),

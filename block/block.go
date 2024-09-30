@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
@@ -229,7 +230,7 @@ func (b *Block) IsMBlock() bool {
 }
 
 // TxsRoot returns merkle root of txs contained in this block.
-func (b *Block) TxsRoot() meter.Bytes32 {
+func (b *Block) TxsRoot() cmtbytes.HexBytes {
 	return b.BlockHeader.TxsRoot()
 }
 

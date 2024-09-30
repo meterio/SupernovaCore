@@ -33,19 +33,16 @@ type Delegate struct {
 	NetAddr     NetAddress     `json:"network_addr"`
 	Commission  uint64         `json:"commission"`
 	DistList    []*Distributor `json:"distibutor_list"`
-
-	comboPubKeyStr string
 }
 
-func NewDelegate(name []byte, addr meter.Address, blsPub bls.PublicKey, comboPubKeyStr string, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
+func NewDelegate(name []byte, addr meter.Address, blsPub bls.PublicKey, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
 	return &Delegate{
-		Name:           name,
-		Address:        addr,
-		BlsPubKey:      blsPub,
-		comboPubKeyStr: comboPubKeyStr,
-		VotingPower:    votingPower,
-		Commission:     commission,
-		NetAddr:        netAddr,
+		Name:        name,
+		Address:     addr,
+		BlsPubKey:   blsPub,
+		VotingPower: votingPower,
+		Commission:  commission,
+		NetAddr:     netAddr,
 	}
 }
 
@@ -103,8 +100,8 @@ func LoadDelegatesFile(network string, dataDir string, blsMaster *BlsMaster) []*
 	delegates := make([]*Delegate, 0)
 	for _, d := range delegates1 {
 		// first part is ecdsa public, 2nd part is bls public key
-		pubkeyBytes, err := hex.DecodeString(strings.Replace(d.PubKey, "0x", "", 1))
-		blsPubKey, err := bls.PublicKeyFromBytes(pubkeyBytes)
+		keyBytes, err := hex.DecodeString(strings.Replace(d.PubKey, "0x", "", 1))
+		blsPubKey, err := bls.PublicKeyFromBytes(keyBytes)
 
 		var addr meter.Address
 		if len(d.Address) != 0 {
@@ -116,7 +113,7 @@ func LoadDelegatesFile(network string, dataDir string, blsMaster *BlsMaster) []*
 			}
 		}
 
-		dd := NewDelegate([]byte(d.Name), addr, blsPubKey, d.PubKey, d.VotingPower, COMMISSION_RATE_DEFAULT, d.NetAddr)
+		dd := NewDelegate([]byte(d.Name), addr, blsPubKey, d.VotingPower, COMMISSION_RATE_DEFAULT, d.NetAddr)
 		delegates = append(delegates, dd)
 	}
 	return delegates

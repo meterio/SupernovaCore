@@ -24,12 +24,7 @@ var (
 	bestQCKey    = []byte("best-qc") // best qc raw
 
 	// added for new flattern index schema
-	hashKeyPrefix         = []byte("hash")                 // (prefix, block num) -> block hash
-	bestBeforeFlatternKey = []byte("best-before-flattern") // best block hash before index flattern
-	pruneIndexHeadKey     = []byte("prune-index-head")     // prune index head block num
-	pruneHeadKey          = []byte("prune-head")           // prune head block num
-	stateSnapshotNumKey   = []byte("state-snapshot-num")   // snapshot block num
-	bestPowNonceKey       = []byte("best-pow-nonce")       // pow nonce for best kblock
+	hashKeyPrefix = []byte("h") // (prefix, block num) -> block hash
 
 )
 
@@ -190,78 +185,4 @@ func loadBestQC(r kv.Getter) (*block.QuorumCert, error) {
 		return nil, err
 	}
 	return &qc, nil
-}
-
-func loadPruneIndexHead(r kv.Getter) (uint32, error) {
-	data, err := r.Get(pruneIndexHeadKey)
-	if err != nil {
-		return 0, err
-	}
-	num := binary.LittleEndian.Uint32(data)
-	return num, nil
-}
-
-func savePruneIndexHead(w kv.Putter, num uint32) error {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, num)
-	return w.Put(pruneIndexHeadKey, b)
-}
-
-func loadPruneHead(r kv.Getter) (uint32, error) {
-	data, err := r.Get(pruneHeadKey)
-	if err != nil {
-		return 0, err
-	}
-	num := binary.LittleEndian.Uint32(data)
-	return num, nil
-}
-
-func savePruneHead(w kv.Putter, num uint32) error {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, num)
-	return w.Put(pruneHeadKey, b)
-}
-
-func loadBestBlockIDBeforeFlattern(r kv.Getter) (meter.Bytes32, error) {
-	data, err := r.Get(bestBeforeFlatternKey)
-	if err != nil {
-		return meter.Bytes32{}, err
-	}
-	return meter.BytesToBytes32(data), nil
-}
-
-func saveBestBlockIDBeforeFlattern(w kv.Putter, id meter.Bytes32) error {
-	return w.Put(bestBeforeFlatternKey, id.Bytes())
-}
-
-func loadStateSnapshotNum(r kv.Getter) (uint32, error) {
-	data, err := r.Get(stateSnapshotNumKey)
-	if err != nil {
-		return 0, err
-	}
-	num := binary.LittleEndian.Uint32(data)
-	return num, nil
-}
-
-func saveStateSnapshotNum(w kv.Putter, num uint32) error {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, num)
-	return w.Put(stateSnapshotNumKey, b)
-}
-
-// loadBestPowNonce returns the pow nonce for best kblock on trunk.
-func loadBestPowNonce(r kv.Getter) (uint64, error) {
-	data, err := r.Get(bestPowNonceKey)
-	if err != nil {
-		return uint64(1001) /* genesis nonce */, err
-	}
-	powNonce := binary.LittleEndian.Uint64(data)
-	return powNonce, nil
-}
-
-// saveBestPowNonce save the pow nonce for best kblock on trunk.
-func saveBestPowNonce(w kv.Putter, powNonce uint64) error {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, powNonce)
-	return w.Put(bestPowNonceKey, b)
 }

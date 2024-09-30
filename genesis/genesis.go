@@ -8,10 +8,8 @@ package genesis
 import (
 	"encoding/hex"
 
-	"github.com/meterio/meter-pov/abi"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
 )
 
 const (
@@ -26,16 +24,16 @@ type Genesis struct {
 }
 
 // Build build the genesis block.
-func (g *Genesis) Build() (*block.Block, tx.Events, error) {
-	blk, events, err := g.builder.Build()
+func (g *Genesis) Build() (*block.Block, error) {
+	blk, err := g.builder.Build()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if blk.ID() != g.id {
 		panic("built genesis ID incorrect")
 	}
 	blk.QC = block.GenesisQC()
-	return blk, events, nil
+	return blk, nil
 }
 
 // ID returns genesis block ID.
@@ -46,18 +44,6 @@ func (g *Genesis) ID() meter.Bytes32 {
 // Name returns network name.
 func (g *Genesis) Name() string {
 	return g.name
-}
-
-func mustEncodeInput(abi *abi.ABI, name string, args ...interface{}) []byte {
-	m, found := abi.MethodByName(name)
-	if !found {
-		panic("method not found")
-	}
-	data, err := m.EncodeInput(args...)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }
 
 func mustDecodeHex(str string) []byte {

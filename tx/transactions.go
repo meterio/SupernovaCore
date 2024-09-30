@@ -6,39 +6,19 @@
 package tx
 
 import (
+	"github.com/cometbft/cometbft/crypto/merkle"
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/trie"
-)
-
-var (
-	emptyRoot = trie.DeriveRoot(&derivableTxs{})
 )
 
 // Transactions a slice of transactions.
 type Transactions []cmttypes.Tx
 
 // RootHash computes merkle root hash of transactions.
-func (txs Transactions) RootHash() meter.Bytes32 {
-	if len(txs) == 0 {
-		// optimized
-		return emptyRoot
+func (txs Transactions) RootHash() cmtbytes.HexBytes {
+	slice := make([][]byte, 0)
+	for _, tx := range txs {
+		slice = append(slice, tx)
 	}
-	return trie.DeriveRoot(derivableTxs(txs))
-}
-
-// implements types.DerivableList
-type derivableTxs Transactions
-
-func (txs derivableTxs) Len() int {
-	return len(txs)
-}
-
-func (txs derivableTxs) GetRlp(i int) []byte {
-	data, err := rlp.EncodeToBytes(txs[i])
-	if err != nil {
-		panic(err)
-	}
-	return data
+	return merkle.HashFromByteSlices(slice)
 }

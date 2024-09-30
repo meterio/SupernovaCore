@@ -13,6 +13,7 @@ import (
 	// "io"
 	"sync/atomic"
 
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
@@ -42,15 +43,17 @@ type Header struct {
 type HeaderBody struct {
 	ParentID         meter.Bytes32
 	Timestamp        uint64
-	GasLimit         uint64
-	LastKBlockHeight uint32
 	BlockType        BlockType
 	Proposer         meter.Address
-
-	Nonce uint64 // the last of the pow block
-
-	TxsRoot          meter.Bytes32
+	TxsRoot          cmtbytes.HexBytes
 	EvidenceDataRoot meter.Bytes32 // deprecated, saved just for compatibility
+
+	LastKBlockHeight uint32
+	Nonce            uint64 // the last of the pow block
+
+	QCHash            cmtbytes.HexBytes // hash of QC
+	ValidatorHash     cmtbytes.HexBytes // hash of validator set
+	NextValidatorHash cmtbytes.HexBytes // hash of next validator set
 
 	Signature []byte
 }
@@ -81,18 +84,13 @@ func (h *Header) BlockType() BlockType {
 	return h.Body.BlockType
 }
 
-// GasLimit returns gas limit of this block.
-func (h *Header) GasLimit() uint64 {
-	return h.Body.GasLimit
-}
-
 // GasUsed returns gas used by txs.
 func (h *Header) Nonce() uint64 {
 	return h.Body.Nonce
 }
 
 // TxsRoot returns merkle root of txs contained in this block.
-func (h *Header) TxsRoot() meter.Bytes32 {
+func (h *Header) TxsRoot() cmtbytes.HexBytes {
 	return h.Body.TxsRoot
 }
 
@@ -132,13 +130,17 @@ func (h *Header) SigningHash() (hash meter.Bytes32) {
 	err := rlp.Encode(hw, []interface{}{
 		h.Body.ParentID,
 		h.Body.Timestamp,
-		h.Body.GasLimit,
 		h.Body.BlockType,
-		h.Body.LastKBlockHeight,
-		h.Body.Nonce,
 
 		h.Body.TxsRoot,
 		h.Body.EvidenceDataRoot,
+
+		h.Body.LastKBlockHeight,
+		h.Body.Nonce,
+
+		h.Body.QCHash,
+		h.Body.ValidatorHash,
+		h.Body.NextValidatorHash,
 	})
 	if err != nil {
 		slog.Error("could not calculate signing hash", "err", err)

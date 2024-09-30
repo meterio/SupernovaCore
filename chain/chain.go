@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"sync"
 	"time"
 
@@ -45,7 +44,6 @@ var (
 // It's thread-safe.
 type Chain struct {
 	kv           kv.GetPutter
-	ancestorTrie *ancestorTrie
 	genesisBlock *block.Block
 	bestBlock    *block.Block
 	bestQC       *block.QuorumCert
@@ -76,11 +74,9 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 	if len(genesisBlock.Transactions()) != 0 {
 		return nil, errors.New("genesis block should not have transactions")
 	}
-	ancestorTrie := newAncestorTrie(kv)
 	var bestBlock *block.Block
 
 	genesisID := genesisBlock.ID()
-	bestPowNonce, _ := loadBestPowNonce(kv)
 
 	if bestBlockID, err := loadBestBlockID(kv); err != nil {
 		if !kv.IsNotFound(err) {
@@ -101,7 +97,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 			return nil, err
 		}
 
-		if err := ancestorTrie.Update(batch, 0, genesisID, genesisBlock.Header().ParentID()); err != nil {
+		if err := saveBlockHash(batch, 0, genesisID); err != nil {
 			return nil, err
 		}
 
@@ -112,7 +108,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 		bestBlock = genesisBlock
 		bestHeightGauge.Set(float64(bestBlock.Number()))
 	} else {
-		existGenesisID, err := ancestorTrie.GetAncestor(bestBlockID, 0)
+		existGenesisID, err := loadBlockHash(kv, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -162,24 +158,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 		return &rawBlock{raw: raw}, nil
 	})
 
-	bestIDBeforeFlattern, err := loadBestBlockIDBeforeFlattern(kv)
-	var bestBlockBeforeFlattern *block.Block
-	if !bytes.Equal(bestIDBeforeFlattern.Bytes(), meter.Bytes32{}.Bytes()) || err == nil {
-		bestBlockBeforeFlatternRaw, err := loadBlockRaw(kv, bestIDBeforeFlattern)
-		if err != nil {
-			fmt.Println("could not load raw for bestBlockBeforeFlattern: ", err)
-		} else {
-			bestBlockBeforeFlattern, _ = (&rawBlock{raw: bestBlockBeforeFlatternRaw}).Block()
-		}
-	} else {
-		saveBestBlockIDBeforeFlattern(kv, bestBlock.ID())
-		bestBlockBeforeFlattern = bestBlock
-	}
-
-	if bestBlockBeforeFlattern == nil {
-		panic("Best Block Before Flattern initialize failed")
-	}
-
 	bestQC, err := loadBestQC(kv)
 	if err != nil {
 		slog.Debug("BestQC is empty, set it to use genesisEscortQC")
@@ -189,7 +167,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 
 	if bestBlock.Number() > bestQC.QCHeight {
 		slog.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.QCHeight)
-		matchBestBlockID, err := ancestorTrie.GetAncestor(bestBlock.ID(), bestQC.QCHeight)
+		matchBestBlockID, err := loadBlockHash(kv, bestQC.QCHeight)
 		if err != nil {
 			slog.Error("could not load match best block", "err", err)
 		} else {
@@ -198,7 +176,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 				fmt.Println("could not load raw for bestBlockBeforeFlattern: ", err)
 			} else {
 				bestBlock, _ = (&rawBlock{raw: matchBestBlockRaw}).Block()
-				saveBestBlockIDBeforeFlattern(kv, matchBestBlockID)
+				saveBestBlockID(kv, matchBestBlockID)
 			}
 		}
 	}
@@ -214,27 +192,11 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 		fmt.Println("Genesis: ", genesisBlock.ID())
 		fmt.Println("Best:    ", bestBlock.CompactString())
 		fmt.Println("Best QC: ", bestQC.String())
-		fmt.Println("Best Before Flattern:", bestBlockBeforeFlattern.CompactString())
-		fmt.Println("Best Pow Nonce:", bestPowNonce)
-		head, err := loadPruneIndexHead(kv)
-		if err != nil {
-			fmt.Println("Prune Index Head: ", head)
-		}
-
-		head, err = loadPruneHead(kv)
-		if err == nil {
-			fmt.Println("Prune Head: ", head)
-		}
-		snapshot, err := loadStateSnapshotNum(kv)
-		if err == nil {
-			fmt.Println("Snapshot Num:", snapshot)
-		}
 
 		fmt.Println("---------------------------------------------------------")
 	}
 	c := &Chain{
 		kv:           kv,
-		ancestorTrie: ancestorTrie,
 		genesisBlock: genesisBlock,
 		bestBlock:    bestBlock,
 		bestQC:       bestQC,
@@ -243,9 +205,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 			rawBlocks: rawBlocksCache,
 		},
 
-		bestBlockBeforeIndexFlattern: bestBlockBeforeFlattern,
-		logger:                       slog.With("pkg", "chain"),
-		bestPowNonce:                 bestPowNonce,
+		logger: slog.With("pkg", "chain"),
 	}
 
 	c.proposalMap = NewProposalMap(c)
@@ -259,7 +219,6 @@ func (c *Chain) houseKeeping(duration time.Duration) {
 		select {
 		case <-ticker.C:
 			c.logger.Info("Chain housekeeping: purge ancestor trie")
-			c.purgeAncestorTrie()
 		}
 	}
 }
@@ -300,7 +259,7 @@ func (c *Chain) BestKBlock() (*block.Block, error) {
 		return c.bestBlock, nil
 	} else {
 		lastKblockHeight := c.bestBlock.LastKBlockHeight()
-		id, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), lastKblockHeight)
+		id, err := loadBlockHash(c.kv, lastKblockHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -367,7 +326,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 		return nil, err
 	}
 
-	if err := c.ancestorTrie.Update(batch, newBlock.Number(), newBlockID, newBlock.ParentID()); err != nil {
+	if err := saveBlockHash(batch, newBlock.Number(), newBlockID); err != nil {
 		return nil, err
 	}
 
@@ -475,7 +434,7 @@ func (c *Chain) GetBlockRaw(id meter.Bytes32) (block.Raw, error) {
 func (c *Chain) GetAncestorBlockID(descendantID meter.Bytes32, ancestorNum uint32) (meter.Bytes32, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	return c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), ancestorNum)
+	return loadBlockHash(c.kv, ancestorNum)
 
 }
 
@@ -504,14 +463,14 @@ func (c *Chain) GetTransaction(blockID meter.Bytes32, index uint64) (cmttypes.Tx
 func (c *Chain) GetTrunkBlockID(num uint32) (meter.Bytes32, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	return c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), num)
+	return loadBlockHash(c.kv, num)
 }
 
 // GetTrunkBlockHeader get block header on trunk by given block number.
 func (c *Chain) GetTrunkBlockHeader(num uint32) (*block.Header, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	id, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), num)
+	id, err := c.GetTrunkBlockID(num)
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +481,7 @@ func (c *Chain) GetTrunkBlockHeader(num uint32) (*block.Header, error) {
 func (c *Chain) GetTrunkBlock(num uint32) (*block.Block, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
-	id, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), num)
+	id, err := c.GetTrunkBlockID(num)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +499,7 @@ func (c *Chain) GetTrunkBlockRaw(num uint32) (block.Raw, error) {
 		return []byte{}, errors.New("no trunk block beyond best")
 	}
 
-	id, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), num)
+	id, err := c.GetTrunkBlockID(num)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +648,7 @@ func (c *Chain) getTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxM
 		return nil, err
 	}
 	for _, m := range meta {
-		ancestorID, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), block.Number(m.BlockID))
+		ancestorID, err := loadBlockHash(c.kv, block.Number(m.BlockID))
 		if err != nil {
 			if c.IsNotFound(err) {
 				continue
@@ -770,7 +729,7 @@ func (c *Chain) NewBlockReader(position meter.Bytes32) BlockReader {
 				continue
 			}
 
-			ancestor, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), block.Number(position))
+			ancestor, err := loadBlockHash(c.kv, block.Number(position))
 			// ancestor, err := c.ancestorTrie.GetAncestor(bestID, block.Number(position))
 			if err != nil {
 				return nil, err
@@ -792,7 +751,7 @@ func (c *Chain) NewBlockReader(position meter.Bytes32) BlockReader {
 }
 
 func (c *Chain) nextBlock(descendantID meter.Bytes32, num uint32) (*block.Block, error) {
-	next, err := c.ancestorTrie.GetAncestor(c.bestBlockBeforeIndexFlattern.ID(), num+1)
+	next, err := loadBlockHash(c.kv, num+1)
 	if err != nil {
 		return nil, err
 	}
@@ -814,37 +773,6 @@ func (c *Chain) FindEpochOnBlock(num uint32) (uint64, error) {
 		return 0, err
 	}
 	return b.GetBlockEpoch(), nil
-}
-
-func (c *Chain) purgeAncestorTrie() {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	c.ancestorTrie.PurgeCache()
-	runtime.GC()
-}
-
-func (c *Chain) GetPruneIndexHead() (uint32, error) {
-	return loadPruneIndexHead(c.kv)
-}
-
-func (c *Chain) UpdatePruneIndexHead(num uint32) error {
-	return savePruneIndexHead(c.kv, num)
-}
-
-func (c *Chain) GetPruneHead() (uint32, error) {
-	return loadPruneHead(c.kv)
-}
-
-func (c *Chain) UpdatePruneHead(num uint32) error {
-	return savePruneHead(c.kv, num)
-}
-
-func (c *Chain) GetStateSnapshotNum() (uint32, error) {
-	return loadStateSnapshotNum(c.kv)
-}
-
-func (c *Chain) UpdateStateSnapshotNum(num uint32) error {
-	return saveStateSnapshotNum(c.kv, num)
 }
 
 func (c *Chain) AddDraft(b *block.DraftBlock) {

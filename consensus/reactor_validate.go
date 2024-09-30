@@ -11,6 +11,7 @@
 package consensus
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -116,10 +117,6 @@ func (c *Reactor) validateBlockHeader(header *block.Header, parent *block.Header
 		return errFutureBlock
 	}
 
-	if !block.GasLimit(header.GasLimit()).IsValid(parent.GasLimit()) {
-		return consensusError(fmt.Sprintf("block gas limit invalid: parent %v, current %v", parent.GasLimit(), header.GasLimit()))
-	}
-
 	if epoch != meter.KBlockEpoch && header.LastKBlockHeight() < parent.LastKBlockHeight() {
 		return consensusError(fmt.Sprintf("block LastKBlockHeight invalid: parent %v, current %v", parent.LastKBlockHeight(), header.LastKBlockHeight()))
 	}
@@ -144,7 +141,7 @@ func (c *Reactor) validateProposer(header *block.Header, parent *block.Header) e
 func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, forceValidate bool) error {
 	header := blk.Header()
 	proposedTxs := blk.Transactions()
-	if header.TxsRoot() != proposedTxs.RootHash() {
+	if !bytes.Equal(header.TxsRoot(), proposedTxs.RootHash()) {
 		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot(), proposedTxs.RootHash()))
 	}
 	if blk.GetMagic() != block.BlockMagicVersion1 {

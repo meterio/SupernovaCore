@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -135,48 +134,4 @@ func updateBest(ldb *lvldb.LevelDB, hexVal string, dryRun bool) error {
 func readBest(ldb *lvldb.LevelDB) (string, error) {
 	val, err := getValue(ldb, bestBlockKey)
 	return val, err
-}
-
-// loadFlatternIndexStart returns the best block ID on trunk.
-
-func loadPruneIndexHead(r kv.Getter) (uint32, error) {
-	data, err := r.Get(pruneIndexHeadKey)
-	if err != nil {
-		return 0, err
-	}
-	num := binary.LittleEndian.Uint32(data)
-	return num, nil
-}
-
-func savePruneIndexHead(w kv.Putter, num uint32) error {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, num)
-	return w.Put(pruneIndexHeadKey, b)
-}
-
-func loadPruneHead(r kv.Getter) (uint32, error) {
-	data, err := r.Get(pruneHeadKey)
-	if err != nil {
-		return 0, err
-	}
-	num := binary.LittleEndian.Uint32(data)
-	return num, nil
-}
-
-func savePruneHead(w kv.Putter, num uint32) error {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, num)
-	return w.Put(pruneHeadKey, b)
-}
-
-func loadBestBlockIDBeforeFlattern(r kv.Getter) (meter.Bytes32, error) {
-	data, err := r.Get(bestBeforeFlatternKey)
-	if err != nil {
-		return meter.Bytes32{}, err
-	}
-	return meter.BytesToBytes32(data), nil
-}
-
-func saveBestBlockIDBeforeFlattern(w kv.Putter, id meter.Bytes32) error {
-	return w.Put(bestBeforeFlatternKey, id.Bytes())
 }

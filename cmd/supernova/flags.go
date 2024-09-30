@@ -38,11 +38,7 @@ var (
 		Value: 10000,
 		Usage: "API request timeout value in milliseconds",
 	}
-	apiCallGasLimitFlag = cli.IntFlag{
-		Name:  "api-call-gas-limit",
-		Value: 50000000,
-		Usage: "limit contract call gas",
-	}
+
 	apiBacktraceLimitFlag = cli.IntFlag{
 		Name:  "api-backtrace-limit",
 		Value: 1000,
@@ -79,11 +75,6 @@ var (
 	persistFlag = cli.BoolFlag{
 		Name:  "persist",
 		Usage: "blockchain data storage option, if setted data will be saved to disk",
-	}
-	gasLimitFlag = cli.IntFlag{
-		Name:  "gas-limit",
-		Value: 200000000,
-		Usage: "block gas limit",
 	}
 	importMasterKeyFlag = cli.BoolFlag{
 		Name:  "import",
