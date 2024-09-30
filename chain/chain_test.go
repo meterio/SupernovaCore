@@ -12,7 +12,6 @@ import (
 	"github.com/meterio/meter-pov/chain"
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +19,7 @@ import (
 func initChain() *chain.Chain {
 	kv, _ := lvldb.NewMem()
 	g := genesis.NewDevnet()
-	b0, _, _ := g.Build(state.NewCreator(kv))
+	b0, _ := g.Build()
 
 	chain, err := chain.New(kv, b0, false)
 	if err != nil {
@@ -32,7 +31,7 @@ func initChain() *chain.Chain {
 var blsMaster = types.NewBlsMasterWithRandKey()
 
 func newBlock(parent *block.Block, score uint64) (*block.Block, *block.QuorumCert) {
-	b := new(block.Builder).ParentID(parent.Header().ID()).TotalScore(parent.Header().TotalScore() + score).Build()
+	b := new(block.Builder).ParentID(parent.Header().ID()).Build()
 	qc := block.QuorumCert{QCHeight: uint32(score), QCRound: uint32(score), EpochID: 0}
 	b.SetQC(&qc)
 	sig, _ := blsMaster.SignMessage(b.Header().SigningHash().Bytes())
@@ -65,7 +64,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		fork, err := ch.AddBlock(tt.newBlock, tt.escortQC, nil)
+		fork, err := ch.AddBlock(tt.newBlock, tt.escortQC)
 		if i != 4 {
 			assert.Nil(t, err)
 			// assert.Equal(t, tt.fork.Ancestor.ID(), fork.Ancestor.ID())

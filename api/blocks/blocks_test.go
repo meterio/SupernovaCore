@@ -8,24 +8,12 @@ package blocks_test
 import (
 	"encoding/json"
 	"io"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gorilla/mux"
 	"github.com/meterio/meter-pov/api/blocks"
 	meter_block "github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/packer"
-	"github.com/meterio/meter-pov/state"
-	"github.com/meterio/meter-pov/tx"
-	"github.com/meterio/meter-pov/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,7 +29,6 @@ var invalidBytes32 = "0x00000000000000000000000000000000000000000000000000000000
 var invalidNumberRevision = "4294967296"                                                  //invalid block number
 
 func TestBlock(t *testing.T) {
-	initBlockServer(t)
 	defer ts.Close()
 	//invalid block id
 	res, statusCode := httpGet(t, ts.URL+"/blocks/"+invalidBytes32)
@@ -71,63 +58,6 @@ func TestBlock(t *testing.T) {
 	}
 	checkBlock(t, blk, rb)
 	assert.Equal(t, http.StatusOK, statusCode)
-
-}
-
-func initBlockServer(t *testing.T) {
-	meter.InitBlockChainConfig("test")
-	db, _ := lvldb.NewMem()
-	stateC := state.NewCreator(db)
-	gene := genesis.NewDevnet()
-
-	b, _, err := gene.Build(stateC)
-	if err != nil {
-		t.Fatal(err)
-	}
-	chain, _ := chain.New(db, b, false)
-	addr := meter.BytesToAddress([]byte("to"))
-	cla := tx.NewClause(&addr).WithValue(big.NewInt(10000))
-	tx := new(tx.Builder).
-		ChainTag(chain.Tag()).
-		GasPriceCoef(1).
-		Expiration(10).
-		Gas(21000).
-		Nonce(1).
-		Clause(cla).
-		BlockRef(tx.NewBlockRef(0)).
-		Build()
-
-	sig, err := crypto.Sign(tx.SigningHash().Bytes(), genesis.DevAccounts()[0].PrivateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tx = tx.WithSignature(sig)
-	blsMaster := types.NewBlsMasterWithRandKey()
-	packer := packer.New(chain, blsMaster, stateC)
-	flow, err := packer.Mock(b.Header(), uint64(time.Now().Unix()), 2000000)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = flow.Adopt(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	block, stage, receipts, err := flow.Pack(meter_block.MBlockType, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := stage.Commit(); err != nil {
-		t.Fatal(err)
-	}
-	block.SetQC(&meter_block.QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0})
-	escortQC := &meter_block.QuorumCert{QCHeight: block.Number(), QCRound: 1, EpochID: 0, VoterMsgHash: block.VotingHash()}
-	if _, err := chain.AddBlock(block, escortQC, receipts); err != nil {
-		t.Fatal(err)
-	}
-	router := mux.NewRouter()
-	blocks.New(chain).Mount(router, "/blocks")
-	ts = httptest.NewServer(router)
-	blk = block
 }
 
 func checkBlock(t *testing.T, expBl *meter_block.Block, actBl *blocks.JSONBlockSummary) {

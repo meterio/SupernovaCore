@@ -173,7 +173,7 @@ func (r *Reactor) getRoundProposer(round uint32) *types.Validator {
 
 func (r *Reactor) amIRoundProproser(round uint32) bool {
 	p := r.getRoundProposer(round)
-	return bytes.Equal(p.BlsPubKey.Marshal(), r.blsMaster.PubKey.Marshal())
+	return bytes.Equal(p.PubKey.Marshal(), r.blsMaster.PubKey.Marshal())
 }
 
 // it is used for temp calculate committee set by a given nonce in the fly.
@@ -189,14 +189,13 @@ func (r *Reactor) calcCommitteeByNonce(name string, delegates []*types.Delegate,
 	validators := make([]*types.Validator, 0)
 	for _, d := range actualDelegates {
 		r.logger.Debug("load bls key from delegate", "name", string(d.Name))
-		// fmt.Println("checking validator", string(d.Name), d.Address, d.BlsPubKey)
 		v := &types.Validator{
 			Name:        string(d.Name),
 			Address:     d.Address,
-			BlsPubKey:   d.BlsPubKey,
+			PubKey:      d.PubKey,
 			VotingPower: d.VotingPower,
 			NetAddr:     d.NetAddr,
-			SortKey:     crypto.Keccak256(append(d.BlsPubKey.Marshal(), buf...)),
+			SortKey:     crypto.Keccak256(append(d.PubKey.Marshal(), buf...)),
 		}
 		validators = append(validators, v)
 	}
@@ -212,7 +211,7 @@ func (r *Reactor) calcCommitteeByNonce(name string, delegates []*types.Delegate,
 	// announce. Validators are stored in r.conS.Vlidators
 	if len(committee) > 0 {
 		for i, val := range committee {
-			if bytes.Equal(val.BlsPubKey.Marshal(), r.myPubKey.Marshal()) {
+			if bytes.Equal(val.PubKey.Marshal(), r.myPubKey.Marshal()) {
 
 				return actualDelegates, committee, uint32(i), true
 			}
@@ -493,8 +492,8 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 func PrintDelegates(delegates []*types.Delegate) {
 	fmt.Println("============================================")
 	for i, dd := range delegates {
-		fmt.Printf("#%d: %s (%s) :%d  Address:%s BlsPubKey: %s Commission: %v%% #Dists: %v\n",
-			i+1, dd.Name, dd.NetAddr.IP.String(), dd.NetAddr.Port, dd.Address, dd.BlsPubKey.Marshal(), dd.Commission/1e7, len(dd.DistList))
+		fmt.Printf("#%d: %s (%s) :%d  Address:%s PubKey: %s Commission: %v%% #Dists: %v\n",
+			i+1, dd.Name, dd.NetAddr.IP.String(), dd.NetAddr.Port, dd.Address, dd.PubKey.Marshal(), dd.Commission/1e7, len(dd.DistList))
 	}
 	fmt.Println("============================================")
 }
@@ -544,7 +543,7 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 		}
 		signer := r.committee[signerIndex]
 
-		if !msg.VerifyMsgSignature(signer.BlsPubKey) {
+		if !msg.VerifyMsgSignature(signer.PubKey) {
 			r.logger.Error("invalid signature, dropped ...", "peer", peer, "msg", msg.String(), "signer", signer.Name)
 			return
 		}

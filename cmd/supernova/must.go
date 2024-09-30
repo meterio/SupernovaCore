@@ -195,10 +195,6 @@ func publicKeyPath(ctx *cli.Context) string {
 	return filepath.Join(ctx.String("data-dir"), "public.key")
 }
 
-func blsKeyPath(ctx *cli.Context) string {
-	return filepath.Join(ctx.String("data-dir"), "consensus.key")
-}
-
 func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 
 	nd := ctx.StringSlice(discoServerFlag.Name)
@@ -501,7 +497,7 @@ func printStartupMessage(
     Network         [ %v %v ]    
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
-    BlsPubKey       [ %v ]
+    PubKey       [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
 `,

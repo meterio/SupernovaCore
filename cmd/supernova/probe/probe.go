@@ -16,11 +16,11 @@ import (
 )
 
 type Probe struct {
-	Cons      *consensus.Reactor
-	BlsPubKey bls.PublicKey
-	Chain     *chain.Chain
-	Version   string
-	Network   Network
+	Cons    *consensus.Reactor
+	PubKey  bls.PublicKey
+	Chain   *chain.Chain
+	Version string
+	Network Network
 }
 
 func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 	}
 	result := ProbeResult{
 		Name:            name,
-		PubKey:          hex.EncodeToString(p.BlsPubKey.Marshal()),
+		PubKey:          hex.EncodeToString(p.PubKey.Marshal()),
 		PubKeyValid:     pubkeyMatch,
 		Version:         p.Version,
 		DelegatesSource: p.Cons.GetDelegatesSource(),

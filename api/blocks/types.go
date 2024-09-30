@@ -203,7 +203,7 @@ func convertCommitteeList(cml block.CommitteeInfos) []*CommitteeMember {
 			Index: cm.Index,
 			// Name:    "",
 			NetAddr: cm.NetAddr.IP.String(),
-			PubKey:  hex.EncodeToString(cm.BlsPubKey),
+			PubKey:  hex.EncodeToString(cm.PubKey),
 		}
 	}
 	return committeeList

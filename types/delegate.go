@@ -28,18 +28,18 @@ type Distributor struct {
 type Delegate struct {
 	Name        []byte         `json:"name"`
 	Address     meter.Address  `json:"address"`
-	BlsPubKey   bls.PublicKey  `json:"bsl_pubkey"`
+	PubKey      bls.PublicKey  `json:"pubkey"`
 	VotingPower int64          `json:"voting_power"`
 	NetAddr     NetAddress     `json:"network_addr"`
 	Commission  uint64         `json:"commission"`
 	DistList    []*Distributor `json:"distibutor_list"`
 }
 
-func NewDelegate(name []byte, addr meter.Address, blsPub bls.PublicKey, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
+func NewDelegate(name []byte, addr meter.Address, pubkey bls.PublicKey, votingPower int64, commission uint64, netAddr NetAddress) *Delegate {
 	return &Delegate{
 		Name:        name,
 		Address:     addr,
-		BlsPubKey:   blsPub,
+		PubKey:      pubkey,
 		VotingPower: votingPower,
 		Commission:  commission,
 		NetAddr:     netAddr,
@@ -58,8 +58,8 @@ func (v *Delegate) String() string {
 		return "Delegate{nil}"
 	}
 
-	return fmt.Sprintf("%v ( Addr:%v VP:%v Commission:%v%% #Dists:%v, BlsPubKey:%v )",
-		string(v.Name), v.Address, v.VotingPower, v.Commission/1e7, len(v.DistList), hex.EncodeToString(v.BlsPubKey.Marshal()))
+	return fmt.Sprintf("%v ( Addr:%v VP:%v Commission:%v%% #Dists:%v, PubKey:%v )",
+		string(v.Name), v.Address, v.VotingPower, v.Commission/1e7, len(v.DistList), hex.EncodeToString(v.PubKey.Marshal()))
 }
 
 // =================================

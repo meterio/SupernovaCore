@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	. "github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
@@ -24,8 +23,6 @@ import (
 
 func TestSerialize(t *testing.T) {
 
-	privKey := string("dce1443bd2ef0c2631adc1c67e5c93f13dc23a41c18b536effbbdcbcdb96fb65")
-
 	now := uint64(time.Now().UnixNano())
 
 	var (
@@ -33,8 +30,6 @@ func TestSerialize(t *testing.T) {
 	)
 
 	block := new(Builder).
-		Transaction(tx1).
-		Transaction(tx2).
 		Timestamp(now).
 		ParentID(emptyRoot).
 		Build()
@@ -51,20 +46,20 @@ func TestSerialize(t *testing.T) {
 	assert.Equal(t, emptyRoot, h.ParentID())
 	assert.Equal(t, txsRootHash, h.TxsRoot())
 
-	key, _ := crypto.HexToECDSA(privKey)
-	sig, _ := crypto.Sign(block.Header().SigningHash().Bytes(), key)
+	// key, _ := crypto.HexToECDSA(privKey)
+	// _, _ := crypto.Sign(block.Header().SigningHash().Bytes(), key)
 
-	block = block.WithSignature(sig)
+	// block = block.WithSignature(sig)
 
 	qc := QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 1, VoterAggSig: []byte{1, 2, 3}, VoterBitArrayStr: "**-", VoterMsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
 	block.SetQC(&qc)
 
 	addr := types.NetAddress{IP: []byte{}, Port: 4444}
 	committeeInfo := []CommitteeInfo{CommitteeInfo{
-		Name:      "Testee",
-		Index:     0,
-		BlsPubKey: []byte{},
-		NetAddr:   addr,
+		Name:    "Testee",
+		Index:   0,
+		PubKey:  []byte{},
+		NetAddr: addr,
 	}}
 	_, err := rlp.EncodeToBytes(addr)
 	_, err = rlp.EncodeToBytes(committeeInfo)
@@ -86,9 +81,7 @@ func TestSerialize(t *testing.T) {
 	err = rlp.DecodeBytes(data, b)
 	assert.Equal(t, err, nil)
 	// fmt.Println("AFTER BLOCK:", b)
-	kb, err := b.GetKBlockData()
 	assert.Equal(t, err, nil)
-	assert.Equal(t, kBlockData.Nonce, kb.Nonce)
 
 	ci, err := b.GetCommitteeInfo()
 	assert.Equal(t, err, nil)

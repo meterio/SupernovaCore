@@ -19,17 +19,17 @@ import (
 type Validator struct {
 	Name        string
 	Address     meter.Address
-	BlsPubKey   bls.PublicKey
+	PubKey      bls.PublicKey
 	VotingPower int64
 	NetAddr     NetAddress
 	SortKey     []byte
 }
 
-func NewValidator(name string, address meter.Address, blsPub bls.PublicKey, votingPower int64) *Validator {
+func NewValidator(name string, address meter.Address, pubkey bls.PublicKey, votingPower int64) *Validator {
 	return &Validator{
 		Name:        name,
 		Address:     address,
-		BlsPubKey:   blsPub,
+		PubKey:      pubkey,
 		VotingPower: votingPower,
 	}
 }
@@ -52,7 +52,7 @@ func (v *Validator) String() string {
 	return fmt.Sprintf("%-26v %-15v blspub: %v",
 		name,
 		v.NetAddr.IP.String(),
-		hex.EncodeToString(v.BlsPubKey.Marshal()),
+		hex.EncodeToString(v.PubKey.Marshal()),
 	)
 }
 

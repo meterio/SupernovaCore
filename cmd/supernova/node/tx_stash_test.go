@@ -7,21 +7,18 @@ package node
 
 import (
 	"bytes"
-	"math/rand"
 	"sort"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/meterio/meter-pov/genesis"
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/meter-pov/lvldb"
 	"github.com/meterio/meter-pov/tx"
 	"github.com/stretchr/testify/assert"
 )
 
-func newTx() *tx.Transaction {
-	tx := new(tx.Builder).Nonce(rand.Uint64()).Build()
-	sig, _ := crypto.Sign(tx.SigningHash().Bytes(), genesis.DevAccounts()[0].PrivateKey)
-	return tx.WithSignature(sig)
+func newTx() cmttypes.Tx {
+	var tx cmttypes.Tx
+	return tx
 }
 
 func TestTxStash(t *testing.T) {
@@ -41,11 +38,11 @@ func TestTxStash(t *testing.T) {
 
 	saved = saved[1:]
 	sort.Slice(saved, func(i, j int) bool {
-		return bytes.Compare(saved[i].ID().Bytes(), saved[j].ID().Bytes()) < 0
+		return bytes.Compare(saved[i].Hash(), saved[j].Hash()) < 0
 	})
 
 	sort.Slice(loaded, func(i, j int) bool {
-		return bytes.Compare(loaded[i].ID().Bytes(), loaded[j].ID().Bytes()) < 0
+		return bytes.Compare(loaded[i].Hash(), loaded[j].Hash()) < 0
 	})
 
 	assert.Equal(t, saved.RootHash(), loaded.RootHash())

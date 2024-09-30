@@ -19,7 +19,6 @@ import (
 	"github.com/meterio/meter-pov/comm"
 	"github.com/meterio/meter-pov/genesis"
 	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/state"
 	"github.com/meterio/meter-pov/txpool"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,21 +37,20 @@ func TestNode(t *testing.T) {
 
 func initCommServer(t *testing.T) {
 	db, _ := lvldb.NewMem()
-	stateC := state.NewCreator(db)
 	gene := genesis.NewDevnet()
 
-	b, _, err := gene.Build(stateC)
+	b, err := gene.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 	chain, _ := chain.New(db, b, false)
-	comm := comm.New(context.Background(), chain, txpool.New(chain, stateC, txpool.Options{
+	comm := comm.New(context.Background(), chain, txpool.New(chain, txpool.Options{
 		Limit:           10000,
 		LimitPerAccount: 16,
 		MaxLifetime:     10 * time.Minute,
 	}), "main", [4]byte{1, 2, 3, 4})
 	router := mux.NewRouter()
-	node.New(comm, nil).Mount(router, "/node")
+	node.New(comm).Mount(router, "/node")
 	ts = httptest.NewServer(router)
 }
 

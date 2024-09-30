@@ -52,7 +52,7 @@ func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 		apiCm := &ApiCommitteeMember{
 			Name:        v.Name,
 			Address:     v.Address,
-			PubKey:      hex.EncodeToString(v.BlsPubKey.Marshal()),
+			PubKey:      hex.EncodeToString(v.PubKey.Marshal()),
 			Index:       index,
 			VotingPower: v.VotingPower,
 			NetAddr:     v.NetAddr.String(),
@@ -67,7 +67,7 @@ func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 			apiCm := &ApiCommitteeMember{
 				Name:        v.Name,
 				Address:     v.Address,
-				PubKey:      hex.EncodeToString(v.BlsPubKey.Marshal()),
+				PubKey:      hex.EncodeToString(v.PubKey.Marshal()),
 				Index:       i,
 				InCommittee: false,
 			}

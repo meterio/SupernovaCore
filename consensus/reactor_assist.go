@@ -10,7 +10,7 @@ func (r *Reactor) MakeBlockCommitteeInfo() []block.CommitteeInfo {
 	cis := []block.CommitteeInfo{}
 
 	for index, cm := range r.committee {
-		ci := block.NewCommitteeInfo(cm.Name, cm.BlsPubKey, cm.NetAddr,
+		ci := block.NewCommitteeInfo(cm.Name, cm.PubKey, cm.NetAddr,
 			uint32(index))
 		cis = append(cis, *ci)
 	}

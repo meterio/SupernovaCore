@@ -46,14 +46,14 @@ type Violation struct {
 }
 
 type CommitteeInfo struct {
-	Name      string
-	Index     uint32 // Index, corresponding to the bitarray
-	NetAddr   types.NetAddress
-	BlsPubKey []byte // bls pubkey
+	Name    string
+	Index   uint32 // Index, corresponding to the bitarray
+	NetAddr types.NetAddress
+	PubKey  []byte // bls pubkey
 }
 
 func (ci CommitteeInfo) String() string {
-	blsPK := hex.EncodeToString(ci.BlsPubKey)
+	blsPK := hex.EncodeToString(ci.PubKey)
 	return fmt.Sprintf("%v: %v{IP:%v, PubKey: %v }", ci.Index, ci.Name, ci.NetAddr.IP.String(), blsPK)
 }
 
@@ -91,12 +91,12 @@ type Body struct {
 }
 
 // Create new committee Info
-func NewCommitteeInfo(name string, blsPubKey bls.PublicKey, netAddr types.NetAddress, index uint32) *CommitteeInfo {
+func NewCommitteeInfo(name string, pubKey bls.PublicKey, netAddr types.NetAddress, index uint32) *CommitteeInfo {
 	return &CommitteeInfo{
-		Name:      name,
-		BlsPubKey: blsPubKey.Marshal(),
-		NetAddr:   netAddr,
-		Index:     index,
+		Name:    name,
+		PubKey:  pubKey.Marshal(),
+		NetAddr: netAddr,
+		Index:   index,
 	}
 }
 
@@ -153,7 +153,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	pubkeys := make([]bls.PublicKey, 0)
 	for index, v := range committee {
 		if escortQC.VoterBitArray().GetIndex(index) {
-			pubkeys = append(pubkeys, v.BlsPubKey)
+			pubkeys = append(pubkeys, v.PubKey)
 		}
 	}
 	sig, err := bls.SignatureFromBytes(escortQC.VoterAggSig)
