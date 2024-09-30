@@ -95,7 +95,7 @@ func BlockMatchDraftQC(b *block.DraftBlock, escortQC *block.QuorumCert) bool {
 	blk := b.ProposedBlock
 
 	votingHash := blk.VotingHash()
-	return bytes.Equal(escortQC.VoterMsgHash[:], votingHash[:])
+	return bytes.Equal(escortQC.MsgHash[:], votingHash[:])
 }
 
 func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {

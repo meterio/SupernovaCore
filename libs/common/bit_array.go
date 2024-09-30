@@ -177,6 +177,28 @@ func (bA *BitArray) not() *BitArray {
 	return c
 }
 
+func (bA *BitArray) CountYes() uint32 {
+	c := bA.copy()
+	yes := uint32(0)
+	for i := 0; i < int(c.Bits); i++ {
+		if c.getIndex(i) {
+			yes++
+		}
+	}
+	return yes
+}
+
+func (bA *BitArray) CountNo() uint32 {
+	c := bA.copy()
+	no := uint32(0)
+	for i := 0; i < int(c.Bits); i++ {
+		if c.getIndex(i) {
+			no++
+		}
+	}
+	return no
+}
+
 // Sub subtracts the two bit-arrays bitwise, without carrying the bits.
 // This is essentially bA.And(o.Not()).
 // If bA is longer than o, o is right padded with zeroes.

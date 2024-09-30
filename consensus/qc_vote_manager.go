@@ -97,16 +97,12 @@ func (m *QCVoteManager) Aggregate(round uint32, blockID meter.Bytes32, epoch uin
 	}
 	aggrSig := bls.AggregateSignatures(sigs)
 
-	bitArrayStr := bitArray.String()
-
 	return &block.QuorumCert{
-		QCHeight:         block.Number(blockID),
-		QCRound:          round,
-		EpochID:          epoch,
-		VoterBitArrayStr: bitArrayStr,
-		VoterMsgHash:     msgHash,
-		VoterAggSig:      aggrSig.Marshal(),
-		VoterViolation:   make([]*block.Violation, 0), // TODO: think about how to check double sign
+		QCHeight: block.Number(blockID),
+		QCRound:  round,
+		EpochID:  epoch,
+		MsgHash:  msgHash,
+		AggSig:   aggrSig.Marshal(),
 	}
 }
 

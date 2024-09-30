@@ -17,6 +17,9 @@ type Builder struct {
 	txs        tx.Transactions
 	//	committeeInfo CommitteeInfo
 	//	kBlockData    kBlockData
+	qc             *QuorumCert
+	CommitteeInfos CommitteeInfos
+	Magic          [4]byte
 }
 
 // ParentID set parent id.
@@ -51,6 +54,12 @@ func (b *Builder) Transaction(tx []byte) *Builder {
 
 func (b *Builder) Nonce(nonce uint64) *Builder {
 	b.headerBody.Nonce = nonce
+	return b
+}
+
+func (b *Builder) QC(qc *QuorumCert) *Builder {
+	b.qc = qc
+	b.headerBody.QCHash = qc.Hash()
 	return b
 }
 

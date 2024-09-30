@@ -179,7 +179,7 @@ func convertQC(qc *block.QuorumCert) (*QC, error) {
 	return &QC{
 		QCHeight:         qc.QCHeight,
 		QCRound:          qc.QCRound,
-		VoterBitArrayStr: qc.VoterBitArrayStr,
+		VoterBitArrayStr: qc.BitArray.String(),
 		EpochID:          qc.EpochID,
 	}, nil
 }
@@ -189,7 +189,7 @@ func convertQCWithRaw(qc *block.QuorumCert) (*QCWithRaw, error) {
 	return &QCWithRaw{
 		QCHeight:         qc.QCHeight,
 		QCRound:          qc.QCRound,
-		VoterBitArrayStr: qc.VoterBitArrayStr,
+		VoterBitArrayStr: qc.BitArray.String(),
 		EpochID:          qc.EpochID,
 		Raw:              raw,
 	}, nil

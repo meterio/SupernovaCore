@@ -140,28 +140,28 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 
 	// check voting hash
 	voteHash := b.VotingHash()
-	if !bytes.Equal(escortQC.VoterMsgHash[:], voteHash[:]) {
+	if !bytes.Equal(escortQC.MsgHash[:], voteHash[:]) {
 		return false, errors.New("voting hash mismatch")
 	}
 
 	// check vote count
-	voteCount := escortQC.VoterBitArray().Count()
+	voteCount := escortQC.BitArray.Count()
 	if !MajorityTwoThird(uint32(voteCount), committeeSize) {
 		return false, fmt.Errorf("not enough votes (%d/%d)", voteCount, committeeSize)
 	}
 
 	pubkeys := make([]bls.PublicKey, 0)
 	for index, v := range committee {
-		if escortQC.VoterBitArray().GetIndex(index) {
+		if escortQC.BitArray.GetIndex(index) {
 			pubkeys = append(pubkeys, v.PubKey)
 		}
 	}
-	sig, err := bls.SignatureFromBytes(escortQC.VoterAggSig)
+	sig, err := bls.SignatureFromBytes(escortQC.AggSig)
 	if err != nil {
 		return false, errors.New("invalid aggregate signature:" + err.Error())
 	}
 	start := time.Now()
-	valid := sig.FastAggregateVerify(pubkeys, escortQC.VoterMsgHash)
+	valid := sig.FastAggregateVerify(pubkeys, escortQC.MsgHash)
 	slog.Debug("verified QC", "elapsed", meter.PrettyDuration(time.Since(start)))
 
 	return valid, err

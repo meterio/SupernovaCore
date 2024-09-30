@@ -625,7 +625,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		r.logger.Warn(fmt.Sprintf("validate %s with last staging committee FAILED", escortQC.CompactString()), "size", len(r.lastCommittee), "err", err)
 	}
 
-	if r.delegateSource != fromStaking && escortQC.VoterBitArray().Size() == len(r.hardCommittee) {
+	if r.delegateSource != fromStaking && escortQC.BitArray.Size() == len(r.hardCommittee) {
 		// validate with hard committee
 		start := time.Now()
 		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.hardCommittee)

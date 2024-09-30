@@ -6,10 +6,10 @@
 package block
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/meter-pov/libs/common"
@@ -20,20 +20,18 @@ type QuorumCert struct {
 	QCRound  uint32
 	EpochID  uint64
 
-	VoterBitArrayStr string
-	VoterMsgHash     [32]byte // [][32]byte
-	VoterAggSig      []byte
-	voterBitArray    *cmn.BitArray
-	VoterViolation   []*Violation
+	MsgHash  [32]byte // [][32]byte
+	AggSig   []byte
+	BitArray *cmn.BitArray
 }
 
 func (qc *QuorumCert) String() string {
 	if qc != nil {
 		// bitArray := strings.ReplaceAll(qc.VoterBitArrayStr, "\"", "")
-		voted := strings.Count(qc.VoterBitArrayStr, "x")
-		unvoted := strings.Count(qc.VoterBitArrayStr, "_")
+		voted := qc.BitArray.CountYes()
+		unvoted := qc.BitArray.CountNo()
 		return fmt.Sprintf("QC(#%v, R:%v, E:%v, BitArray:(%v/%v), AggSig:len(%v))",
-			qc.QCHeight, qc.QCRound, qc.EpochID, voted, (voted + unvoted), len(qc.VoterAggSig))
+			qc.QCHeight, qc.QCRound, qc.EpochID, voted, (voted + unvoted), len(qc.AggSig))
 	}
 	return "QC(nil)"
 }
@@ -64,21 +62,27 @@ func (qc *QuorumCert) EncodeRLP(w io.Writer) error {
 		qc.QCHeight,
 		qc.QCRound,
 		qc.EpochID,
-		qc.VoterMsgHash,
-		qc.VoterAggSig,
-		qc.VoterBitArrayStr,
+		qc.MsgHash,
+		qc.AggSig,
+		qc.BitArray,
 	})
+}
+
+func (qc *QuorumCert) Hash() []byte {
+	b, _ := rlp.EncodeToBytes(qc)
+	hash := sha256.Sum256(b)
+	return hash[:]
 }
 
 // DecodeRLP implements rlp.Decoder.
 func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	payload := struct {
-		QCHeight         uint32
-		QCRound          uint32
-		EpochID          uint64
-		VoterMsgHash     [32]byte
-		VoterAggSig      []byte
-		VoterBitArrayStr string
+		QCHeight uint32
+		QCRound  uint32
+		EpochID  uint64
+		MsgHash  [32]byte
+		AggSig   []byte
+		BitArray *cmn.BitArray
 	}{}
 
 	if err := s.Decode(&payload); err != nil {
@@ -86,35 +90,14 @@ func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	*qc = QuorumCert{
-		QCHeight:         payload.QCHeight,
-		QCRound:          payload.QCRound,
-		EpochID:          payload.EpochID,
-		VoterMsgHash:     payload.VoterMsgHash,
-		VoterAggSig:      payload.VoterAggSig,
-		VoterBitArrayStr: payload.VoterBitArrayStr,
+		QCHeight: payload.QCHeight,
+		QCRound:  payload.QCRound,
+		EpochID:  payload.EpochID,
+		MsgHash:  payload.MsgHash,
+		AggSig:   payload.AggSig,
+		BitArray: payload.BitArray,
 	}
 	return nil
-}
-
-func (qc *QuorumCert) VoterBitArray() *cmn.BitArray {
-	bitArray := &cmn.BitArray{}
-	if len(qc.VoterBitArrayStr) == 0 {
-		return nil
-	}
-	// VoterBitArrayStr format: "BA{Bits:xxxx_x}", only need "xxxx_x"
-	str := qc.VoterBitArrayStr[3 : len(qc.VoterBitArrayStr)-1]
-	strs := strings.Split(str, ":")
-
-	err := bitArray.UnmarshalJSON([]byte("\"" + strs[1] + "\""))
-	if err != nil {
-		slog.Error("unmarshal json failed", "err", err.Error())
-		return nil
-	}
-	return bitArray
-}
-
-func (qc *QuorumCert) GetViolation() []*Violation {
-	return qc.VoterViolation
 }
 
 func GenesisQC() *QuorumCert {
@@ -122,7 +105,7 @@ func GenesisQC() *QuorumCert {
 }
 
 func GenesisEscortQC(b *Block) *QuorumCert {
-	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, VoterMsgHash: b.VotingHash()}
+	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: b.VotingHash()}
 }
 
 // --------------
