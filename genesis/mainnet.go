@@ -5,12 +5,16 @@
 
 package genesis
 
+import "github.com/meterio/meter-pov/types"
+
 // NewMainnet create mainnet genesis.
 func NewMainnet() *Genesis {
 	launchTime := uint64(1593907199) // 2020-07-04T23:59:59+00:00
 
+	vset := types.NewValidatorSet(make([]*types.Validator, 0))
+
 	builder := new(Builder).
-		Timestamp(launchTime)
+		Timestamp(launchTime).ValidatorSet(vset)
 
 	///// initialize builtin contracts
 
@@ -21,5 +25,6 @@ func NewMainnet() *Genesis {
 	if err != nil {
 		panic(err)
 	}
-	return &Genesis{builder, id, "mainnet"}
+	return &Genesis{builder, id, "mainnet", vset}
+
 }

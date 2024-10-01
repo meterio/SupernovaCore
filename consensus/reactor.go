@@ -12,7 +12,6 @@ import (
 	sha256 "crypto/sha256"
 	"encoding/base64"
 	b64 "encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -20,7 +19,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -44,18 +42,10 @@ var (
 	validQCs, _ = lru.New(256)
 )
 
-const (
-	fromDelegatesFile = iota
-	fromStaking
-)
-
 type ReactorConfig struct {
-	InitCfgdDelegates bool
-	EpochMBlockCount  uint32
-	MinCommitteeSize  int
-	MaxCommitteeSize  int
-	MaxDelegateSize   int
-	InitDelegates     []*types.Delegate
+	EpochMBlockCount uint32
+	MinCommitteeSize int
+	MaxCommitteeSize int
 }
 
 // -----------------------------------------------------------------------------
@@ -78,15 +68,12 @@ type Reactor struct {
 	committeeSize uint32
 	mapMutex      sync.RWMutex
 	knownIPs      map[string]string
-	curDelegates  []*types.Delegate // current delegates list
 
-	committee     []*types.Validator // current committee that I start meter into
-	lastCommittee []*types.Validator
-	hardCommittee []*types.Validator // committee that was supposed to issue the QC
+	committee     *types.ValidatorSet // current committee that I start meter into
+	lastCommittee *types.ValidatorSet
 
 	committeeIndex   uint32
 	inCommittee      bool
-	delegateSource   int
 	lastKBlockHeight uint32
 	curNonce         uint64
 	curEpoch         uint64
@@ -164,11 +151,11 @@ func (r *Reactor) GetLastKBlockHeight() uint32 {
 
 // get the specific round proposer
 func (r *Reactor) getRoundProposer(round uint32) *types.Validator {
-	size := len(r.committee)
+	size := len(r.committee.Validators)
 	if size == 0 {
 		return &types.Validator{}
 	}
-	return r.committee[int(round)%size]
+	return r.committee.GetByIndex(round)
 }
 
 func (r *Reactor) amIRoundProproser(round uint32) bool {
@@ -178,69 +165,49 @@ func (r *Reactor) amIRoundProproser(round uint32) bool {
 
 // it is used for temp calculate committee set by a given nonce in the fly.
 // also return the committee
-func (r *Reactor) calcCommitteeByNonce(name string, delegates []*types.Delegate, nonce uint64) ([]*types.Delegate, []*types.Validator, uint32, bool) {
+func (r *Reactor) calcCommitteeByNonce(name string, vset *types.ValidatorSet, nonce uint64) (*types.ValidatorSet, uint32, bool) {
 	fmt.Println("calc committee by nonce", name)
-	delegateSize, committeeSize := calcCommitteeSize(len(delegates), r.config)
-	actualDelegates := delegates[:delegateSize]
 
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(buf, nonce)
+	newVset := vset.SortWithNonce(nonce)
 
-	validators := make([]*types.Validator, 0)
-	for _, d := range actualDelegates {
-		r.logger.Debug("load bls key from delegate", "name", string(d.Name))
-		v := &types.Validator{
-			Name:        string(d.Name),
-			Address:     d.Address,
-			PubKey:      d.PubKey,
-			VotingPower: d.VotingPower,
-			NetAddr:     d.NetAddr,
-			SortKey:     crypto.Keccak256(append(d.PubKey.Marshal(), buf...)),
-		}
-		validators = append(validators, v)
-	}
-	r.logger.Info(fmt.Sprintf("cal %s committee", name), "delegateSize", len(actualDelegates), "committeeSize", committeeSize, "nonce", nonce)
+	r.logger.Info(fmt.Sprintf("cal %s committee", name), "nonce", nonce)
 
-	sort.SliceStable(validators, func(i, j int) bool {
-		return (bytes.Compare(validators[i].SortKey, validators[j].SortKey) <= 0)
-	})
-
-	committee := validators[:committeeSize]
+	committee := newVset
 	// the full list is stored in currCommittee, sorted.
 	// To become a validator (real member in committee), must repond the leader's
 	// announce. Validators are stored in r.conS.Vlidators
-	if len(committee) > 0 {
-		for i, val := range committee {
+	if len(committee.Validators) > 0 {
+		for i, val := range committee.Validators {
 			if bytes.Equal(val.PubKey.Marshal(), r.myPubKey.Marshal()) {
 
-				return actualDelegates, committee, uint32(i), true
+				return committee, uint32(i), true
 			}
 		}
 	} else {
-		r.logger.Error("committee is empty, potential error config with delegates.json", "delegates", len(delegates))
+		r.logger.Error("committee is empty, potential error config with delegates.json")
 	}
 
-	return actualDelegates, committee, 0, false
+	return committee, 0, false
 }
 
-func (r *Reactor) GetMyNetAddr() types.NetAddress {
-	if r.committee != nil && len(r.committee) > 0 {
-		return r.committee[r.committeeIndex].NetAddr
+func (r *Reactor) GetMyNetAddr() *types.NetAddress {
+	if r.committee != nil && len(r.committee.Validators) > 0 {
+		v := r.committee.GetByIndex(r.committeeIndex)
+		return types.NewNetAddressFromNetIP(v.IP, v.Port)
 	}
-	return types.NetAddress{IP: net.IP{}, Port: 0}
+	return &types.NetAddress{IP: net.IP{}, Port: 0}
 }
 
 func (r *Reactor) GetMyName() string {
-	if r.committee != nil && len(r.committee) > 0 {
-		return r.committee[r.committeeIndex].Name
+	if r.committee != nil && len(r.committee.Validators) > 0 {
+		return r.committee.GetByIndex(r.committeeIndex).Name
 	}
 	return "unknown"
 }
 
 func (r *Reactor) IsMe(peer *ConsensusPeer) bool {
-	if r.committee != nil && len(r.committee) > 0 {
-		myAddr := r.committee[r.committeeIndex].NetAddr
-		return strings.EqualFold(peer.IP, myAddr.String())
+	if r.committee != nil && len(r.committee.Validators) > 0 {
+		return r.committee.GetByIndex(r.committeeIndex).IP.String() == peer.IP
 	}
 	return false
 }
@@ -311,68 +278,6 @@ func (r *Reactor) combinePubKey(ecdsaPub *ecdsa.PublicKey, blsPub *bls.PublicKey
 	return strings.Join([]string{ecdsaPubB64, blsPubB64}, ":::")
 }
 
-func calcCommitteeSize(delegateSize int, config ReactorConfig) (int, int) {
-	if delegateSize >= config.MaxDelegateSize {
-		delegateSize = config.MaxDelegateSize
-	}
-
-	committeeSize := delegateSize
-	if delegateSize > config.MaxCommitteeSize {
-		committeeSize = config.MaxCommitteeSize
-	}
-	return delegateSize, committeeSize
-}
-
-// entry point for each committee
-// return with delegates list, delegateSize, committeeSize
-// maxDelegateSize >= maxCommiteeSize >= minCommitteeSize
-func (r *Reactor) GetConsensusDelegates() ([]*types.Delegate, []*types.Delegate) {
-	forceDelegates := r.config.InitCfgdDelegates
-
-	// special handle for flag --init-configured-delegates
-	var delegates []*types.Delegate
-	var err error
-	if forceDelegates {
-		delegates = r.config.InitDelegates
-		r.delegateSource = fromDelegatesFile
-		r.peakFirst3Delegates("Loaded delegates from file", delegates)
-	} else {
-		best := r.chain.BestBlock()
-		delegates, err = r.getDelegatesFromStaking(best)
-		r.delegateSource = fromStaking
-		r.peakFirst3Delegates("Loaded delegates from staking", delegates)
-		if err != nil || len(delegates) < r.config.MinCommitteeSize {
-			delegates = r.config.InitDelegates
-			r.delegateSource = fromDelegatesFile
-			r.peakFirst3Delegates("Loaded delegates from file as fallback", delegates)
-		}
-	}
-
-	defer r.mapMutex.Unlock()
-	r.mapMutex.Lock()
-	for _, d := range delegates {
-		r.knownIPs[d.NetAddr.IP.String()] = string(d.Name)
-	}
-	best := r.chain.BestBlock()
-	stakingDelegates, err := r.getDelegatesFromStaking(best)
-	if err != nil {
-		r.logger.Error("could not get delegate from staking", "best", best.Number())
-	}
-
-	return delegates, stakingDelegates
-}
-
-func (r *Reactor) peakFirst3Delegates(hint string, delegates []*types.Delegate) {
-	first3Names := make([]string, 0)
-	for i := 0; i < len(delegates) && i < 3; i++ {
-		d := delegates[i]
-		name := string(d.Name)
-		first3Names = append(first3Names, name)
-	}
-
-	r.logger.Info(hint, "first3", strings.Join(first3Names, ","))
-}
-
 func (r *Reactor) getNameByIP(ip net.IP) string {
 	defer r.mapMutex.RUnlock()
 	r.mapMutex.RLock()
@@ -401,19 +306,7 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		r.logger.Info(fmt.Sprintf("Entering epoch %v", epoch), "lastEpoch", r.curEpoch)
 		r.logger.Info("---------------------------------------------------------")
 
-		//initialize Delegates
-		delegates, stakingDelegates := r.GetConsensusDelegates()
-
-		if len(r.committee) > 0 {
-			if r.delegateSource != fromDelegatesFile {
-				// clean up bls pubkey only if delegates are not from InitDelegates
-				if r.lastCommittee != nil {
-					for _, v := range r.lastCommittee {
-						r.logger.Debug(fmt.Sprintf("clean bls pubkey for %s", v.NameAndIP()))
-					}
-					r.lastCommittee = make([]*types.Validator, 0)
-				}
-			}
+		if r.committee.Size() > 0 {
 			r.lastCommittee = r.committee
 		} else {
 			lastBestKHeight := bestK.LastKBlockHeight()
@@ -430,26 +323,13 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 				}
 			}
 
-			lastDelegates, err := r.getDelegatesFromStaking(lastBestK)
-			if err != nil || len(lastDelegates) < r.config.MinCommitteeSize {
-				lastDelegates = r.config.InitDelegates
-				r.peakFirst3Delegates("Loaded delegates from file as fallback", delegates)
-			}
+			lastVSet := r.chain.GetValidatorSet(lastBestK.Number())
 
-			_, r.lastCommittee, _, _ = r.calcCommitteeByNonce("last", lastDelegates, lastNonce)
+			r.lastCommittee, _, _ = r.calcCommitteeByNonce("last", lastVSet, lastNonce)
 
 		}
-		r.curDelegates, r.committee, r.committeeIndex, r.inCommittee = r.calcCommitteeByNonce("current", delegates, nonce)
-		r.committeeSize = uint32(len(r.committee))
-		if r.delegateSource == fromStaking {
-			r.hardCommittee = r.committee
-		} else {
-			if len(stakingDelegates) < r.config.MinCommitteeSize {
-				stakingDelegates = r.config.InitDelegates
-				r.peakFirst3Delegates("Loaded delegates from file as fallback", delegates)
-			}
-			_, r.hardCommittee, _, _ = r.calcCommitteeByNonce("hard", stakingDelegates, nonce)
-		}
+		r.committee, r.committeeIndex, r.inCommittee = r.calcCommitteeByNonce("current", r.committee, nonce)
+		r.committeeSize = uint32(r.committee.Size())
 		r.PrintCommittee()
 		// r.PrintCommittee()
 
@@ -457,10 +337,10 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		r.curNonce = nonce
 
 		if r.inCommittee {
-			myAddr := r.committee[r.committeeIndex].NetAddr
-			myName := r.committee[r.committeeIndex].Name
+			myAddr := r.committee.GetByIndex(r.committeeIndex).IP
+			myName := r.committee.GetByIndex(r.committeeIndex).Name
 
-			r.logger.Info("I'm IN committee !!!", "myName", myName, "myIP", myAddr.IP.String())
+			r.logger.Info("I'm IN committee !!!", "myName", myName, "myIP", myAddr.String())
 			inCommitteeGauge.Set(1)
 			verified := r.verifyInCommittee()
 			if !verified {
@@ -489,15 +369,6 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 // ------------------------------------
 // UTILITY
 // ------------------------------------
-func PrintDelegates(delegates []*types.Delegate) {
-	fmt.Println("============================================")
-	for i, dd := range delegates {
-		fmt.Printf("#%d: %s (%s) :%d  Address:%s PubKey: %s Commission: %v%% #Dists: %v\n",
-			i+1, dd.Name, dd.NetAddr.IP.String(), dd.NetAddr.Port, dd.Address, dd.PubKey.Marshal(), dd.Commission/1e7, len(dd.DistList))
-	}
-	fmt.Println("============================================")
-}
-
 func (r *Reactor) OnReceiveMsg(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
@@ -537,17 +408,17 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 
 	if msg.GetEpoch() == r.curEpoch {
 		signerIndex := msg.GetSignerIndex()
-		if int(signerIndex) >= len(r.committee) {
+		if int(signerIndex) >= r.committee.Size() {
 			r.logger.Warn("index out of range for signer, dropped ...", "peer", peer, "msg", msg.GetType())
 			return
 		}
-		signer := r.committee[signerIndex]
+		signer := r.committee.GetByIndex(signerIndex)
 
 		if !msg.VerifyMsgSignature(signer.PubKey) {
 			r.logger.Error("invalid signature, dropped ...", "peer", peer, "msg", msg.String(), "signer", signer.Name)
 			return
 		}
-		mi.Signer.IP = string(signer.NetAddr.IP)
+		mi.Signer.IP = signer.IP.String()
 		mi.Signer.Name = signer.Name
 	}
 
@@ -610,36 +481,24 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 			validQCs.Add(qcID, true)
 			return true
 		}
-		r.logger.Warn(fmt.Sprintf("validate %s with last committee FAILED", escortQC.CompactString()), "size", len(r.lastCommittee), "err", err)
+		r.logger.Warn(fmt.Sprintf("validate %s with last committee FAILED", escortQC.CompactString()), "size", r.lastCommittee.Size(), "err", err)
 
 	}
 	if b.IsKBlock() && b.Number() > 0 && b.Number() >= r.chain.BestBlock().Number() && meter.IsStaging() {
 		bestK, _ := r.chain.BestKBlock()
 		lastBestK, _ := r.chain.GetTrunkBlock(bestK.LastKBlockHeight())
-		_, lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.curDelegates, lastBestK.Nonce())
+		lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.committee, lastBestK.Nonce())
 		valid, err = b.VerifyQC(escortQC, r.blsMaster, lastStagingCommitee)
 		if valid && err == nil {
 			validQCs.Add(qcID, true)
 			return true
 		}
-		r.logger.Warn(fmt.Sprintf("validate %s with last staging committee FAILED", escortQC.CompactString()), "size", len(r.lastCommittee), "err", err)
-	}
-
-	if r.delegateSource != fromStaking && escortQC.BitArray.Size() == len(r.hardCommittee) {
-		// validate with hard committee
-		start := time.Now()
-		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.hardCommittee)
-		if valid && err == nil {
-			r.logger.Debug("validated QC with hard committee", "committeeSize", len(r.hardCommittee), "elapsed", meter.PrettyDuration(time.Since(start)))
-			validQCs.Add(qcID, true)
-			return true
-		}
-		r.logger.Warn(fmt.Sprintf("validate %s with hard committee FAILED", escortQC.CompactString()), "err", err)
+		r.logger.Warn(fmt.Sprintf("validate %s with last staging committee FAILED", escortQC.CompactString()), "size", r.lastCommittee.Size(), "err", err)
 	}
 
 	// validate with current committee
 	start := time.Now()
-	if len(r.committee) <= 0 {
+	if r.committee.Size() <= 0 {
 		fmt.Println("verify QC with empty r.committee")
 		return false
 	}
@@ -649,22 +508,22 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		validQCs.Add(qcID, true)
 		return true
 	}
-	r.logger.Warn(fmt.Sprintf("validate %s FAILED", escortQC.CompactString()), "err", err, "committeeSize", len(r.committee))
+	r.logger.Warn(fmt.Sprintf("validate %s FAILED", escortQC.CompactString()), "err", err, "committeeSize", r.committee.Size())
 	return false
 }
 
-func (r *Reactor) peakCommittee(committee []*types.Validator) string {
+func (r *Reactor) peakCommittee(committee *types.ValidatorSet) string {
 	s := make([]string, 0)
-	if len(committee) > 6 {
-		for index, val := range committee[:3] {
+	if committee.Size() > 6 {
+		for index, val := range committee.Validators[:3] {
 			s = append(s, fmt.Sprintf("#%-4v %v", index, val.String()))
 		}
 		s = append(s, "...")
-		for index, val := range committee[len(committee)-3:] {
-			s = append(s, fmt.Sprintf("#%-4v %v", index+len(committee)-3, val.String()))
+		for index, val := range committee.Validators[committee.Size()-3:] {
+			s = append(s, fmt.Sprintf("#%-4v %v", index+committee.Size()-3, val.String()))
 		}
 	} else {
-		for index, val := range committee {
+		for index, val := range committee.Validators {
 			s = append(s, fmt.Sprintf("#%-2v %v", index, val.String()))
 		}
 	}
@@ -672,13 +531,9 @@ func (r *Reactor) peakCommittee(committee []*types.Validator) string {
 }
 
 func (r *Reactor) PrintCommittee() {
-	fmt.Printf("* Current Committee (%d):\n%s\n\n", len(r.committee), r.peakCommittee(r.committee))
+	fmt.Printf("* Current Committee (%d):\n%s\n\n", r.committee.Size(), r.peakCommittee(r.committee))
 
-	if r.delegateSource != fromStaking {
-		fmt.Printf("Hard Committee (%d):\n%s\n\n", len(r.hardCommittee), r.peakCommittee(r.hardCommittee))
-	}
-
-	fmt.Printf("Last Committee (%d):\n%s\n\n", len(r.lastCommittee), r.peakCommittee(r.lastCommittee))
+	fmt.Printf("Last Committee (%d):\n%s\n\n", r.lastCommittee.Size(), r.peakCommittee(r.lastCommittee))
 }
 
 func (r *Reactor) IncomingQueueLen() int {

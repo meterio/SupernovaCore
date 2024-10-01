@@ -98,17 +98,6 @@ func selectGenesis(ctx *cli.Context) *genesis.Genesis {
 	}
 }
 
-func printDelegates(delegates []*types.Delegate) {
-	// fmt.Println("--------------------------------------------------")
-	fmt.Printf("Delegates Initialized (size:%d)\n", len(delegates))
-	// fmt.Println(------------------------------------------------")
-
-	// for i, d := range delegates {
-	// 	fmt.Printf("#%d: %s\n", i+1, d.String())
-	// }
-	// fmt.Println("--------------------------------------------------")
-}
-
 func makeDataDir(ctx *cli.Context) string {
 	dataDir := ctx.String(dataDirFlag.Name)
 	if dataDir == "" {
@@ -179,7 +168,7 @@ func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
 		fatal("build genesis block: ", err)
 	}
 
-	chain, err := chain.New(mainDB, genesisBlock, true)
+	chain, err := chain.New(mainDB, genesisBlock, gene.ValidatorSet(), true)
 	if err != nil {
 		fatal("initialize block chain:", err)
 	}

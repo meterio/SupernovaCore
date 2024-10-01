@@ -73,15 +73,8 @@ var (
 	AuctionCBKey          = Blake2b([]byte("auction-active-cb-key"))
 
 	// 0x616B696e672D6D6F64756c652d61646472657373
-	StakingModuleAddr      = BytesToAddress([]byte("staking-module-address"))
-	DelegateListKey        = Blake2b([]byte("delegate-list-key"))
-	CandidateListKey       = Blake2b([]byte("candidate-list-key"))
-	StakeHolderListKey     = Blake2b([]byte("stake-holder-list-key"))
-	BucketListKey          = Blake2b([]byte("global-bucket-list-key"))
-	DelegateStatListKey    = Blake2b([]byte("delegate-statistics-list-key"))
-	StatisticsEpochKey     = Blake2b([]byte("delegate-statistics-epoch-key"))
-	InJailListKey          = Blake2b([]byte("delegate-injail-list-key"))
-	ValidatorRewardListKey = Blake2b([]byte("validator-reward-list-key"))
+	StakingModuleAddr = BytesToAddress([]byte("staking-module-address"))
+	BucketListKey     = Blake2b([]byte("global-bucket-list-key"))
 )
 
 // Keys of governance params.
@@ -92,7 +85,6 @@ var (
 	KeyProposerEndorsement    = BytesToBytes32([]byte("proposer-endorsement"))
 	KeyValidatorBaseReward    = BytesToBytes32([]byte("validator-base-reward"))
 	KeyConsensusCommitteeSize = BytesToBytes32([]byte("consensus-committee-size"))
-	KeyConsensusDelegateSize  = BytesToBytes32([]byte("consensus-delegate-size"))
 
 	//  mtr-erc20, 0x00000000000000006e61746976652d6d74722d65726332302d61646472657373
 	KeyNativeMtrERC20Address = BytesToBytes32([]byte("native-mtr-erc20-address"))
@@ -134,9 +126,8 @@ var (
 	InitialAuctionInitRelease    = new(big.Int).Mul(big.NewInt(int64(1000)), big.NewInt(int64(1e18))) // auction reward initial release, is 1000
 
 	// TBA
-	InitialBorrowInterestRate     = big.NewInt(1e17)                                                  // bowrrower interest rate, initial set as 10%
-	InitialConsensusCommitteeSize = new(big.Int).Mul(big.NewInt(int64(50)), big.NewInt(int64(1e18)))  // consensus committee size, is set to 50
-	InitialConsensusDelegateSize  = new(big.Int).Mul(big.NewInt(int64(100)), big.NewInt(int64(1e18))) // consensus delegate size, is set to 100
+	InitialBorrowInterestRate     = big.NewInt(1e17)                                                 // bowrrower interest rate, initial set as 10%
+	InitialConsensusCommitteeSize = new(big.Int).Mul(big.NewInt(int64(50)), big.NewInt(int64(1e18))) // consensus committee size, is set to 50
 
 	// This account takes 40% of auction gain to distribute to validators in consensus
 	// 0x61746f722d62656e656669742d61646472657373

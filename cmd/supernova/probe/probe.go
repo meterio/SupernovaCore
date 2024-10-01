@@ -36,20 +36,18 @@ func (p *Probe) HandleProbe(w http.ResponseWriter, r *http.Request) {
 		BestQC:    bestQC,
 	}
 	result := ProbeResult{
-		Name:            name,
-		PubKey:          hex.EncodeToString(p.PubKey.Marshal()),
-		PubKeyValid:     pubkeyMatch,
-		Version:         p.Version,
-		DelegatesSource: p.Cons.GetDelegatesSource(),
-		InCommittee:     pmProbe.InCommittee,
-		CommitteeSize:   uint32(pmProbe.CommitteeSize),
-		CommitteeIndex:  uint32(pmProbe.CommitteeIndex),
+		Name:           name,
+		PubKey:         hex.EncodeToString(p.PubKey.Marshal()),
+		PubKeyValid:    pubkeyMatch,
+		Version:        p.Version,
+		InCommittee:    pmProbe.InCommittee,
+		CommitteeSize:  uint32(pmProbe.CommitteeSize),
+		CommitteeIndex: uint32(pmProbe.CommitteeIndex),
 
-		InDelegateList: true, // FIXME: correct value
-		BestQC:         bestQC.Height,
-		BestBlock:      bestBlock.Number,
-		Pacemaker:      pacemaker,
-		Chain:          chainProbe,
+		BestQC:    bestQC.Height,
+		BestBlock: bestBlock.Number,
+		Pacemaker: pacemaker,
+		Chain:     chainProbe,
 	}
 
 	utils.WriteJSON(w, result)

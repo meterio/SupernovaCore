@@ -6,8 +6,10 @@
 package genesis
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/meter-pov/types"
 	"github.com/pkg/errors"
 )
 
@@ -17,10 +19,11 @@ type Builder struct {
 
 	calls     []call
 	extraData [28]byte
+	vset      *types.ValidatorSet
 }
 
 type call struct {
-	caller meter.Address
+	caller common.Address
 }
 
 // Timestamp set timestamp.
@@ -45,6 +48,11 @@ func (b *Builder) ComputeID() (meter.Bytes32, error) {
 	return blk.ID(), nil
 }
 
+func (b *Builder) ValidatorSet(vset *types.ValidatorSet) *Builder {
+	b.vset = vset
+	return b
+}
+
 // Build build genesis block according to presets.
 func (b *Builder) Build() (blk *block.Block, err error) {
 	if err != nil {
@@ -57,5 +65,6 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 	return new(block.Builder).
 		ParentID(parentID).
 		Timestamp(b.timestamp).
+		ValidatorHash(b.vset.Hash()).
 		Build(), nil
 }

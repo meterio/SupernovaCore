@@ -21,14 +21,6 @@ var (
 	ErrInvalidRound         = errors.New("invalid round")
 )
 
-func (p *Pacemaker) packCommitteeInfo(blk *block.Block) {
-	committeeInfo := p.reactor.MakeBlockCommitteeInfo()
-	// fmt.Println("committee info: ", committeeInfo)
-	blk.SetCommitteeInfo(committeeInfo)
-	blk.SetCommitteeEpoch(p.reactor.curEpoch)
-
-}
-
 // Build MBlock
 func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs tx.Transactions, blockType block.BlockType) (error, *block.DraftBlock) {
 	parentBlock := parent.ProposedBlock

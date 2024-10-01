@@ -12,6 +12,7 @@ import (
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/meter-pov/types"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 	txMetaPrefix        = []byte("t") // (prefix, tx id) -> tx location
 	blockReceiptsPrefix = []byte("r") // (prefix, block id) -> receipts
 	indexTrieRootPrefix = []byte("i") // (prefix, block id) -> trie root
+	validatorPrefix     = []byte("v") // (prefix, validator set hash) -> validator set
 
 	bestBlockKey = []byte("best")    // best block hash
 	bestQCKey    = []byte("best-qc") // best qc raw
@@ -185,4 +187,18 @@ func loadBestQC(r kv.Getter) (*block.QuorumCert, error) {
 		return nil, err
 	}
 	return &qc, nil
+}
+
+// saveBestQC save the best qc
+func saveValidatorSet(w kv.Putter, vset *types.ValidatorSet) error {
+	return saveRLP(w, append(validatorPrefix, vset.Hash()...), vset.Validators)
+}
+
+// loadBestQC load the best qc
+func loadValidatorSet(r kv.Getter, vhash []byte) (*types.ValidatorSet, error) {
+	var vs []*types.Validator
+	if err := loadRLP(r, append(validatorPrefix, vhash...), &vs); err != nil {
+		return nil, err
+	}
+	return types.NewValidatorSet(vs), nil
 }

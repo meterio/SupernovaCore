@@ -10,6 +10,7 @@ import (
 
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/meter-pov/types"
 )
 
 const (
@@ -21,6 +22,7 @@ type Genesis struct {
 	builder *Builder
 	id      meter.Bytes32
 	name    string
+	vset    *types.ValidatorSet
 }
 
 // Build build the genesis block.
@@ -44,6 +46,10 @@ func (g *Genesis) ID() meter.Bytes32 {
 // Name returns network name.
 func (g *Genesis) Name() string {
 	return g.name
+}
+
+func (g *Genesis) ValidatorSet() *types.ValidatorSet {
+	return g.vset
 }
 
 func mustDecodeHex(str string) []byte {

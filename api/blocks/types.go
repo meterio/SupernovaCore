@@ -10,6 +10,7 @@ import (
 	"math/big"
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/meter-pov/block"
 	"github.com/meterio/meter-pov/meter"
@@ -17,23 +18,22 @@ import (
 )
 
 type JSONBlockSummary struct {
-	Number           uint32             `json:"number"`
-	ID               meter.Bytes32      `json:"id"`
-	Size             uint32             `json:"size"`
-	ParentID         meter.Bytes32      `json:"parentID"`
-	Timestamp        uint64             `json:"timestamp"`
-	GasUsed          uint64             `json:"gasUsed"`
-	TotalScore       uint64             `json:"totalScore"`
-	TxsRoot          cmtbytes.HexBytes  `json:"txsRoot"`
-	TxsFeatures      uint32             `json:"txsFeatures"`
-	Signer           meter.Address      `json:"signer"`
-	IsTrunk          bool               `json:"isTrunk"`
-	BlockType        string             `json:"blockType"`
-	LastKBlockHeight uint32             `json:"lastKBlockHeight"`
-	CommitteeInfo    []*CommitteeMember `json:"committee"`
-	QC               *QC                `json:"qc"`
-	Nonce            uint64             `json:"nonce"`
-	Epoch            uint64             `json:"epoch"`
+	Number           uint32            `json:"number"`
+	ID               meter.Bytes32     `json:"id"`
+	Size             uint32            `json:"size"`
+	ParentID         meter.Bytes32     `json:"parentID"`
+	Timestamp        uint64            `json:"timestamp"`
+	GasUsed          uint64            `json:"gasUsed"`
+	TotalScore       uint64            `json:"totalScore"`
+	TxsRoot          cmtbytes.HexBytes `json:"txsRoot"`
+	TxsFeatures      uint32            `json:"txsFeatures"`
+	Signer           common.Address    `json:"signer"`
+	IsTrunk          bool              `json:"isTrunk"`
+	BlockType        string            `json:"blockType"`
+	LastKBlockHeight uint32            `json:"lastKBlockHeight"`
+	QC               *QC               `json:"qc"`
+	Nonce            uint64            `json:"nonce"`
+	Epoch            uint64            `json:"epoch"`
 }
 
 type JSONCollapsedBlock struct {
@@ -42,27 +42,27 @@ type JSONCollapsedBlock struct {
 }
 
 type JSONClause struct {
-	To    *meter.Address       `json:"to"`
+	To    *common.Address      `json:"to"`
 	Value math.HexOrDecimal256 `json:"value"`
 	Token uint32               `json:"token"`
 	Data  string               `json:"data"`
 }
 
 type JSONTransfer struct {
-	Sender    meter.Address         `json:"sender"`
-	Recipient meter.Address         `json:"recipient"`
+	Sender    common.Address        `json:"sender"`
+	Recipient common.Address        `json:"recipient"`
 	Amount    *math.HexOrDecimal256 `json:"amount"`
 	Token     uint32                `json:"token"`
 }
 
 type JSONEvent struct {
-	Address meter.Address   `json:"address"`
+	Address common.Address  `json:"address"`
 	Topics  []meter.Bytes32 `json:"topics"`
 	Data    string          `json:"data"`
 }
 
 type JSONOutput struct {
-	ContractAddress *meter.Address  `json:"contractAddress"`
+	ContractAddress *common.Address `json:"contractAddress"`
 	Events          []*JSONEvent    `json:"events"`
 	Transfers       []*JSONTransfer `json:"transfers"`
 }
@@ -104,26 +104,24 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.In
 	} else if blk.IsSBlock() {
 		blockType = "SBlock"
 	}
-	isKBlock := header.BlockType() == block.KBlockType
+	isKBlock := header.BlockType == block.KBlockType
 	if isTrunk && isKBlock {
 		epoch = blk.QC.EpochID
-	} else if len(blk.CommitteeInfos.CommitteeInfo) > 0 {
-		epoch = blk.CommitteeInfos.Epoch
 	} else {
 		epoch = blk.QC.EpochID
 	}
 	result := &JSONBlockSummary{
 		Number:    header.Number(),
 		ID:        header.ID(),
-		ParentID:  header.ParentID(),
-		Timestamp: header.Timestamp(),
+		ParentID:  header.ParentID,
+		Timestamp: header.Timestamp,
 
 		Signer:           signer,
 		Size:             uint32(blk.Size()),
-		TxsRoot:          header.TxsRoot(),
+		TxsRoot:          header.TxsRoot,
 		IsTrunk:          isTrunk,
 		BlockType:        blockType,
-		LastKBlockHeight: header.LastKBlockHeight(),
+		LastKBlockHeight: header.LastKBlockHeight,
 		Epoch:            epoch,
 		Nonce:            blk.Nonce(),
 	}
@@ -133,12 +131,6 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.In
 		if err != nil {
 			return nil
 		}
-	}
-
-	if len(blk.CommitteeInfos.CommitteeInfo) > 0 {
-		result.CommitteeInfo = convertCommitteeList(blk.CommitteeInfos)
-	} else {
-		result.CommitteeInfo = make([]*CommitteeMember, 0)
 	}
 
 	return result
@@ -193,18 +185,4 @@ func convertQCWithRaw(qc *block.QuorumCert) (*QCWithRaw, error) {
 		EpochID:          qc.EpochID,
 		Raw:              raw,
 	}, nil
-}
-
-func convertCommitteeList(cml block.CommitteeInfos) []*CommitteeMember {
-	committeeList := make([]*CommitteeMember, len(cml.CommitteeInfo))
-
-	for i, cm := range cml.CommitteeInfo {
-		committeeList[i] = &CommitteeMember{
-			Index: cm.Index,
-			// Name:    "",
-			NetAddr: cm.NetAddr.IP.String(),
-			PubKey:  hex.EncodeToString(cm.PubKey),
-		}
-	}
-	return committeeList
 }

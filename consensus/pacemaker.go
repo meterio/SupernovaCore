@@ -616,19 +616,6 @@ func (p *Pacemaker) Regulate() {
 	p.lastOnBeatRound = int32(actualRound) - 1
 	pmRoleGauge.Set(1) // validator
 
-	// if InitCfgDelegates is set, pacemaker in bootstrap mode
-	if !p.reactor.config.InitCfgdDelegates {
-		p.minMBlocks = MIN_MBLOCKS_AN_EPOCH
-	} else {
-		p.minMBlocks = p.reactor.config.EpochMBlockCount
-		if meter.IsStaging() {
-			p.logger.Info("skip setting InitCfgdDelegates to false in staging")
-		} else {
-			// toggle it off so it will switch to normal mode next epoch
-			p.reactor.config.InitCfgdDelegates = false
-		}
-	}
-
 	bestNode := p.chain.GetDraftByEscortQC(bestQC)
 	if bestNode == nil {
 		p.logger.Debug("started with empty qcNode")

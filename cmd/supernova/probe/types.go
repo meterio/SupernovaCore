@@ -82,7 +82,7 @@ func convertBlock(b *block.Block) (*Block, error) {
 
 	header := b.Header()
 	blockType := "unknown"
-	switch header.BlockType() {
+	switch header.BlockType {
 	case block.KBlockType:
 		blockType = "kBlock"
 	case block.SBlockType:
@@ -94,11 +94,11 @@ func convertBlock(b *block.Block) (*Block, error) {
 	result := &Block{
 		Number:           header.Number(),
 		ID:               header.ID(),
-		ParentID:         header.ParentID(),
-		Timestamp:        header.Timestamp(),
+		ParentID:         header.ParentID,
+		Timestamp:        header.Timestamp,
 		TxCount:          len(b.Transactions()),
 		BlockType:        blockType,
-		LastKBlockHeight: header.LastKBlockHeight(),
+		LastKBlockHeight: header.LastKBlockHeight,
 		HasCommitteeInfo: len(b.CommitteeInfos.CommitteeInfo) > 0,
 		Nonce:            b.Nonce(),
 	}
@@ -119,11 +119,9 @@ type ProbeResult struct {
 	PubKeyValid bool   `json:"pubkeyValid"`
 	Version     string `json:"version"`
 
-	DelegatesSource string `json:"delegatesSource"`
-	InCommittee     bool   `json:"inCommittee"`
-	InDelegateList  bool   `json:"inDelegateList"`
-	CommitteeIndex  uint32 `json:"committeeIndex"`
-	CommitteeSize   uint32 `json:"committeeSize"`
+	InCommittee    bool   `json:"inCommittee"`
+	CommitteeIndex uint32 `json:"committeeIndex"`
+	CommitteeSize  uint32 `json:"committeeSize"`
 
 	BestQC    uint32 `json:"bestQC"`
 	BestBlock uint32 `json:"bestBlock"`

@@ -18,6 +18,7 @@ import (
 	"github.com/meterio/meter-pov/co"
 	"github.com/meterio/meter-pov/kv"
 	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/meter-pov/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -39,6 +40,7 @@ var (
 		Help: "BestQC height",
 	})
 )
+var ErrInvalidGenesis = errors.New("invalid genesis")
 
 // Chain describes a persistent block chain.
 // It's thread-safe.
@@ -64,11 +66,12 @@ type caches struct {
 }
 
 // New create an instance of Chain.
-func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, error) {
+func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.ValidatorSet, verbose bool) (*Chain, error) {
 	prometheus.Register(bestQCHeightGauge)
 	prometheus.Register(bestHeightGauge)
 
 	if genesisBlock.Number() != 0 {
+		fmt.Println(genesisBlock.Number())
 		return nil, errors.New("genesis number != 0")
 	}
 	if len(genesisBlock.Transactions()) != 0 {
@@ -76,6 +79,16 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, verbose bool) (*Chain, erro
 	}
 	var bestBlock *block.Block
 
+	fmt.Println(genesisValidatorSet.Hash(), genesisBlock.ValidatorHash())
+	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.ValidatorHash()) {
+		panic(ErrInvalidGenesis)
+	}
+	if _, err := loadValidatorSet(kv, genesisValidatorSet.Hash()); err != nil {
+		err = saveValidatorSet(kv, genesisValidatorSet)
+		if err != nil {
+			panic(err)
+		}
+	}
 	genesisID := genesisBlock.ID()
 
 	if bestBlockID, err := loadBestBlockID(kv); err != nil {
@@ -287,14 +300,14 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 			return nil, err
 		}
 	} else {
-		parentFinalized := c.IsBlockFinalized(header.ParentID())
+		parentFinalized := c.IsBlockFinalized(header.ParentID)
 
 		// block already there
 		newHeader := newBlock.Header()
 		if header.Number() == newHeader.Number() &&
-			header.ParentID() == newHeader.ParentID() &&
-			string(header.Signature()) == string(newHeader.Signature()) &&
-			header.Timestamp() == newHeader.Timestamp() &&
+			header.ParentID == newHeader.ParentID &&
+			string(header.Signature) == string(newHeader.Signature) &&
+			header.Timestamp == newHeader.Timestamp &&
 			parentFinalized {
 			// if the current block is the finalized version of saved block, update it accordingly
 			// do nothing
@@ -309,7 +322,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 	}
 
 	// newBlock.Header().Finalized = finalize
-	parent, err := c.getBlockHeader(newBlock.Header().ParentID())
+	parent, err := c.getBlockHeader(newBlock.Header().ParentID)
 	if err != nil {
 		if c.IsNotFound(err) {
 			return nil, errors.New("parent missing")
@@ -570,14 +583,14 @@ func (c *Chain) buildFork(trunkHead *block.Header, branchHead *block.Header) (*F
 	for {
 		if b1.Number() > b2.Number() {
 			trunk = append(trunk, b1)
-			if b1, err = c.getBlockHeader(b1.ParentID()); err != nil {
+			if b1, err = c.getBlockHeader(b1.ParentID); err != nil {
 				return nil, err
 			}
 			continue
 		}
 		if b1.Number() < b2.Number() {
 			branch = append(branch, b2)
-			if b2, err = c.getBlockHeader(b2.ParentID()); err != nil {
+			if b2, err = c.getBlockHeader(b2.ParentID); err != nil {
 				return nil, err
 			}
 			continue
@@ -596,11 +609,11 @@ func (c *Chain) buildFork(trunkHead *block.Header, branchHead *block.Header) (*F
 		trunk = append(trunk, b1)
 		branch = append(branch, b2)
 
-		if b1, err = c.getBlockHeader(b1.ParentID()); err != nil {
+		if b1, err = c.getBlockHeader(b1.ParentID); err != nil {
 			return nil, err
 		}
 
-		if b2, err = c.getBlockHeader(b2.ParentID()); err != nil {
+		if b2, err = c.getBlockHeader(b2.ParentID); err != nil {
 			return nil, err
 		}
 	}
@@ -840,4 +853,35 @@ func (c *Chain) GetDraftsUpTo(commitedBlkID meter.Bytes32, qcHigh *block.QuorumC
 
 func (c *Chain) RawBlocksCacheLen() int {
 	return c.caches.rawBlocks.Len()
+}
+
+func (c *Chain) GetBestValidatorSet() *types.ValidatorSet {
+	vset, err := loadValidatorSet(c.kv, c.bestBlock.ValidatorHash())
+	if err != nil {
+		return nil
+	}
+	return vset
+}
+
+func (c *Chain) GetValidatorSet(num uint32) *types.ValidatorSet {
+	hash, err := loadBlockHash(c.kv, num)
+	if err != nil {
+		return nil
+	}
+	blk, err := c.getBlock(hash)
+	if err != nil {
+		return nil
+	}
+	vset, err := loadValidatorSet(c.kv, blk.ValidatorHash())
+	if err != nil {
+		return nil
+	}
+	return vset
+}
+
+func (c *Chain) SaveValidatorSet(vset *types.ValidatorSet) {
+	err := saveValidatorSet(c.kv, vset)
+	if err != nil {
+		panic(err)
+	}
 }

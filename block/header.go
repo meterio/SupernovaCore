@@ -6,6 +6,7 @@
 package block
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"sync/atomic"
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
@@ -30,21 +32,10 @@ const (
 // Header contains almost all information about a block, except block body.
 // It's immutable.
 type Header struct {
-	Body HeaderBody
-
-	cache struct {
-		signingHash atomic.Value
-		signer      atomic.Value
-		id          atomic.Value
-	}
-}
-
-// headerBody body of header
-type HeaderBody struct {
 	ParentID         meter.Bytes32
 	Timestamp        uint64
 	BlockType        BlockType
-	Proposer         meter.Address
+	Proposer         common.Address
 	TxsRoot          cmtbytes.HexBytes
 	EvidenceDataRoot meter.Bytes32 // deprecated, saved just for compatibility
 
@@ -56,42 +47,21 @@ type HeaderBody struct {
 	NextValidatorHash cmtbytes.HexBytes // hash of next validator set
 
 	Signature []byte
-}
 
-// ParentID returns id of parent block.
-func (h *Header) ParentID() meter.Bytes32 {
-	return h.Body.ParentID
-}
-
-// LastBlocID returns id of parent block.
-func (h *Header) LastKBlockHeight() uint32 {
-	return h.Body.LastKBlockHeight
+	cache struct {
+		signingHash atomic.Value
+		signer      atomic.Value
+		id          atomic.Value
+	}
 }
 
 // Number returns sequential number of this block.
 func (h *Header) Number() uint32 {
 	// inferred from parent id
-	return Number(h.Body.ParentID) + 1
-}
-
-// Timestamp returns timestamp of this block.
-func (h *Header) Timestamp() uint64 {
-	return h.Body.Timestamp
-}
-
-// BlockType returns block type of this block.
-func (h *Header) BlockType() BlockType {
-	return h.Body.BlockType
-}
-
-// GasUsed returns gas used by txs.
-func (h *Header) Nonce() uint64 {
-	return h.Body.Nonce
-}
-
-// TxsRoot returns merkle root of txs contained in this block.
-func (h *Header) TxsRoot() cmtbytes.HexBytes {
-	return h.Body.TxsRoot
+	if bytes.Equal(h.ParentID.Bytes(), meter.Bytes32{}.Bytes()) {
+		return 0
+	}
+	return Number(h.ParentID) + 1
 }
 
 // ID computes id of block.
@@ -128,19 +98,19 @@ func (h *Header) SigningHash() (hash meter.Bytes32) {
 
 	hw := meter.NewBlake2b()
 	err := rlp.Encode(hw, []interface{}{
-		h.Body.ParentID,
-		h.Body.Timestamp,
-		h.Body.BlockType,
+		h.ParentID,
+		h.Timestamp,
+		h.BlockType,
 
-		h.Body.TxsRoot,
-		h.Body.EvidenceDataRoot,
+		h.TxsRoot,
+		h.EvidenceDataRoot,
 
-		h.Body.LastKBlockHeight,
-		h.Body.Nonce,
+		h.LastKBlockHeight,
+		h.Nonce,
 
-		h.Body.QCHash,
-		h.Body.ValidatorHash,
-		h.Body.NextValidatorHash,
+		h.QCHash,
+		h.ValidatorHash,
+		h.NextValidatorHash,
 	})
 	if err != nil {
 		slog.Error("could not calculate signing hash", "err", err)
@@ -149,27 +119,15 @@ func (h *Header) SigningHash() (hash meter.Bytes32) {
 	return
 }
 
-// Signature returns signature.
-func (h *Header) Signature() []byte {
-	return append([]byte(nil), h.Body.Signature...)
-}
-
-// withSignature create a new Header object with signature set.
-func (h *Header) withSignature(sig []byte) *Header {
-	cpy := Header{Body: h.Body}
-	cpy.Body.Signature = append([]byte(nil), sig...)
-	return &cpy
-}
-
 // Signer extract signer of the block from signature.
-func (h *Header) Signer() (signer meter.Address, err error) {
+func (h *Header) Signer() (signer common.Address, err error) {
 	if h.Number() == 0 {
 		// special case for genesis block
-		return meter.Address{}, nil
+		return common.Address{}, nil
 	}
 
 	if cached := h.cache.signer.Load(); cached != nil {
-		return cached.(meter.Address), nil
+		return cached.(common.Address), nil
 	}
 	defer func() {
 		if err == nil {
@@ -177,13 +135,18 @@ func (h *Header) Signer() (signer meter.Address, err error) {
 		}
 	}()
 
-	pub, err := crypto.SigToPub(h.SigningHash().Bytes(), h.Body.Signature)
+	pub, err := crypto.SigToPub(h.SigningHash().Bytes(), h.Signature)
 	if err != nil {
-		return meter.Address{}, err
+		return common.Address{}, err
 	}
 
-	signer = meter.Address(crypto.PubkeyToAddress(*pub))
+	signer = common.Address(crypto.PubkeyToAddress(*pub))
 	return
+}
+
+func (h *Header) WithSignature(sig []byte) *Header {
+	h.Signature = sig
+	return h
 }
 
 func (h *Header) String() string {
@@ -201,8 +164,8 @@ func (h *Header) String() string {
     TxsRoot:      %v
     Signer:       %v
     Nonce:        %v
-    Signature:    0x%x`, h.Body.ParentID, h.Body.Timestamp, h.Body.LastKBlockHeight, h.Body.TxsRoot, signerStr, h.Body.Nonce,
-		h.Body.Signature)
+    Signature:    0x%x`, h.ParentID, h.Timestamp, h.LastKBlockHeight, h.TxsRoot, signerStr, h.Nonce,
+		h.Signature)
 }
 
 // Number extract block number from block id.

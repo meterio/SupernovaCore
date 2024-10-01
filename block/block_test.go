@@ -51,7 +51,7 @@ func TestSerialize(t *testing.T) {
 
 	// block = block.WithSignature(sig)
 
-	qc := QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 1, VoterAggSig: []byte{1, 2, 3}, VoterBitArrayStr: "**-", VoterMsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
+	qc := QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 1, AggSig: []byte{1, 2, 3}, MsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
 	block.SetQC(&qc)
 
 	addr := types.NetAddress{IP: []byte{}, Port: 4444}

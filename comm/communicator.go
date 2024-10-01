@@ -276,7 +276,7 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 	c.logger.Debug("Broadcast block and qc",
 		"height", h.Number(),
 		"id", h.ID(),
-		"lastKblock", h.LastKBlockHeight(),
+		"lastKblock", h.LastKBlockHeight,
 		"escortQC", qc.String())
 
 	peers := c.peerSet.Slice().Filter(func(p *Peer) bool {

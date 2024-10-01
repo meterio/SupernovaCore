@@ -121,7 +121,7 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 
 func (p *Pacemaker) getProposerByRound(round uint32) *ConsensusPeer {
 	proposer := p.reactor.getRoundProposer(round)
-	return NewConsensusPeer(proposer.Name, proposer.NetAddr.IP.String())
+	return NewConsensusPeer(proposer.Name, proposer.IP.String())
 }
 
 func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
@@ -145,7 +145,7 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		}
 
 		// check signature
-		for index, v := range p.reactor.committee {
+		for index, v := range p.reactor.committee.Validators {
 			if tc.BitArray.GetIndex(index) {
 				pubkeys = append(pubkeys, v.PubKey)
 			}

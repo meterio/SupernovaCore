@@ -14,24 +14,23 @@ import (
 // Builder only build header and txs. committee info and kblock data built by app.
 // Builder to make it easy to build a block object.
 type Builder struct {
-	headerBody HeaderBody
-	txs        tx.Transactions
+	header Header
+	txs    tx.Transactions
 	//	committeeInfo CommitteeInfo
 	//	kBlockData    kBlockData
-	qc             *QuorumCert
-	CommitteeInfos CommitteeInfos
-	magic          [4]byte
+	qc    *QuorumCert
+	magic [4]byte
 }
 
 // ParentID set parent id.
 func (b *Builder) ParentID(id meter.Bytes32) *Builder {
-	b.headerBody.ParentID = id
+	b.header.ParentID = id
 	return b
 }
 
 // LastKBlockID set last KBlock id.
 func (b *Builder) LastKBlockHeight(height uint32) *Builder {
-	b.headerBody.LastKBlockHeight = height
+	b.header.LastKBlockHeight = height
 	return b
 }
 
@@ -42,13 +41,13 @@ func (b *Builder) Tx(tx cmttypes.Tx) *Builder {
 
 // Timestamp set timestamp.
 func (b *Builder) Timestamp(ts uint64) *Builder {
-	b.headerBody.Timestamp = ts
+	b.header.Timestamp = ts
 	return b
 }
 
 // BlockType set block type KBlockType/MBlockType.
 func (b *Builder) BlockType(t BlockType) *Builder {
-	b.headerBody.BlockType = t
+	b.header.BlockType = t
 	return b
 }
 
@@ -59,13 +58,13 @@ func (b *Builder) Transaction(tx []byte) *Builder {
 }
 
 func (b *Builder) Nonce(nonce uint64) *Builder {
-	b.headerBody.Nonce = nonce
+	b.header.Nonce = nonce
 	return b
 }
 
 func (b *Builder) QC(qc *QuorumCert) *Builder {
 	b.qc = qc
-	b.headerBody.QCHash = qc.Hash()
+	b.header.QCHash = qc.Hash()
 	return b
 }
 
@@ -74,10 +73,15 @@ func (b *Builder) Magic(magic [4]byte) *Builder {
 	return b
 }
 
+func (b *Builder) ValidatorHash(hash []byte) *Builder {
+	b.header.ValidatorHash = hash
+	return b
+}
+
 // Build build a block object.
 func (b *Builder) Build() *Block {
-	header := Header{Body: b.headerBody}
-	header.Body.TxsRoot = b.txs.RootHash()
+	header := Header{}
+	header.TxsRoot = b.txs.RootHash()
 
 	return &Block{
 		BlockHeader: &header,

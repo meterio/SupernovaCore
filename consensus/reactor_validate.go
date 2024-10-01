@@ -40,7 +40,7 @@ func (c *Reactor) ProcessSyncedBlock(blk *block.Block, nowTimestamp uint64) erro
 		}
 	}
 
-	_, err := c.chain.GetBlock(header.ParentID())
+	_, err := c.chain.GetBlock(header.ParentID)
 	if err != nil {
 		if !c.chain.IsNotFound(err) {
 			return err
@@ -108,20 +108,20 @@ func (c *Reactor) Validate(
 }
 
 func (c *Reactor) validateBlockHeader(header *block.Header, parent *block.Header, nowTimestamp uint64, forceValidate bool, epoch uint64) error {
-	if header.Timestamp() <= parent.Timestamp() {
-		return consensusError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp(), header.Timestamp()))
+	if header.Timestamp <= parent.Timestamp {
+		return consensusError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp, header.Timestamp))
 	}
 
-	if header.Timestamp() > nowTimestamp+meter.BlockInterval {
+	if header.Timestamp > nowTimestamp+meter.BlockInterval {
 		return errFutureBlock
 	}
 
-	if epoch != meter.KBlockEpoch && header.LastKBlockHeight() < parent.LastKBlockHeight() {
-		return consensusError(fmt.Sprintf("block LastKBlockHeight invalid: parent %v, current %v", parent.LastKBlockHeight(), header.LastKBlockHeight()))
+	if epoch != meter.KBlockEpoch && header.LastKBlockHeight < parent.LastKBlockHeight {
+		return consensusError(fmt.Sprintf("block LastKBlockHeight invalid: parent %v, current %v", parent.LastKBlockHeight, header.LastKBlockHeight))
 	}
 
-	if forceValidate && header.LastKBlockHeight() != c.lastKBlockHeight {
-		return consensusError(fmt.Sprintf("header LastKBlockHeight invalid: header %v, local %v", header.LastKBlockHeight(), c.lastKBlockHeight))
+	if forceValidate && header.LastKBlockHeight != c.lastKBlockHeight {
+		return consensusError(fmt.Sprintf("header LastKBlockHeight invalid: header %v, local %v", header.LastKBlockHeight, c.lastKBlockHeight))
 	}
 
 	return nil
@@ -140,8 +140,8 @@ func (c *Reactor) validateProposer(header *block.Header, parent *block.Header) e
 func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, forceValidate bool) error {
 	header := blk.Header()
 	proposedTxs := blk.Transactions()
-	if !bytes.Equal(header.TxsRoot(), proposedTxs.RootHash()) {
-		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot(), proposedTxs.RootHash()))
+	if !bytes.Equal(header.TxsRoot, proposedTxs.RootHash()) {
+		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot, proposedTxs.RootHash()))
 	}
 	if blk.GetMagic() != block.BlockMagicVersion1 {
 		return consensusError(fmt.Sprintf("block magic mismatch, has %v, expect %v", blk.GetMagic(), block.BlockMagicVersion1))

@@ -89,7 +89,7 @@ func initChain(ctx *cli.Context, gene *genesis.Genesis, mainDB *lvldb.LevelDB) *
 		fatal("build genesis block: ", err)
 	}
 
-	chain, err := chain.New(mainDB, genesisBlock, true)
+	chain, err := chain.New(mainDB, genesisBlock, gene.ValidatorSet(), true)
 	if err != nil {
 		fatal("initialize block chain:", err)
 	}

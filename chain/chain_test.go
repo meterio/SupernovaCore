@@ -21,7 +21,7 @@ func initChain() *chain.Chain {
 	g := genesis.NewDevnet()
 	b0, _ := g.Build()
 
-	chain, err := chain.New(kv, b0, false)
+	chain, err := chain.New(kv, b0, g.ValidatorSet(), false)
 	if err != nil {
 		panic(err)
 	}

@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ import (
 // including its ID, IP address, and port.
 type NetAddress struct {
 	IP   net.IP `json:"ip"`
-	Port uint16 `json:"port"`
+	Port uint32 `json:"port"`
 
 	// memoize .String()
 	str string `json:"name"`
@@ -42,21 +43,21 @@ func NewNetAddress(addr net.Addr) *NetAddress {
 		if flag.Lookup("test.v") == nil { // normal run
 			cmn.PanicSanity(fmt.Sprintf("Only TCPAddrs are supported. Got: %v", addr))
 		} else { // in testing
-			netAddr := NewNetAddressIPPort(net.IP("0.0.0.0"), 0)
+			netAddr := NewNetAddressFromNetIP(netip.MustParseAddr("0.0.0.0"), 0)
 			return netAddr
 		}
 	}
 	ip := tcpAddr.IP
-	port := uint16(tcpAddr.Port)
-	na := NewNetAddressIPPort(ip, port)
+	port := uint32(tcpAddr.Port)
+	na := NewNetAddressFromNetIP(netip.MustParseAddr(ip.String()), port)
 	return na
 }
 
 // NewNetAddressIPPort returns a new NetAddress using the provided IP
 // and port number.
-func NewNetAddressIPPort(ip net.IP, port uint16) *NetAddress {
+func NewNetAddressFromNetIP(ip netip.Addr, port uint32) *NetAddress {
 	return &NetAddress{
-		IP:   ip,
+		IP:   net.IP(ip.AsSlice()),
 		Port: port,
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/meterio/meter-pov/meter"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/meter-pov/tx"
 )
 
@@ -19,13 +19,13 @@ import (
 type txObjectMap struct {
 	lock     sync.RWMutex
 	txObjMap map[string]*txObject
-	quota    map[meter.Address]int
+	quota    map[common.Address]int
 }
 
 func newTxObjectMap() *txObjectMap {
 	return &txObjectMap{
 		txObjMap: make(map[string]*txObject),
-		quota:    make(map[meter.Address]int),
+		quota:    make(map[common.Address]int),
 	}
 }
 

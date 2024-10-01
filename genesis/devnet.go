@@ -9,13 +9,14 @@ import (
 	"crypto/ecdsa"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/meter-pov/types"
 )
 
 // DevAccount account for development.
 type DevAccount struct {
-	Address    meter.Address
+	Address    common.Address
 	PrivateKey *ecdsa.PrivateKey
 }
 
@@ -46,7 +47,7 @@ func DevAccounts() []DevAccount {
 			panic(err)
 		}
 		addr := crypto.PubkeyToAddress(pk.PublicKey)
-		accs = append(accs, DevAccount{meter.Address(addr), pk})
+		accs = append(accs, DevAccount{common.Address(addr), pk})
 	}
 	devAccounts.Store(accs)
 	return accs
@@ -56,13 +57,14 @@ func DevAccounts() []DevAccount {
 func NewDevnet() *Genesis {
 	launchTime := uint64(1526400000) // 'Wed May 16 2018 00:00:00 GMT+0800 (CST)'
 
+	vset := types.NewValidatorSet(make([]*types.Validator, 0))
 	builder := new(Builder).
-		Timestamp(launchTime)
+		Timestamp(launchTime).ValidatorSet(vset)
 
 	id, err := builder.ComputeID()
 	if err != nil {
 		panic(err)
 	}
 
-	return &Genesis{builder, id, "devnet"}
+	return &Genesis{builder, id, "devnet", vset}
 }

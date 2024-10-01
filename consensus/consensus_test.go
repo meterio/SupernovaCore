@@ -329,7 +329,7 @@ package consensus
 // 		expect := consensusError(
 // 			fmt.Sprintf(
 // 				"block signer invalid: %v unauthorized block proposer",
-// 				meter.Address(crypto.PubkeyToAddress(pk.PublicKey)),
+// 				common.Address(crypto.PubkeyToAddress(pk.PublicKey)),
 // 			),
 // 		)
 // 		tc.assert.Equal(err, expect)
@@ -343,7 +343,7 @@ package consensus
 // 			fmt.Sprintf(
 // 				"block timestamp unscheduled: t %v, s %v",
 // 				blk.Timestamp(),
-// 				meter.Address(crypto.PubkeyToAddress(genesis.DevAccounts()[1].PrivateKey.PublicKey)),
+// 				common.Address(crypto.PubkeyToAddress(genesis.DevAccounts()[1].PrivateKey.PublicKey)),
 // 			),
 // 		)
 // 		tc.assert.Equal(err, expect)

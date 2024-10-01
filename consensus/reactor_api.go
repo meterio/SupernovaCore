@@ -3,7 +3,7 @@ package consensus
 import (
 	"encoding/hex"
 
-	"github.com/meterio/meter-pov/meter"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // ------------------------------------
@@ -18,44 +18,36 @@ func (r *Reactor) InCommittee() bool {
 	return r.inCommittee
 }
 
-func (r *Reactor) GetDelegatesSource() string {
-	if r.delegateSource == fromStaking {
-		return "staking"
-	}
-	if r.delegateSource == fromDelegatesFile {
-		return "localFile"
-	}
-	return ""
-}
-
 // ------------------------------------
 // USED FOR API ONLY
 // ------------------------------------
 type ApiCommitteeMember struct {
 	Name        string
-	Address     meter.Address
+	Address     common.Address
 	PubKey      string
-	VotingPower int64
-	NetAddr     string
+	VotingPower uint64
+	IP          string
+	Port        uint32
 	Index       int
 	InCommittee bool
 }
 
 func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 	var committeeMembers []*ApiCommitteeMember
-	inCommittee := make([]bool, len(r.committee))
+	inCommittee := make([]bool, r.committee.Size())
 	for i := range inCommittee {
 		inCommittee[i] = false
 	}
 
-	for index, v := range r.committee {
+	for index, v := range r.committee.Validators {
 		apiCm := &ApiCommitteeMember{
 			Name:        v.Name,
 			Address:     v.Address,
 			PubKey:      hex.EncodeToString(v.PubKey.Marshal()),
 			Index:       index,
 			VotingPower: v.VotingPower,
-			NetAddr:     v.NetAddr.String(),
+			IP:          v.IP.String(),
+			Port:        v.Port,
 			InCommittee: true,
 		}
 		committeeMembers = append(committeeMembers, apiCm)
@@ -63,7 +55,7 @@ func (r *Reactor) GetLatestCommitteeList() ([]*ApiCommitteeMember, error) {
 	}
 	for i, val := range inCommittee {
 		if val == false {
-			v := r.committee[i]
+			v := r.committee.GetByIndex(uint32(i))
 			apiCm := &ApiCommitteeMember{
 				Name:        v.Name,
 				Address:     v.Address,

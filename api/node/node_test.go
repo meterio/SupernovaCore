@@ -43,7 +43,7 @@ func initCommServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chain, _ := chain.New(db, b, false)
+	chain, _ := chain.New(db, b, gene.ValidatorSet(), false)
 	comm := comm.New(context.Background(), chain, txpool.New(chain, txpool.Options{
 		Limit:           10000,
 		LimitPerAccount: 16,

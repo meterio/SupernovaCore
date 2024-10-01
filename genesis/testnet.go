@@ -5,19 +5,23 @@
 
 package genesis
 
+import "github.com/meterio/meter-pov/types"
+
 // NewTestnet create genesis for testnet.
 func NewTestnet() *Genesis {
 	launchTime := uint64(1530014400) // 'Tue Jun 26 2018 20:00:00 GMT+0800 (CST)'
 
-	builder := new(Builder).
-		Timestamp(launchTime)
+	vset := types.NewValidatorSet(make([]*types.Validator, 0))
 
-		// set initial params
-		// use an external account as executor to manage testnet easily
+	builder := new(Builder).
+		Timestamp(launchTime).ValidatorSet(vset)
+
+	// set initial params
+	// use an external account as executor to manage testnet easily
 
 	id, err := builder.ComputeID()
 	if err != nil {
 		panic(err)
 	}
-	return &Genesis{builder, id, "testnet"}
+	return &Genesis{builder, id, "testnet", vset}
 }

@@ -245,7 +245,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 			} else {
 				if isTrunk, err := n.processBlock(newBlock.Block, newBlock.EscortQC, &stats); err != nil {
 					if consensus.IsFutureBlock(err) ||
-						(consensus.IsParentMissing(err) && futureBlocks.Contains(newBlock.Block.Header().ParentID())) {
+						(consensus.IsParentMissing(err) && futureBlocks.Contains(newBlock.Block.Header().ParentID)) {
 						n.logger.Debug("future block added", "id", newBlock.Block.ID())
 						futureBlocks.Set(newBlock.Block.ID(), newBlock)
 					}

@@ -21,6 +21,7 @@ import (
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/tx"
@@ -39,7 +40,7 @@ var (
 type Violation struct {
 	Type       int
 	Index      int
-	Address    meter.Address
+	Address    common.Address
 	MsgHash    [32]byte
 	Signature1 []byte
 	Signature2 []byte
@@ -125,8 +126,8 @@ func MajorityTwoThird(voterNum, committeeSize uint32) bool {
 	return float64(voterNum) >= twoThirds
 }
 
-func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, committee []*types.Validator) (bool, error) {
-	committeeSize := uint32(len(committee))
+func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, committee *types.ValidatorSet) (bool, error) {
+	committeeSize := uint32(committee.Size())
 	if b == nil {
 		// decode block to get qc
 		// slog.Error("can not decode block", err)
@@ -151,7 +152,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	}
 
 	pubkeys := make([]bls.PublicKey, 0)
-	for index, v := range committee {
+	for index, v := range committee.Validators {
 		if escortQC.BitArray.GetIndex(index) {
 			pubkeys = append(pubkeys, v.PubKey)
 		}
@@ -170,7 +171,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 // WithSignature create a new block object with signature set.
 func (b *Block) WithSignature(sig bls.Signature) *Block {
 	return &Block{
-		BlockHeader: b.BlockHeader.withSignature(sig.Marshal()),
+		BlockHeader: b.BlockHeader.WithSignature(sig.Marshal()),
 		Txs:         b.Txs,
 	}
 }
@@ -193,12 +194,12 @@ func (b *Block) ShortID() string {
 
 // ParentID returns id of parent block.
 func (b *Block) ParentID() meter.Bytes32 {
-	return b.BlockHeader.ParentID()
+	return b.BlockHeader.ParentID
 }
 
 // LastBlocID returns id of parent block.
 func (b *Block) LastKBlockHeight() uint32 {
-	return b.BlockHeader.LastKBlockHeight()
+	return b.BlockHeader.LastKBlockHeight
 }
 
 // Number returns sequential number of this block.
@@ -207,34 +208,38 @@ func (b *Block) Number() uint32 {
 	return b.BlockHeader.Number()
 }
 
+func (b *Block) ValidatorHash() cmtbytes.HexBytes {
+	return b.BlockHeader.ValidatorHash
+}
+
 // Timestamp returns timestamp of this block.
 func (b *Block) Timestamp() uint64 {
-	return b.BlockHeader.Timestamp()
+	return b.BlockHeader.Timestamp
 }
 
 // BlockType returns block type of this block.
 func (b *Block) BlockType() BlockType {
-	return b.BlockHeader.BlockType()
+	return b.BlockHeader.BlockType
 }
 
 func (b *Block) IsKBlock() bool {
-	return b.BlockHeader.BlockType() == KBlockType
+	return b.BlockHeader.BlockType == KBlockType
 }
 
 func (b *Block) IsSBlock() bool {
-	return b.BlockHeader.BlockType() == SBlockType
+	return b.BlockHeader.BlockType == SBlockType
 }
 
 func (b *Block) IsMBlock() bool {
-	return b.BlockHeader.BlockType() == MBlockType
+	return b.BlockHeader.BlockType == MBlockType
 }
 
 // TxsRoot returns merkle root of txs contained in this block.
 func (b *Block) TxsRoot() cmtbytes.HexBytes {
-	return b.BlockHeader.TxsRoot()
+	return b.BlockHeader.TxsRoot
 }
 
-func (b *Block) Signer() (signer meter.Address, err error) {
+func (b *Block) Signer() (signer common.Address, err error) {
 	return b.BlockHeader.Signer()
 }
 
@@ -348,7 +353,7 @@ func (b *Block) GetCanonicalName() string {
 	if b == nil {
 		return ""
 	}
-	switch b.BlockHeader.BlockType() {
+	switch b.BlockHeader.BlockType {
 	case KBlockType:
 		return "KBlock"
 	case MBlockType:
@@ -368,7 +373,7 @@ func (b *Block) Oneliner() string {
 	}
 	canonicalName := b.GetCanonicalName()
 	return fmt.Sprintf("%v[%v,%v,txs:%v%v] -> %v", canonicalName,
-		b.ShortID(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID().ToBlockShortID())
+		b.ShortID(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
 }
 
 // -----------------
@@ -440,12 +445,12 @@ func (b *Block) ToBytes() []byte {
 
 func (b *Block) SetBlockSignature(sig []byte) error {
 	cpy := append([]byte(nil), sig...)
-	b.BlockHeader.Body.Signature = cpy
+	b.BlockHeader.Signature = cpy
 	return nil
 }
 
 func (b *Block) Nonce() uint64 {
-	return b.Header().Nonce()
+	return b.BlockHeader.Nonce
 }
 
 // --------------

@@ -9,7 +9,7 @@ import (
 	sha256 "crypto/sha256"
 	"fmt"
 
-	"github.com/meterio/meter-pov/meter"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
@@ -47,8 +47,8 @@ func (bm *BlsMaster) GetPublicKey() bls.PublicKey {
 	return bm.PubKey
 }
 
-func (bm *BlsMaster) GetAddress() meter.Address {
-	return meter.BytesToAddress(bm.PubKey.Marshal())
+func (bm *BlsMaster) GetAddress() common.Address {
+	return common.BytesToAddress(bm.PubKey.Marshal())
 }
 
 // func (bm *BlsMaster) GetPrivateKey() *bls.PrivateKey {

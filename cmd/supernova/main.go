@@ -26,6 +26,7 @@ import (
 
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/google/uuid"
@@ -37,7 +38,6 @@ import (
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/preset"
 	"github.com/meterio/meter-pov/txpool"
-	"github.com/meterio/meter-pov/types"
 	"github.com/pkg/errors"
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -96,10 +96,8 @@ func main() {
 			noDiscoverFlag,
 			minCommitteeSizeFlag,
 			maxCommitteeSizeFlag,
-			maxDelegateSizeFlag,
 			discoServerFlag,
 			discoTopicFlag,
-			initCfgdDelegatesFlag,
 			epochBlockCountFlag,
 			httpsCertFlag,
 			httpsKeyFlag,
@@ -215,12 +213,6 @@ func defaultAction(ctx *cli.Context) error {
 			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
 		}
 
-		if ctx.IsSet("delegate-max-size") {
-			config.DelegateMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("delegate-max-size", strconv.Itoa(config.DelegateMaxSize))
-		}
-
 		if ctx.IsSet("disco-topic") {
 			config.DiscoTopic = ctx.String("disco-topic")
 		} else {
@@ -244,12 +236,6 @@ func defaultAction(ctx *cli.Context) error {
 			config.CommitteeMaxSize = ctx.Int("committee-max-size")
 		} else {
 			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
-		}
-
-		if ctx.IsSet("delegate-max-size") {
-			config.DelegateMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("delegate-max-size", strconv.Itoa(config.DelegateMaxSize))
 		}
 
 		if ctx.IsSet("disco-topic") {
@@ -277,11 +263,6 @@ func defaultAction(ctx *cli.Context) error {
 			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
 		}
 
-		if ctx.IsSet("delegate-max-size") {
-			config.DelegateMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("delegate-max-size", strconv.Itoa(config.DelegateMaxSize))
-		}
 	}
 
 	// set magic
@@ -299,10 +280,6 @@ func defaultAction(ctx *cli.Context) error {
 	copy(p2pMagic[:], sum[:4])
 	copy(consensusMagic[:], sum[:4])
 
-	// load delegates (from binary or from file)
-	initDelegates := types.LoadDelegatesFile(ctx.String("network"), ctx.String("data-dir"), blsMaster)
-	printDelegates(initDelegates)
-
 	txPool := txpool.New(chain, defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
@@ -311,12 +288,9 @@ func defaultAction(ctx *cli.Context) error {
 	proxyApp := cmtproxy.NewLocalClientCreator(NewDumbApplication())
 
 	config := consensus.ReactorConfig{
-		InitCfgdDelegates: ctx.Bool("init-configured-delegates"),
-		EpochMBlockCount:  uint32(ctx.Uint("epoch-mblock-count")),
-		MinCommitteeSize:  ctx.Int("committee-min-size"),
-		MaxCommitteeSize:  ctx.Int("committee-max-size"),
-		MaxDelegateSize:   ctx.Int("delegate-max-size"),
-		InitDelegates:     initDelegates,
+		EpochMBlockCount: uint32(ctx.Uint("epoch-mblock-count")),
+		MinCommitteeSize: ctx.Int("committee-min-size"),
+		MaxCommitteeSize: ctx.Int("committee-max-size"),
 	}
 
 	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), p2pcom.p2pSrv)
@@ -377,7 +351,7 @@ func masterKeyAction(ctx *cli.Context) error {
 		if err := crypto.SaveECDSA(masterKeyPath(ctx), key.PrivateKey); err != nil {
 			return err
 		}
-		fmt.Println("Master key imported:", meter.Address(key.Address))
+		fmt.Println("Master key imported:", common.Address(key.Address))
 		return nil
 	}
 

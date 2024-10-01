@@ -98,11 +98,7 @@ var (
 		Usage: "committee maximum size",
 		Value: 50,
 	}
-	maxDelegateSizeFlag = cli.IntFlag{
-		Name:  "delegate-max-size",
-		Usage: "delegate maximum size",
-		Value: 100,
-	}
+
 	discoServerFlag = cli.StringSliceFlag{
 		Name:  "disco-server",
 		Usage: "override the default discover servers setting",
@@ -111,10 +107,6 @@ var (
 		Name:  "disco-topic",
 		Usage: "set the custom discover topics",
 		Value: "default-topic",
-	}
-	initCfgdDelegatesFlag = cli.BoolFlag{
-		Name:  "init-configured-delegates",
-		Usage: "run with configured delegates from presets or local file",
 	}
 	epochBlockCountFlag = cli.Int64Flag{
 		Name:  "epoch-mblock-count",
