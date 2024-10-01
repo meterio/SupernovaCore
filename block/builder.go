@@ -6,6 +6,7 @@
 package block
 
 import (
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/meter-pov/meter"
 	"github.com/meterio/meter-pov/tx"
 )
@@ -19,7 +20,7 @@ type Builder struct {
 	//	kBlockData    kBlockData
 	qc             *QuorumCert
 	CommitteeInfos CommitteeInfos
-	Magic          [4]byte
+	magic          [4]byte
 }
 
 // ParentID set parent id.
@@ -31,6 +32,11 @@ func (b *Builder) ParentID(id meter.Bytes32) *Builder {
 // LastKBlockID set last KBlock id.
 func (b *Builder) LastKBlockHeight(height uint32) *Builder {
 	b.headerBody.LastKBlockHeight = height
+	return b
+}
+
+func (b *Builder) Tx(tx cmttypes.Tx) *Builder {
+	b.txs = append(b.txs, tx)
 	return b
 }
 
@@ -63,6 +69,11 @@ func (b *Builder) QC(qc *QuorumCert) *Builder {
 	return b
 }
 
+func (b *Builder) Magic(magic [4]byte) *Builder {
+	b.magic = magic
+	return b
+}
+
 // Build build a block object.
 func (b *Builder) Build() *Block {
 	header := Header{Body: b.headerBody}
@@ -71,5 +82,7 @@ func (b *Builder) Build() *Block {
 	return &Block{
 		BlockHeader: &header,
 		Txs:         b.txs,
+		QC:          b.qc,
+		Magic:       b.magic,
 	}
 }

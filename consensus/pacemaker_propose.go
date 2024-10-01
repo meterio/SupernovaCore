@@ -41,19 +41,18 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		lastKBlock = parent.ProposedBlock.LastKBlockHeight()
 	}
 	builder := new(block.Builder).
+		Magic(block.BlockMagicVersion1).
 		ParentID(parentBlock.ID()).
 		Timestamp(timestamp).
 		Nonce(nonce).
 		BlockType(blockType).
-		LastKBlockHeight(lastKBlock)
+		LastKBlockHeight(lastKBlock).QC(qc)
 
 	for _, tx := range txs {
-		builder.Transaction(tx)
+		builder.Tx(tx)
 	}
 
 	newBlock := builder.Build()
-	newBlock.SetMagic(block.BlockMagicVersion1)
-	newBlock.SetQC(qc)
 
 	proposed := &block.DraftBlock{
 		Height:        newBlock.Number(),

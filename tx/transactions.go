@@ -22,3 +22,11 @@ func (txs Transactions) RootHash() cmtbytes.HexBytes {
 	}
 	return merkle.HashFromByteSlices(slice)
 }
+
+func (txs Transactions) Convert() [][]byte {
+	txbytes := make([][]byte, 0)
+	for _, tx := range txs {
+		txbytes = append(txbytes, tx)
+	}
+	return txbytes
+}

@@ -22,6 +22,8 @@ var (
 	ErrMagicMismatch       = errors.New("magic mismatch")
 	ErrMalformattedMsg     = errors.New("malformatted msg")
 	ErrKnownMsg            = errors.New("known msg")
+	ErrProposalRejected    = errors.New("proposal rejected")
+	ErrProposalUnknown     = errors.New("proposal unknown")
 )
 
 type consensusError string

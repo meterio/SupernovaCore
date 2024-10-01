@@ -22,7 +22,15 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 	for _, tx := range blk.Txs {
 		txs = append(txs, tx)
 	}
-	p.reactor.proxyApp.Consensus().FinalizeBlock(context.TODO(), &v1.FinalizeBlockRequest{Txs: txs, Height: int64(draftBlk.Height), Hash: blk.ID().Bytes()})
+	res, err := p.reactor.proxyApp.Consensus().FinalizeBlock(context.TODO(), &v1.FinalizeBlockRequest{Txs: txs, Height: int64(draftBlk.Height), Hash: blk.ID().Bytes()})
+	// res.AppHash
+	// res.TxResults
+	for _, vu := range res.ValidatorUpdates {
+		fmt.Println(vu.PubKeyBytes)
+		fmt.Println(vu.Power)
+		fmt.Println(vu.PubKeyType)
+	}
+
 	p.reactor.proxyApp.Consensus().Commit(context.TODO())
 	//stage := blkInfo.Stage
 

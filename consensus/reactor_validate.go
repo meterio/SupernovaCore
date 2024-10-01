@@ -12,9 +12,11 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"time"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	"github.com/pkg/errors"
 
 	"github.com/meterio/meter-pov/block"
@@ -49,21 +51,18 @@ func (c *Reactor) ProcessSyncedBlock(blk *block.Block, nowTimestamp uint64) erro
 }
 
 func (c *Reactor) ProcessProposedBlock(parent *block.Block, blk *block.Block, nowTimestamp uint64) error {
-	if _, err := c.chain.GetBlockHeader(blk.ID()); err != nil {
-		if !c.chain.IsNotFound(err) {
-			c.logger.Info("get block header error", "blk", blk.ShortID(), "err", err)
-			return err
-		}
-	} else {
-		c.logger.Info("known block", "blk", blk.ShortID())
-		return errKnownBlock
+	res, err := c.proxyApp.Consensus().ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{Txs: blk.Txs.Convert(), Hash: blk.ID().Bytes(), Height: int64(blk.Number())})
+	if err != nil {
+		return err
 	}
 
-	if parent == nil {
-		c.logger.Info("parent missing", "blk", blk.ShortID())
-		return errParentHeaderMissing
+	if res.Status == v1.PROCESS_PROPOSAL_STATUS_ACCEPT {
+		return nil
+	} else if res.Status == v1.PROCESS_PROPOSAL_STATUS_REJECT {
+		return ErrProposalRejected
 	}
-	return nil
+	return ErrProposalUnknown
+
 }
 
 func (c *Reactor) Validate(
