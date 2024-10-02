@@ -17,8 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/p2psrv/rpc"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/p2psrv/rpc"
 )
 
 const (

@@ -8,7 +8,7 @@ package bloom
 import (
 	"math"
 
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/meter"
 )
 
 const (

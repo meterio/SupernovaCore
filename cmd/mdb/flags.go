@@ -41,11 +41,11 @@ func defaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	if home := homeDir(); home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support", "org.dfinlab.meter")
+			return filepath.Join(home, "Library", "Application Support", "supernova")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "org.dfinlab.meter")
+			return filepath.Join(home, "AppData", "Roaming", "supernova")
 		} else {
-			return filepath.Join(home, ".org.dfinlab.meter")
+			return filepath.Join(home, ".supernova")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

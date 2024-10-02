@@ -8,8 +8,8 @@ package consensus
 import (
 	"errors"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/tx"
 )
 
 var (

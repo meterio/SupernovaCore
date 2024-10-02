@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/lvldb"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/lvldb"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/meter"
 )
 
 var (

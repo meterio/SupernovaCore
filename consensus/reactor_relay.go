@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 // Assumptions to use this:

@@ -75,6 +75,7 @@ func EnsureDir(dir string, mode os.FileMode) error {
 		if err != nil {
 			return fmt.Errorf("Could not create directory %v. %v", dir, err)
 		}
+		fmt.Println("Directory created:", dir)
 	}
 	return nil
 }

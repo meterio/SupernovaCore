@@ -8,7 +8,7 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 const (

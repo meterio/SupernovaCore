@@ -16,9 +16,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/meterio/meter-pov/cache"
-	"github.com/meterio/meter-pov/co"
-	"github.com/meterio/meter-pov/p2psrv/discv5"
+	"github.com/meterio/supernova/cache"
+	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/p2psrv/discv5"
 )
 
 // Server p2p server wraps ethereum's p2p.Server, and handles discovery v5 stuff.

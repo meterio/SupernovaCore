@@ -8,9 +8,9 @@ package comm
 import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/comm/proto"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/meter"
 )
 
 type announcement struct {

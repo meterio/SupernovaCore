@@ -10,10 +10,10 @@ import (
 	"time"
 
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/lvldb"
-	Tx "github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/lvldb"
+	Tx "github.com/meterio/supernova/tx"
 	"github.com/stretchr/testify/assert"
 )
 

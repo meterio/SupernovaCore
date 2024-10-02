@@ -9,9 +9,9 @@ import (
 	"encoding/hex"
 	"net/http"
 
-	"github.com/meterio/meter-pov/api/utils"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/consensus"
+	"github.com/meterio/supernova/api/utils"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/consensus"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 

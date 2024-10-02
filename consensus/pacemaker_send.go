@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/types"
 )
 
 func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {

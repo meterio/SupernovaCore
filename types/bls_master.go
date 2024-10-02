@@ -6,7 +6,6 @@
 package types
 
 import (
-	sha256 "crypto/sha256"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -56,10 +55,9 @@ func (bm *BlsMaster) GetAddress() common.Address {
 // }
 
 // sign the part of msg
-func (bm *BlsMaster) SignMessage(msg []byte) (bls.Signature, [32]byte) {
-	hash := sha256.Sum256(msg)
-	sig := bm.PrivKey.Sign(hash[:])
-	return sig, hash
+func (bm *BlsMaster) SignMessage(msg []byte) bls.Signature {
+	sig := bm.PrivKey.Sign(msg)
+	return sig
 }
 
 func (bm *BlsMaster) SignHash(hash [32]byte) []byte {

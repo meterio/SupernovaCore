@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meterio/meter-pov/cache"
+	"github.com/meterio/supernova/cache"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	cmn "github.com/meterio/meter-pov/libs/common"
-	"github.com/meterio/meter-pov/meter"
+	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/meter"
 )
 
 // definition for TimeoutCert

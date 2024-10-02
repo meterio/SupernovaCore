@@ -19,8 +19,8 @@ import (
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	"github.com/pkg/errors"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/meter"
 )
 
 // Process process a block.

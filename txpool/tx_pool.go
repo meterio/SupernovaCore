@@ -13,11 +13,11 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/co"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
 	"github.com/pkg/errors"
 )
 

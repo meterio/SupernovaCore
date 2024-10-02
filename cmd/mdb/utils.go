@@ -18,9 +18,9 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/meter"
 )
 
 func fatal(args ...interface{}) {

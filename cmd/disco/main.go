@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
-	"github.com/meterio/meter-pov/p2psrv/discv5"
+	"github.com/meterio/supernova/p2psrv/discv5"
 	"github.com/pkg/errors"
 	cli "gopkg.in/urfave/cli.v1"
 )

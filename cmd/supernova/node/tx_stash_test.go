@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/tx"
 	"github.com/stretchr/testify/assert"
 )
 

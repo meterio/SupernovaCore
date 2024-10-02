@@ -12,8 +12,8 @@ import (
 	"time"
 
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
 	"github.com/pkg/errors"
 )
 

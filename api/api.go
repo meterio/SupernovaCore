@@ -12,13 +12,13 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/meterio/meter-pov/api/blocks"
-	"github.com/meterio/meter-pov/api/doc"
-	"github.com/meterio/meter-pov/api/node"
-	"github.com/meterio/meter-pov/api/peers"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/p2psrv"
-	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/supernova/api/blocks"
+	"github.com/meterio/supernova/api/doc"
+	"github.com/meterio/supernova/api/node"
+	"github.com/meterio/supernova/api/peers"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/p2psrv"
+	"github.com/meterio/supernova/txpool"
 )
 
 // New return api router

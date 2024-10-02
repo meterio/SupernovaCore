@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/types"
 )
 
 // DevAccount account for development.

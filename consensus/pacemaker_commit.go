@@ -6,9 +6,9 @@ import (
 	"time"
 
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/meter"
 )
 
 // finalize the block with its own QC

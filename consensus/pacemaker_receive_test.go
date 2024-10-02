@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/gonum/stat/combin"
-	"github.com/meterio/meter-pov/consensus"
+	"github.com/meterio/supernova/consensus"
 )
 
 type HopRecord struct {

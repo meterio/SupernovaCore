@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/meterio/meter-pov/params"
+	"github.com/meterio/supernova/params"
 )
 
 // Constants of block chain.

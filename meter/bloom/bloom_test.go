@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/meterio/meter-pov/meter/bloom"
+	"github.com/meterio/supernova/meter/bloom"
 	"github.com/stretchr/testify/assert"
 )
 

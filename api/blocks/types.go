@@ -12,9 +12,9 @@ import (
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
 )
 
 type JSONBlockSummary struct {

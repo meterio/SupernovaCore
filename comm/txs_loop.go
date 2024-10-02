@@ -6,8 +6,8 @@
 package comm
 
 import (
-	"github.com/meterio/meter-pov/comm/proto"
-	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/txpool"
 )
 
 func (c *Communicator) txsLoop() {

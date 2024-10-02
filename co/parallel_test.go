@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/meterio/meter-pov/co"
+	"github.com/meterio/supernova/co"
 )
 
 func TestParallel(t *testing.T) {

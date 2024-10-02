@@ -7,11 +7,13 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls/blst"
 	cli "gopkg.in/urfave/cli.v1"
@@ -35,7 +37,8 @@ func verifyBLS(blsMaster *types.BlsMaster) bool {
 		return false
 	}
 	msg := h.Sum(nil)
-	sig, _ := blsMaster.SignMessage(msg)
+	sig := blsMaster.SignMessage(msg)
+	fmt.Println("msg: ", hex.EncodeToString(msg))
 
 	return sig.Verify(blsMaster.PubKey, msg)
 }

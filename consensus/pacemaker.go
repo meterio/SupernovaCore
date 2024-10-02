@@ -18,11 +18,11 @@ import (
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	crypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 const (

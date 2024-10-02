@@ -6,7 +6,7 @@
 package comm
 
 import (
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/meter"
 )
 
 // type Traffic struct {

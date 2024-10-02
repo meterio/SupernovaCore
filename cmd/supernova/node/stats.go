@@ -6,7 +6,7 @@
 package node
 
 import (
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 type blockStats struct {

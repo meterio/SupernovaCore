@@ -11,9 +11,9 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
 )
 
 // to stash non-executable txs.

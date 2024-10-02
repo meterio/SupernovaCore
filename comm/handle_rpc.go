@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/comm/proto"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/meter"
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/tx"
 	"github.com/pkg/errors"
 )
 

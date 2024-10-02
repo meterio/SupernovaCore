@@ -14,11 +14,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/gorilla/mux"
-	"github.com/meterio/meter-pov/api/utils"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/api/utils"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
 	"github.com/pkg/errors"
 )
 

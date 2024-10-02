@@ -7,8 +7,8 @@ package block
 
 import (
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/tx"
 )
 
 // Builder only build header and txs. committee info and kblock data built by app.
@@ -80,7 +80,7 @@ func (b *Builder) ValidatorHash(hash []byte) *Builder {
 
 // Build build a block object.
 func (b *Builder) Build() *Block {
-	header := Header{}
+	header := b.header
 	header.TxsRoot = b.txs.RootHash()
 
 	return &Block{

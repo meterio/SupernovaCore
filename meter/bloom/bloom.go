@@ -9,7 +9,7 @@ package bloom
 import (
 	"encoding/binary"
 
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/meter"
 )
 
 func distribute(hash uint32, k uint8, nBits uint32, cb func(index int, bit byte) bool) bool {

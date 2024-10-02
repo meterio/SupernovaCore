@@ -13,9 +13,9 @@ import (
 	"time"
 
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 

@@ -8,7 +8,7 @@ package comm
 import (
 	"context"
 
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 // NewBlockEvent event emitted when received block announcement.

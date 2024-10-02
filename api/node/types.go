@@ -6,10 +6,9 @@
 package node
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/meterio/meter-pov/comm"
-	"github.com/meterio/meter-pov/consensus"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/comm"
+	"github.com/meterio/supernova/consensus"
+	"github.com/meterio/supernova/meter"
 )
 
 type Network interface {
@@ -47,14 +46,4 @@ func ConvertPeersStats(ss []*comm.PeerStats) []*PeerStats {
 
 type Consensus interface {
 	Committee() []*consensus.ApiCommitteeMember
-}
-
-type ApiCommitteeMember struct {
-	Name        string         `json:"name"`
-	Address     common.Address `json:"addr"`
-	PubKey      string         `json:"pubkey"`
-	VotingPower int64          `json:"votingPower"`
-	NetAddr     string         `json:"netAddr"`
-	Index       int            `json:"Index"`
-	InCommittee bool           `json:"inCommittee"`
 }

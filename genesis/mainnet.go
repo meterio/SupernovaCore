@@ -5,7 +5,12 @@
 
 package genesis
 
-import "github.com/meterio/meter-pov/types"
+import (
+	"encoding/hex"
+	"fmt"
+
+	"github.com/meterio/supernova/types"
+)
 
 // NewMainnet create mainnet genesis.
 func NewMainnet() *Genesis {
@@ -13,6 +18,7 @@ func NewMainnet() *Genesis {
 
 	vset := types.NewValidatorSet(make([]*types.Validator, 0))
 
+	fmt.Println("VSET: ", hex.EncodeToString(vset.Hash()))
 	builder := new(Builder).
 		Timestamp(launchTime).ValidatorSet(vset)
 

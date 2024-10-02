@@ -8,9 +8,12 @@ package common
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // BitArray is a thread-safe implementation of a bit array.
@@ -440,6 +443,32 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 		}
 	}
 	*bA = *bA2
+	return nil
+}
+
+// EncodeRLP implements rlp.Encoder.
+func (ba *BitArray) EncodeRLP(w io.Writer) error {
+	if ba == nil {
+		w.Write([]byte{})
+		return nil
+	}
+	b, err := ba.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	return rlp.Encode(w, b)
+}
+
+// DecodeRLP implements rlp.Decoder.
+func (ba *BitArray) DecodeRLP(s *rlp.Stream) error {
+	var payload []byte
+
+	if err := s.Decode(&payload); err != nil {
+		return err
+	}
+
+	ba.UnmarshalJSON(payload)
+
 	return nil
 }
 

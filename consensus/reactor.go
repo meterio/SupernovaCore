@@ -29,13 +29,13 @@ import (
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/comm"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/txpool"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/comm"
+	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/txpool"
+	"github.com/meterio/supernova/types"
 )
 
 var (

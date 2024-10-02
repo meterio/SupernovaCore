@@ -9,10 +9,10 @@ import (
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 var (

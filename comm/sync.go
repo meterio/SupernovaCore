@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/co"
-	"github.com/meterio/meter-pov/comm/proto"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/meter"
 	"github.com/pkg/errors"
 )
 

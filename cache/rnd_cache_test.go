@@ -3,7 +3,7 @@ package cache_test
 import (
 	"testing"
 
-	"github.com/meterio/meter-pov/cache"
+	"github.com/meterio/supernova/cache"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -14,11 +14,11 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/co"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -79,8 +79,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 	}
 	var bestBlock *block.Block
 
-	fmt.Println(genesisValidatorSet.Hash(), genesisBlock.ValidatorHash())
-	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.ValidatorHash()) {
+	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.ValidatorHash().Bytes()) {
 		panic(ErrInvalidGenesis)
 	}
 	if _, err := loadValidatorSet(kv, genesisValidatorSet.Hash()); err != nil {
@@ -109,7 +108,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 		if err := saveBestBlockID(batch, genesisID); err != nil {
 			return nil, err
 		}
-
 		if err := saveBlockHash(batch, 0, genesisID); err != nil {
 			return nil, err
 		}

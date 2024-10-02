@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/types"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	amino "github.com/tendermint/go-amino"
 )

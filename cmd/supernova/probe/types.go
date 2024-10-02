@@ -8,10 +8,10 @@ package probe
 import (
 	"errors"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/comm"
-	"github.com/meterio/meter-pov/consensus"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/comm"
+	"github.com/meterio/supernova/consensus"
+	"github.com/meterio/supernova/meter"
 )
 
 // Block block

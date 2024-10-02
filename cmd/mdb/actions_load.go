@@ -9,8 +9,8 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/kv"
-	"github.com/meterio/meter-pov/lvldb"
+	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/lvldb"
 	"gopkg.in/urfave/cli.v1"
 )
 

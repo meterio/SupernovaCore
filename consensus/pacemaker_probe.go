@@ -5,8 +5,8 @@ package consensus
 
 import (
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/meter"
 )
 
 type BlockProbe struct {

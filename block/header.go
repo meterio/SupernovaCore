@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/meter"
 )
 
 type BlockType uint32

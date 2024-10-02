@@ -9,8 +9,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/meterio/meter-pov/api/utils"
-	"github.com/meterio/meter-pov/p2psrv"
+	"github.com/meterio/supernova/api/utils"
+	"github.com/meterio/supernova/p2psrv"
 )
 
 type Peers struct {

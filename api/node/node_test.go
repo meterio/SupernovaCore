@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/meterio/meter-pov/api/node"
-	"github.com/meterio/meter-pov/chain"
-	"github.com/meterio/meter-pov/comm"
-	"github.com/meterio/meter-pov/genesis"
-	"github.com/meterio/meter-pov/lvldb"
-	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/supernova/api/node"
+	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/comm"
+	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/txpool"
 	"github.com/stretchr/testify/assert"
 )
 

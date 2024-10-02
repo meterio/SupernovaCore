@@ -31,13 +31,14 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/google/uuid"
 	isatty "github.com/mattn/go-isatty"
-	"github.com/meterio/meter-pov/api"
-	"github.com/meterio/meter-pov/api/doc"
-	"github.com/meterio/meter-pov/cmd/supernova/node"
-	"github.com/meterio/meter-pov/consensus"
-	"github.com/meterio/meter-pov/meter"
-	"github.com/meterio/meter-pov/preset"
-	"github.com/meterio/meter-pov/txpool"
+	"github.com/meterio/supernova/api"
+	"github.com/meterio/supernova/api/doc"
+	"github.com/meterio/supernova/cmd/supernova/node"
+	"github.com/meterio/supernova/consensus"
+	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/preset"
+	"github.com/meterio/supernova/txpool"
 	"github.com/pkg/errors"
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -172,6 +173,11 @@ func defaultAction(ctx *cli.Context) error {
 	exitSignal := handleExitSignal()
 	debug.SetMemoryLimit(5 * 1024 * 1024 * 1024) // 5GB
 
+	err := cmn.EnsureDir(ctx.String("data-dir"), os.ModeDir)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("ensure dir: ", ctx.String("data-dir"))
 	defer func() { slog.Info("exited") }()
 
 	initLogger(ctx)

@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/meterio/meter-pov/tx"
+	"github.com/meterio/supernova/tx"
 )
 
 // txObjectMap to maintain mapping of ID to tx object, and account quota.

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 func (r *Reactor) UnmarshalMsg(rawData []byte) (*IncomingMsg, error) {

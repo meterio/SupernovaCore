@@ -19,8 +19,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/comm/proto"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/meter"
 	"github.com/pkg/errors"
 )
 

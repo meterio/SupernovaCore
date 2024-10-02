@@ -5,7 +5,7 @@
 
 package genesis
 
-import "github.com/meterio/meter-pov/types"
+import "github.com/meterio/supernova/types"
 
 // NewTestnet create genesis for testnet.
 func NewTestnet() *Genesis {

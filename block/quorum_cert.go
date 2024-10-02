@@ -12,7 +12,7 @@ import (
 	"log/slog"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	cmn "github.com/meterio/meter-pov/libs/common"
+	cmn "github.com/meterio/supernova/libs/common"
 )
 
 type QuorumCert struct {
@@ -105,7 +105,7 @@ func GenesisQC() *QuorumCert {
 }
 
 func GenesisEscortQC(b *Block) *QuorumCert {
-	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: b.VotingHash()}
+	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: b.VotingHash(), BitArray: cmn.NewBitArray(1)}
 }
 
 // --------------

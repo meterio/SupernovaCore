@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/meterio/meter-pov/block"
+	"github.com/meterio/supernova/block"
 )
 
 const (

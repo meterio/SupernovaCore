@@ -8,8 +8,8 @@ package chain
 import (
 	"fmt"
 
-	"github.com/meterio/meter-pov/block"
-	"github.com/meterio/meter-pov/meter"
+	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/meter"
 )
 
 // Seeker to seek block by given number on the chain defined by head block ID.

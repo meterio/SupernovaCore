@@ -16,7 +16,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/meter-pov/txpool"
+	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/txpool"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -116,6 +117,7 @@ func main() {
 }
 
 func defaultAction(ctx *cli.Context) error {
+	cmn.EnsureDir(ctx.String("data-dir"), os.ModeDir)
 	fmt.Println("default action for mdb")
 	return nil
 }
