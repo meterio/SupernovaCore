@@ -7,7 +7,6 @@ package block
 
 import (
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
 
@@ -15,7 +14,7 @@ import (
 // Builder to make it easy to build a block object.
 type Builder struct {
 	header Header
-	txs    tx.Transactions
+	txs    types.Transactions
 	//	committeeInfo CommitteeInfo
 	//	kBlockData    kBlockData
 	qc    *QuorumCert

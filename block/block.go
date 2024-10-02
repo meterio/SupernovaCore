@@ -23,7 +23,6 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -76,7 +75,7 @@ func (cis CommitteeInfos) String() string {
 // Block is an immutable block type.
 type Block struct {
 	BlockHeader    *Header
-	Txs            tx.Transactions
+	Txs            types.Transactions
 	QC             *QuorumCert
 	CommitteeInfos CommitteeInfos
 	Magic          [4]byte
@@ -87,7 +86,7 @@ type Block struct {
 
 // Body defines body of a block.
 type Body struct {
-	Txs tx.Transactions
+	Txs types.Transactions
 }
 
 // Create new committee Info
@@ -103,10 +102,10 @@ func NewCommitteeInfo(name string, pubKey bls.PublicKey, netAddr types.NetAddres
 // Compose compose a block with all needed components
 // Note: This method is usually to recover a block by its portions, and the TxsRoot is not verified.
 // To build up a block, use a Builder.
-func Compose(header *Header, txs tx.Transactions) *Block {
+func Compose(header *Header, txs types.Transactions) *Block {
 	return &Block{
 		BlockHeader: header,
-		Txs:         append(tx.Transactions(nil), txs...),
+		Txs:         append(types.Transactions(nil), txs...),
 	}
 }
 
@@ -243,8 +242,8 @@ func (b *Block) Signer() (signer common.Address, err error) {
 }
 
 // Transactions returns a copy of transactions.
-func (b *Block) Transactions() tx.Transactions {
-	return append(tx.Transactions(nil), b.Txs...)
+func (b *Block) Transactions() types.Transactions {
+	return append(types.Transactions(nil), b.Txs...)
 }
 
 // Body returns body of a block.
@@ -276,7 +275,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 
 	payload := struct {
 		Header         Header
-		Txs            tx.Transactions
+		Txs            types.Transactions
 		CommitteeInfos CommitteeInfos
 		QC             *QuorumCert
 		Magic          [4]byte

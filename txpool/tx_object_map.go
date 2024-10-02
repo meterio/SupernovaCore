@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 // txObjectMap to maintain mapping of ID to tx object, and account quota.
@@ -78,11 +78,11 @@ func (m *txObjectMap) ToTxObjects() []*txObject {
 	return txObjs
 }
 
-func (m *txObjectMap) ToTxs() tx.Transactions {
+func (m *txObjectMap) ToTxs() types.Transactions {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	txs := make(tx.Transactions, 0, len(m.txObjMap))
+	txs := make(types.Transactions, 0, len(m.txObjMap))
 	for _, txObj := range m.txObjMap {
 		txs = append(txs, txObj.Tx)
 	}

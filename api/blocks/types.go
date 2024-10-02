@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
 
@@ -136,7 +135,7 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.In
 	return result
 }
 
-func buildJSONEmbeddedTxs(txs tx.Transactions) []*JSONEmbeddedTx {
+func buildJSONEmbeddedTxs(txs types.Transactions) []*JSONEmbeddedTx {
 	jTxs := make([]*JSONEmbeddedTx, 0, len(txs))
 	for _, tx := range txs {
 		jTxs = append(jTxs, &JSONEmbeddedTx{Hash: hex.EncodeToString(tx.Hash()), Raw: hex.EncodeToString(tx)})

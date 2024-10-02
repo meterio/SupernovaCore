@@ -12,7 +12,6 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
 
@@ -55,8 +54,8 @@ func (ts *txStash) Save(tx cmttypes.Tx) error {
 	return nil
 }
 
-func (ts *txStash) LoadAll() tx.Transactions {
-	var txs tx.Transactions
+func (ts *txStash) LoadAll() types.Transactions {
+	var txs types.Transactions
 	iter := ts.kv.NewIterator(*kv.NewRangeWithBytesPrefix(nil))
 	for iter.Next() {
 		var tx cmttypes.Tx

@@ -22,7 +22,6 @@ import (
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm/proto"
 	"github.com/meterio/supernova/p2psrv"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -177,7 +176,7 @@ func (c *Communicator) Stop() {
 }
 
 type txsToSync struct {
-	txs    tx.Transactions
+	txs    types.Transactions
 	synced bool
 }
 

@@ -17,7 +17,6 @@ import (
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
@@ -59,7 +58,7 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 	jSummary := buildJSONBlockSummary(block, isTrunk, big.NewInt(0) /* FIXME: get the correct value */)
 	if expanded == "true" {
 		var err error
-		var txs tx.Transactions
+		var txs types.Transactions
 		if block.ID().String() == b.chain.GenesisBlock().ID().String() {
 			// if is genesis
 

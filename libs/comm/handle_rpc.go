@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/tx"
 	"github.com/pkg/errors"
 )
 
@@ -183,14 +182,14 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 		c.logger.Debug(fmt.Sprintf(`call in: GetTxs from %s`, types.Addr2IP(peer.RemoteAddr())))
 		if txsToSync.synced {
 			peer.logger.Info(`call in NO RESULT: GetTxs`, "len", 0)
-			write(tx.Transactions(nil))
+			write(types.Transactions(nil))
 		} else {
 			if len(txsToSync.txs) == 0 {
 				txsToSync.txs = c.txPool.Executables()
 			}
 
 			var (
-				toSend tx.Transactions
+				toSend types.Transactions
 				n      int
 			)
 

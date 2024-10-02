@@ -16,7 +16,6 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
@@ -244,15 +243,15 @@ func (p *TxPool) Remove(id []byte) bool {
 }
 
 // Executables returns executable txs.
-func (p *TxPool) Executables() tx.Transactions {
+func (p *TxPool) Executables() types.Transactions {
 	if sorted := p.executables.Load(); sorted != nil {
-		return sorted.(tx.Transactions)
+		return sorted.(types.Transactions)
 	}
 	return nil
 }
 
 // Fill fills txs into pool.
-func (p *TxPool) Fill(txs tx.Transactions, executed func(txID []byte) bool) {
+func (p *TxPool) Fill(txs types.Transactions, executed func(txID []byte) bool) {
 	txObjs := make([]*txObject, 0, len(txs))
 	for _, tx := range txs {
 		// here we ignore errors
@@ -270,13 +269,13 @@ func (p *TxPool) Fill(txs tx.Transactions, executed func(txID []byte) bool) {
 }
 
 // Dump dumps all txs in the pool.
-func (p *TxPool) Dump() tx.Transactions {
+func (p *TxPool) Dump() types.Transactions {
 	return p.all.ToTxs()
 }
 
 // wash to evict txs that are over limit, out of lifetime, out of energy, settled, expired or dep broken.
 // this method should only be called in housekeeping go routine
-func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executables tx.Transactions, removed int, err error) {
+func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executables types.Transactions, removed int, err error) {
 	all := p.all.ToTxObjects()
 	var toRemove [][]byte
 	defer func() {
@@ -357,8 +356,8 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 		}
 	}
 
-	executables = make(tx.Transactions, 0, len(executableObjs))
-	var toBroadcast tx.Transactions
+	executables = make(types.Transactions, 0, len(executableObjs))
+	var toBroadcast types.Transactions
 
 	for _, obj := range executableObjs {
 		executables = append(executables, obj.Tx)

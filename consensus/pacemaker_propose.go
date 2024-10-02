@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 )
 
 // Build MBlock
-func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs tx.Transactions, blockType block.BlockType) (error, *block.DraftBlock) {
+func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs types.Transactions, blockType block.BlockType) (error, *block.DraftBlock) {
 	parentBlock := parent.ProposedBlock
 	qc := justify.QC
 

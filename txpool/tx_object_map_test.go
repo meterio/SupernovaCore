@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,6 +46,6 @@ func TestTxObjMap(t *testing.T) {
 	assert.False(t, m.Remove(tx2.Hash()))
 
 	assert.Equal(t, []*txObject{txObj3}, m.ToTxObjects())
-	assert.Equal(t, tx.Transactions{tx3}, m.ToTxs())
+	assert.Equal(t, types.Transactions{tx3}, m.ToTxs())
 
 }

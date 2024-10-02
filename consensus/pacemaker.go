@@ -20,7 +20,6 @@ import (
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
 
@@ -121,7 +120,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 	// FIXME: handle epoch chagne
 	proposeKBlock := false
 
-	var txs tx.Transactions
+	var txs types.Transactions
 	for _, txBytes := range res.Txs {
 		txs = append(txs, cmttypes.Tx(txBytes))
 	}

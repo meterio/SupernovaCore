@@ -11,7 +11,6 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
 
@@ -104,8 +103,8 @@ func GetBlocksFromNumber(ctx context.Context, rpc RPC, num uint32) ([]rlp.RawVal
 }
 
 // GetTxs get txs from remote peer.
-func GetTxs(ctx context.Context, rpc RPC) (tx.Transactions, error) {
-	var txs tx.Transactions
+func GetTxs(ctx context.Context, rpc RPC) (types.Transactions, error) {
+	var txs types.Transactions
 	if err := rpc.Call(ctx, MsgGetTxs, &struct{}{}, &txs); err != nil {
 		return nil, err
 	}

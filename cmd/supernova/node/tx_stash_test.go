@@ -12,7 +12,7 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +27,7 @@ func TestTxStash(t *testing.T) {
 
 	stash := newTxStash(db, 10)
 
-	var saved tx.Transactions
+	var saved types.Transactions
 	for i := 0; i < 11; i++ {
 		tx := newTx()
 		assert.Nil(t, stash.Save(tx))

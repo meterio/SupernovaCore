@@ -266,7 +266,7 @@ package consensus
 
 // 	triggers["triggerErrTxsRootMismatch"] = func() {
 // 		transaction := txSign(txBuilder(tc.tag))
-// 		transactions := tx.Transactions{transaction}
+// 		transactions := types.Transactions{transaction}
 // 		blk := tc.sign(block.Compose(tc.original.Header(), transactions))
 // 		err := tc.consent(blk)
 // 		expect := consensusError(
