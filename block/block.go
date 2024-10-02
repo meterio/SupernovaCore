@@ -23,7 +23,6 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -163,7 +162,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	}
 	start := time.Now()
 	valid := sig.FastAggregateVerify(pubkeys, escortQC.MsgHash)
-	slog.Debug("verified QC", "elapsed", meter.PrettyDuration(time.Since(start)))
+	slog.Debug("verified QC", "elapsed", types.PrettyDuration(time.Since(start)))
 
 	return valid, err
 }
@@ -181,7 +180,7 @@ func (b *Block) Header() *Header {
 	return b.BlockHeader
 }
 
-func (b *Block) ID() meter.Bytes32 {
+func (b *Block) ID() types.Bytes32 {
 	return b.BlockHeader.ID()
 }
 
@@ -193,7 +192,7 @@ func (b *Block) ShortID() string {
 }
 
 // ParentID returns id of parent block.
-func (b *Block) ParentID() meter.Bytes32 {
+func (b *Block) ParentID() types.Bytes32 {
 	return b.BlockHeader.ParentID
 }
 

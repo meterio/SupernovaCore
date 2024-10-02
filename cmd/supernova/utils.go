@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	tty "github.com/mattn/go-tty"
 	"github.com/meterio/supernova/api/doc"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 func fatal(args ...interface{}) {
@@ -128,7 +128,7 @@ func requestBodyLimit(h http.Handler) http.Handler {
 }
 
 // middleware to verify 'x-genesis-id' header in request, and set to response headers.
-func handleXGenesisID(h http.Handler, genesisID meter.Bytes32) http.Handler {
+func handleXGenesisID(h http.Handler, genesisID types.Bytes32) http.Handler {
 	const headerKey = "x-genesis-id"
 	expectedID := genesisID.String()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -13,7 +13,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	. "github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
 
 	// "crypto/rand"
 	// cmn "github.com/meterio/supernova/libs/common"
@@ -26,7 +25,7 @@ func TestSerialize(t *testing.T) {
 	now := uint64(time.Now().UnixNano())
 
 	var (
-		emptyRoot meter.Bytes32 = meter.BytesToBytes32([]byte("0"))
+		emptyRoot types.Bytes32 = types.BytesToBytes32([]byte("0"))
 	)
 
 	block := new(Builder).

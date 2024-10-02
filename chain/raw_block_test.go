@@ -6,12 +6,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRawBlock(t *testing.T) {
-	b := new(block.Builder).ParentID(meter.Bytes32{1, 2, 3}).Build()
+	b := new(block.Builder).ParentID(types.Bytes32{1, 2, 3}).Build()
 
 	priv, _ := crypto.GenerateKey()
 	_, err := crypto.Sign(b.Header().SigningHash().Bytes(), priv)

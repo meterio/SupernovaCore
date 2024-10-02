@@ -19,8 +19,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/comm/proto"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm/proto"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
 
@@ -213,7 +213,7 @@ func (r *RPC) finalizeCall(id uint32) {
 
 // Notify notifies a message to the peer.
 func (r *RPC) Notify(ctx context.Context, msgCode uint64, arg interface{}) error {
-	// log.Info(fmt.Sprintf("notify out: %s to %s", proto.MsgName(msgCode), meter.Addr2IP(r.peer.RemoteAddr())))
+	// log.Info(fmt.Sprintf("notify out: %s to %s", proto.MsgName(msgCode), types.Addr2IP(r.peer.RemoteAddr())))
 	return p2p.Send(r.rw, msgCode, &msgData{0, false, r.magic, arg})
 }
 
@@ -226,7 +226,7 @@ func (r *RPC) Call(ctx context.Context, msgCode uint64, arg interface{}, result 
 	id := r.prepareCall(msgCode, func(msg *p2p.Msg) error {
 		// msg should decode here, or its payload will be discarded by msg loop
 		err := msg.Decode(result)
-		r.logger.Debug(fmt.Sprintf("call out: %s to %s", proto.MsgName(msgCode), meter.Addr2IP(r.peer.RemoteAddr())))
+		r.logger.Debug(fmt.Sprintf("call out: %s to %s", proto.MsgName(msgCode), types.Addr2IP(r.peer.RemoteAddr())))
 		if err != nil {
 			err = errors.WithMessage(err, "decode result")
 		}

@@ -20,7 +20,7 @@ import (
 
 	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 func fatal(args ...interface{}) {
@@ -69,14 +69,14 @@ func handleExitSignal() context.Context {
 }
 
 // ReadTrieNode retrieves the trie node of the provided hash.
-func ReadTrieNode(db kv.Getter, hash meter.Bytes32) []byte {
+func ReadTrieNode(db kv.Getter, hash types.Bytes32) []byte {
 	data, _ := db.Get(hash.Bytes())
 	return data
 }
 
 // HasCode checks if the contract code corresponding to the
 // provided code hash is present in the db.
-func HasCode(db kv.Getter, hash meter.Bytes32) bool {
+func HasCode(db kv.Getter, hash types.Bytes32) bool {
 	// Try with the prefixed code scheme first, if not then try with legacy
 	// scheme.
 	// if ok := HasCodeWithPrefix(db, hash); ok {

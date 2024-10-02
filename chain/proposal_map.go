@@ -5,18 +5,18 @@ import (
 	"log/slog"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 type ProposalMap struct {
-	proposals map[meter.Bytes32]*block.DraftBlock
+	proposals map[types.Bytes32]*block.DraftBlock
 	chain     *Chain
 	logger    slog.Logger
 }
 
 func NewProposalMap(c *Chain) *ProposalMap {
 	return &ProposalMap{
-		proposals: make(map[meter.Bytes32]*block.DraftBlock),
+		proposals: make(map[types.Bytes32]*block.DraftBlock),
 		chain:     c,
 		logger:    *slog.With("pkg", "pmap"),
 	}
@@ -26,7 +26,7 @@ func (p *ProposalMap) Add(blk *block.DraftBlock) {
 	p.proposals[blk.ProposedBlock.ID()] = blk
 }
 
-func (p *ProposalMap) GetProposalsUpTo(committedBlkID meter.Bytes32, qcHigh *block.QuorumCert) []*block.DraftBlock {
+func (p *ProposalMap) GetProposalsUpTo(committedBlkID types.Bytes32, qcHigh *block.QuorumCert) []*block.DraftBlock {
 	commited := p.Get(committedBlkID)
 	head := p.GetOneByEscortQC(qcHigh)
 	result := make([]*block.DraftBlock, 0)
@@ -47,7 +47,7 @@ func (p *ProposalMap) GetProposalsUpTo(committedBlkID meter.Bytes32, qcHigh *blo
 	return result
 }
 
-func (p *ProposalMap) Has(blkID meter.Bytes32) bool {
+func (p *ProposalMap) Has(blkID types.Bytes32) bool {
 	blk, ok := p.proposals[blkID]
 	if ok && blk != nil {
 		return true
@@ -55,7 +55,7 @@ func (p *ProposalMap) Has(blkID meter.Bytes32) bool {
 	return false
 }
 
-func (p *ProposalMap) Get(blkID meter.Bytes32) *block.DraftBlock {
+func (p *ProposalMap) Get(blkID types.Bytes32) *block.DraftBlock {
 	blk, ok := p.proposals[blkID]
 	if ok {
 		return blk

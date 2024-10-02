@@ -6,7 +6,7 @@ import (
 
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
@@ -17,7 +17,7 @@ type vote struct {
 
 type voteKey struct {
 	Round   uint32
-	BlockID meter.Bytes32
+	BlockID types.Bytes32
 }
 
 type QCVoteManager struct {
@@ -40,7 +40,7 @@ func (m *QCVoteManager) Size() uint32 {
 	return m.committeeSize
 }
 
-func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockID meter.Bytes32, sig []byte, hash [32]byte) *block.QuorumCert {
+func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockID types.Bytes32, sig []byte, hash [32]byte) *block.QuorumCert {
 	key := voteKey{Round: round, BlockID: blockID}
 	if _, existed := m.votes[key]; !existed {
 		m.votes[key] = make(map[uint32]*vote)
@@ -73,17 +73,17 @@ func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockI
 	return nil
 }
 
-func (m *QCVoteManager) Count(round uint32, blockID meter.Bytes32) uint32 {
+func (m *QCVoteManager) Count(round uint32, blockID types.Bytes32) uint32 {
 	key := voteKey{Round: round, BlockID: blockID}
 	return uint32(len(m.votes[key]))
 }
 
-func (m *QCVoteManager) seal(round uint32, blockID meter.Bytes32) {
+func (m *QCVoteManager) seal(round uint32, blockID types.Bytes32) {
 	key := voteKey{Round: round, BlockID: blockID}
 	m.sealed[key] = true
 }
 
-func (m *QCVoteManager) Aggregate(round uint32, blockID meter.Bytes32, epoch uint64) *block.QuorumCert {
+func (m *QCVoteManager) Aggregate(round uint32, blockID types.Bytes32, epoch uint64) *block.QuorumCert {
 	m.seal(round, blockID)
 	sigs := make([]bls.Signature, 0)
 	key := voteKey{Round: round, BlockID: blockID}

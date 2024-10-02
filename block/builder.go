@@ -7,8 +7,8 @@ package block
 
 import (
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 // Builder only build header and txs. committee info and kblock data built by app.
@@ -23,7 +23,7 @@ type Builder struct {
 }
 
 // ParentID set parent id.
-func (b *Builder) ParentID(id meter.Bytes32) *Builder {
+func (b *Builder) ParentID(id types.Bytes32) *Builder {
 	b.header.ParentID = id
 	return b
 }

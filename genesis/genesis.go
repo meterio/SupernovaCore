@@ -10,7 +10,6 @@ import (
 
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 )
 
@@ -21,7 +20,7 @@ const (
 // Genesis to build genesis block.
 type Genesis struct {
 	builder *Builder
-	id      meter.Bytes32
+	id      types.Bytes32
 	vset    *types.ValidatorSet
 
 	Name    string
@@ -52,7 +51,7 @@ func (g *Genesis) Build() (*block.Block, error) {
 }
 
 // ID returns genesis block ID.
-func (g *Genesis) ID() meter.Bytes32 {
+func (g *Genesis) ID() types.Bytes32 {
 	return g.id
 }
 

@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 // Process process a block.
@@ -102,7 +102,7 @@ func (c *Reactor) Validate(
 		return err
 	}
 	verifyBlockElapsed := time.Since(verifyBlockStart)
-	c.logger.Debug("validated!", "id", block.ShortID(), "validateHeadElapsed", meter.PrettyDuration(vHeaderElapsed), "validateProposerElapsed", meter.PrettyDuration(vProposerElapsed), "validateBodyElapsed", meter.PrettyDuration(vBodyElapsed), "verifyBlockElapsed", meter.PrettyDuration(verifyBlockElapsed))
+	c.logger.Debug("validated!", "id", block.ShortID(), "validateHeadElapsed", types.PrettyDuration(vHeaderElapsed), "validateProposerElapsed", types.PrettyDuration(vProposerElapsed), "validateBodyElapsed", types.PrettyDuration(vBodyElapsed), "verifyBlockElapsed", types.PrettyDuration(verifyBlockElapsed))
 
 	return nil
 }
@@ -112,11 +112,11 @@ func (c *Reactor) validateBlockHeader(header *block.Header, parent *block.Header
 		return consensusError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp, header.Timestamp))
 	}
 
-	if header.Timestamp > nowTimestamp+meter.BlockInterval {
+	if header.Timestamp > nowTimestamp+types.BlockInterval {
 		return errFutureBlock
 	}
 
-	if epoch != meter.KBlockEpoch && header.LastKBlockHeight < parent.LastKBlockHeight {
+	if epoch != types.KBlockEpoch && header.LastKBlockHeight < parent.LastKBlockHeight {
 		return consensusError(fmt.Sprintf("block LastKBlockHeight invalid: parent %v, current %v", parent.LastKBlockHeight, header.LastKBlockHeight))
 	}
 
@@ -147,8 +147,8 @@ func (c *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 		return consensusError(fmt.Sprintf("block magic mismatch, has %v, expect %v", blk.GetMagic(), block.BlockMagicVersion1))
 	}
 
-	txUniteHashs := make(map[meter.Bytes32]int)
-	clauseUniteHashs := make(map[meter.Bytes32]int)
+	txUniteHashs := make(map[types.Bytes32]int)
+	clauseUniteHashs := make(map[types.Bytes32]int)
 
 	if parent == nil {
 		c.logger.Error("parent is nil")
@@ -180,10 +180,10 @@ func (c *Reactor) VerifyBlock(blk *block.Block, forceValidate bool) error {
 	// var totalGasUsed uint64
 	// txs := blk.Transactions()
 	// receipts := make(tx.Receipts, 0, len(txs))
-	// processedTxs := make(map[meter.Bytes32]bool)
+	// processedTxs := make(map[types.Bytes32]bool)
 	// header := blk.Header()
 
-	// findTx := func(txID meter.Bytes32) (found bool, reverted bool, err error) {
+	// findTx := func(txID types.Bytes32) (found bool, reverted bool, err error) {
 	// 	if reverted, ok := processedTxs[txID]; ok {
 	// 		return true, reverted, nil
 	// 	}

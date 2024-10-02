@@ -3,11 +3,13 @@
 // Distributed under the GNU Lesser General Public License v3.0 software license, see the accompanying
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package meter
+package types
 
 import (
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Constants of block chain.
@@ -57,22 +59,6 @@ const (
 	TolerableBlockPackingTime = 100 * time.Millisecond // the indicator to adjust target block gas limit
 
 	MaxBackTrackingBlockNumber = 65535
-)
-
-// Script Engine
-var (
-	//0x6163636f756e742d6c6f636b2d61646472657373
-	AccountLockModuleAddr = BytesToAddress([]byte("account-lock-address"))
-	ProfileListKey        = Blake2b([]byte("account-lock-profile-list-key"))
-
-	// 0x74696f6e2d6163636f756e742d61646472657373
-	AuctionModuleAddr     = BytesToAddress([]byte("auction-account-address"))
-	AuctionSummaryListKey = Blake2b([]byte("summary-list-key"))
-	AuctionCBKey          = Blake2b([]byte("auction-active-cb-key"))
-
-	// 0x616B696e672D6D6F64756c652d61646472657373
-	StakingModuleAddr = BytesToAddress([]byte("staking-module-address"))
-	BucketListKey     = Blake2b([]byte("global-bucket-list-key"))
 )
 
 // Keys of governance params.
@@ -127,47 +113,20 @@ var (
 	InitialBorrowInterestRate     = big.NewInt(1e17)                                                 // bowrrower interest rate, initial set as 10%
 	InitialConsensusCommitteeSize = new(big.Int).Mul(big.NewInt(int64(50)), big.NewInt(int64(1e18))) // consensus committee size, is set to 50
 
-	// This account takes 40% of auction gain to distribute to validators in consensus
-	// 0x61746f722d62656e656669742d61646472657373
-	ValidatorBenefitAddr = BytesToAddress([]byte("validator-benefit-address"))
-
-	ScriptEngineSysContractAddr = BytesToAddress([]byte("native-script-engine-address"))
-
-	AuctionLeftOverAccount = MustParseAddress("0xe852f654dfaee0e2b60842657379a56e1cafa292")
-
-	ZeroAddress = MustParseAddress("0x0000000000000000000000000000000000000000")
+	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	//////////////////////////////
 	// The Following Accounts are defined for DFL Community
-	InitialExecutorAccount = MustParseAddress("0xdbb11b66f1d62bdeb5f47018d85e2401d7e3dc2e")
-	InitialDFLTeamAccount1 = MustParseAddress("0x2fa2d56e312c47709537acb198446205736022aa")
-	InitialDFLTeamAccount2 = MustParseAddress("0x08ebea6584b3d9bf6fbcacf1a1507d00a61d95b7")
-	InitialDFLTeamAccount3 = MustParseAddress("0x045df1ef32d6db371f1857bb60551ef2e43abb1e")
-	InitialDFLTeamAccount4 = MustParseAddress("0xde4f71f45ae821614e9dd1256fef06780b775216")
-	InitialDFLTeamAccount5 = MustParseAddress("0xab22ab75f8c42b6969c5d226f39aeb7be35bf24b")
-	InitialDFLTeamAccount6 = MustParseAddress("0x63723217e860bc409e29b46eec70101cd03d8242")
-	InitialDFLTeamAccount7 = MustParseAddress("0x0374f5867ab2effd2277c895e7d1088b10ec9452")
-	InitialDFLTeamAccount8 = MustParseAddress("0x5308b6f26f21238963d0ea0b391eafa9be53c78e")
+	InitialExecutorAccount = common.HexToAddress("0xdbb11b66f1d62bdeb5f47018d85e2401d7e3dc2e")
+	InitialDFLTeamAccount1 = common.HexToAddress("0x2fa2d56e312c47709537acb198446205736022aa")
+	InitialDFLTeamAccount2 = common.HexToAddress("0x08ebea6584b3d9bf6fbcacf1a1507d00a61d95b7")
+	InitialDFLTeamAccount3 = common.HexToAddress("0x045df1ef32d6db371f1857bb60551ef2e43abb1e")
+	InitialDFLTeamAccount4 = common.HexToAddress("0xde4f71f45ae821614e9dd1256fef06780b775216")
+	InitialDFLTeamAccount5 = common.HexToAddress("0xab22ab75f8c42b6969c5d226f39aeb7be35bf24b")
+	InitialDFLTeamAccount6 = common.HexToAddress("0x63723217e860bc409e29b46eec70101cd03d8242")
+	InitialDFLTeamAccount7 = common.HexToAddress("0x0374f5867ab2effd2277c895e7d1088b10ec9452")
+	InitialDFLTeamAccount8 = common.HexToAddress("0x5308b6f26f21238963d0ea0b391eafa9be53c78e")
 
 	TeslaValidatorBenefitRatio = big.NewInt(1e18)
 
 	NewViewPeersLimit = 8
-
-	// in order to provide different addresses during testing and mainnet
-	// so defined all these vairables here
-	// will be different values during testing
-	USDC_eth_Address = MustParseAddress("0xd86e243fc0007e6226b07c9a50c9d70d78299eb5")
-	USDT_eth_Address = MustParseAddress("0x5fa41671c48e3c951afc30816947126ccc8c162e")
-	WBTC_eth_Address = MustParseAddress("0xc1f6c86abee8e2e0b6fd5bd80f0b51fef783635c")
 )
-
-func USDCAddress() Address {
-	return USDC_eth_Address
-}
-
-func USDTAddress() Address {
-	return USDT_eth_Address
-}
-
-func WBTCAddress() Address {
-	return WBTC_eth_Address
-}

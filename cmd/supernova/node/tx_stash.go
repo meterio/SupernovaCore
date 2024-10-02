@@ -12,8 +12,8 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 // to stash non-executable txs.
@@ -47,7 +47,7 @@ func (ts *txStash) Save(tx cmttypes.Tx) error {
 	}
 	ts.fifo.PushBack(tx.Hash())
 	for ts.fifo.Len() > ts.maxSize {
-		keyToDelete := ts.fifo.Remove(ts.fifo.Front()).(meter.Bytes32).Bytes()
+		keyToDelete := ts.fifo.Remove(ts.fifo.Front()).(types.Bytes32).Bytes()
 		if err := ts.kv.Delete(keyToDelete); err != nil {
 			return err
 		}

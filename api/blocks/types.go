@@ -13,15 +13,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 type JSONBlockSummary struct {
 	Number           uint32            `json:"number"`
-	ID               meter.Bytes32     `json:"id"`
+	ID               types.Bytes32     `json:"id"`
 	Size             uint32            `json:"size"`
-	ParentID         meter.Bytes32     `json:"parentID"`
+	ParentID         types.Bytes32     `json:"parentID"`
 	Timestamp        uint64            `json:"timestamp"`
 	GasUsed          uint64            `json:"gasUsed"`
 	TotalScore       uint64            `json:"totalScore"`
@@ -57,7 +57,7 @@ type JSONTransfer struct {
 
 type JSONEvent struct {
 	Address common.Address  `json:"address"`
-	Topics  []meter.Bytes32 `json:"topics"`
+	Topics  []types.Bytes32 `json:"topics"`
 	Data    string          `json:"data"`
 }
 

@@ -6,7 +6,7 @@
 package comm
 
 import (
-	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/libs/comm/proto"
 	"github.com/meterio/supernova/txpool"
 )
 

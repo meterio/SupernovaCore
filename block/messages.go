@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	amino "github.com/tendermint/go-amino"
@@ -124,7 +123,7 @@ func (m *PMProposalMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMProposalMessage) GetMsgHash() (hash []byte) {
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.Round, m.RawBlock}
 	if m.TimeoutCert != nil {
 		data = append(data, m.TimeoutCert)
@@ -178,7 +177,7 @@ type PMVoteMessage struct {
 	// VoterID           []byte //ecdsa.PublicKey
 	// VoterBlsPK        []byte //bls.PublicKey
 	VoteRound     uint32
-	VoteBlockID   meter.Bytes32
+	VoteBlockID   types.Bytes32
 	VoteSignature []byte //bls.Signature
 	VoteHash      [32]byte
 
@@ -203,7 +202,7 @@ func (m *PMVoteMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMVoteMessage) GetMsgHash() (hash []byte) {
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	data := []interface{}{
 		m.Timestamp, m.Epoch, m.SignerIndex,
 		m.VoteRound, m.VoteBlockID, m.VoteSignature, m.VoteHash,
@@ -247,7 +246,7 @@ type PMTimeoutMessage struct {
 
 	// last vote for proposal
 	LastVoteRound     uint32
-	LastVoteBlockID   meter.Bytes32
+	LastVoteBlockID   types.Bytes32
 	LastVoteHash      [32]byte
 	LastVoteSignature []byte
 
@@ -275,7 +274,7 @@ func (m *PMTimeoutMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMTimeoutMessage) GetMsgHash() (hash []byte) {
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	data := []interface{}{
 		m.Timestamp, m.Epoch, m.SignerIndex,
 		m.WishRound, m.QCHigh, m.WishVoteHash, m.WishVoteSig,
@@ -328,7 +327,7 @@ type PMQueryMessage struct {
 	Epoch       uint64
 	SignerIndex uint32
 
-	LastCommitted meter.Bytes32
+	LastCommitted types.Bytes32
 
 	MsgSignature []byte
 }
@@ -351,7 +350,7 @@ func (m *PMQueryMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMQueryMessage) GetMsgHash() (hash []byte) {
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.LastCommitted}
 	err := rlp.Encode(hw, data)
 	if err != nil {

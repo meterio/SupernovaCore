@@ -7,7 +7,6 @@ package genesis
 
 import (
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
@@ -33,11 +32,11 @@ func (b *Builder) ExtraData(data [28]byte) *Builder {
 }
 
 // ComputeID compute genesis ID.
-func (b *Builder) ComputeID() (meter.Bytes32, error) {
+func (b *Builder) ComputeID() (types.Bytes32, error) {
 
 	blk, err := b.Build()
 	if err != nil {
-		return meter.Bytes32{}, err
+		return types.Bytes32{}, err
 	}
 	return blk.ID(), nil
 }
@@ -58,7 +57,7 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 		return nil, errors.Wrap(err, "commit state")
 	}
 
-	parentID := meter.Bytes32{0xff, 0xff, 0xff, 0xff} //so, genesis number is 0
+	parentID := types.Bytes32{0xff, 0xff, 0xff, 0xff} //so, genesis number is 0
 	copy(parentID[4:], b.extraData[:])
 
 	return new(block.Builder).

@@ -16,7 +16,7 @@ package consensus
 // }
 
 // func txBuilder(tag byte) *tx.Builder {
-// 	address := meter.BytesToAddress([]byte("addr"))
+// 	address := types.BytesToAddress([]byte("addr"))
 // 	return new(tx.Builder).
 // 		GasPriceCoef(1).
 // 		Gas(1000000).
@@ -51,16 +51,16 @@ package consensus
 
 // 	launchTime := uint64(1526400000)
 // 	gen := new(genesis.Builder).
-// 		GasLimit(meter.InitialGasLimit).
+// 		GasLimit(types.InitialGasLimit).
 // 		Timestamp(launchTime).
 // 		State(func(state *state.State) error {
 // 			bal, _ := new(big.Int).SetString("1000000000000000000000000000", 10)
 // 			state.SetCode(builtin.Authority.Address, builtin.Authority.RuntimeBytecodes())
-// 			builtin.Params.Native(state).Set(meter.KeyExecutorAddress, new(big.Int).SetBytes(genesis.DevAccounts()[0].Address[:]))
+// 			builtin.Params.Native(state).Set(types.KeyExecutorAddress, new(big.Int).SetBytes(genesis.DevAccounts()[0].Address[:]))
 // 			for _, acc := range genesis.DevAccounts() {
 // 				state.SetBalance(acc.Address, bal)
 // 				state.SetEnergy(acc.Address, bal, launchTime)
-// 				builtin.Authority.Native(state).Add(acc.Address, acc.Address, meter.Bytes32{})
+// 				builtin.Authority.Native(state).Add(acc.Address, acc.Address, types.Bytes32{})
 // 			}
 // 			return nil
 // 		})
@@ -173,7 +173,7 @@ package consensus
 // 	}
 // 	triggers["triggerErrFutureBlock"] = func() {
 // 		build := tc.originalBuilder()
-// 		blk := tc.sign(build.Timestamp(tc.time + meter.BlockInterval*2).Build())
+// 		blk := tc.sign(build.Timestamp(tc.time + types.BlockInterval*2).Build())
 // 		err := tc.consent(blk)
 // 		tc.assert.Equal(err, errFutureBlock)
 // 	}

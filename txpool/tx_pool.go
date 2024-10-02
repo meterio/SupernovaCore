@@ -16,8 +16,8 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
 
@@ -117,7 +117,7 @@ func (p *TxPool) housekeeping() {
 				ctx := []interface{}{
 					"len", poolLen,
 					"removed", removed,
-					"elapsed", meter.PrettyDuration(elapsed),
+					"elapsed", types.PrettyDuration(elapsed),
 				}
 				if err != nil {
 					ctx = append(ctx, "err", err)
@@ -324,7 +324,7 @@ func (p *TxPool) wash(headBlock *block.Header, timeLimit time.Duration) (executa
 			nonExecutableObjs = append(nonExecutableObjs, txObj)
 		}
 		if time.Since(start) > timeLimit {
-			p.logger.Info("tx wash ended early due to time limit", "elapsed", meter.PrettyDuration(time.Since(start)), "execs", len(executableObjs))
+			p.logger.Info("tx wash ended early due to time limit", "elapsed", types.PrettyDuration(time.Since(start)), "execs", len(executableObjs))
 			break
 		}
 	}
@@ -383,7 +383,7 @@ func isChainSynced(nowTimestamp, blockTimestamp uint64) bool {
 	if blockTimestamp > nowTimestamp {
 		timeDiff = blockTimestamp - nowTimestamp
 	}
-	return timeDiff < meter.BlockInterval*6
+	return timeDiff < types.BlockInterval*6
 }
 
 func (p *TxPool) All() []*txObject {

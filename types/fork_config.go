@@ -3,7 +3,7 @@
 
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package meter
+package types
 
 import (
 	"fmt"

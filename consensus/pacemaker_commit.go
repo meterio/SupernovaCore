@@ -8,7 +8,7 @@ import (
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 // finalize the block with its own QC
@@ -60,7 +60,7 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 		}
 	}
 
-	p.logger.Info(fmt.Sprintf("* committed %v", blk.ShortID()), "txs", len(blk.Txs), "epoch", blk.GetBlockEpoch(), "elapsed", meter.PrettyDuration(time.Since(start)))
+	p.logger.Info(fmt.Sprintf("* committed %v", blk.ShortID()), "txs", len(blk.Txs), "epoch", blk.GetBlockEpoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 
 	// broadcast the new block to all peers
 	p.reactor.comm.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})

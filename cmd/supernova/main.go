@@ -71,7 +71,7 @@ func main() {
 		Version:   fullVersion(),
 		Name:      "Meter",
 		Usage:     "Node of Meter.io",
-		Copyright: "2018 Meter Foundation <https://meter.io/>",
+		Copyright: "2018 Meter Foundation <https://types.io/>",
 		Flags: []cli.Flag{
 			dataDirFlag,
 			apiAddrFlag,

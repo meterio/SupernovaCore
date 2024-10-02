@@ -24,12 +24,11 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/cmd/supernova/probe"
-	"github.com/meterio/supernova/comm"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
+	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -159,7 +158,7 @@ func (n *Node) printStats(duration time.Duration) {
 			runtime.ReadMemStats(&m)
 			// For info on each, see: https://golang.org/pkg/runtime/#MemStats
 			n.logger.Info("<Stats>", "peerSet", n.comm.PeerCount(), "rawBlocksCache", n.chain.RawBlocksCacheLen(), "receiptsCache", "inQueue", n.reactor.IncomingQueueLen(), "outQueue", n.reactor.OutgoingQueueLen(), "txPool", n.txPool.Len())
-			n.logger.Info("<Memory>", "alloc", meter.PrettyStorage(m.Alloc), "sys", meter.PrettyStorage(m.Sys), "numGC", m.NumGC)
+			n.logger.Info("<Memory>", "alloc", types.PrettyStorage(m.Alloc), "sys", types.PrettyStorage(m.Sys), "numGC", m.NumGC)
 			if counter%10 == 0 {
 				runtime.GC()
 			}
@@ -224,7 +223,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	newBlockCh := make(chan *comm.NewBlockEvent)
 	scope.Track(n.comm.SubscribeBlock(newBlockCh))
 
-	futureTicker := time.NewTicker(time.Duration(meter.BlockInterval) * time.Second)
+	futureTicker := time.NewTicker(time.Duration(types.BlockInterval) * time.Second)
 	defer futureTicker.Stop()
 
 	connectivityTicker := time.NewTicker(time.Second)
@@ -353,7 +352,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	if !bytes.Equal(best.ID().Bytes(), blk.ParentID().Bytes()) {
 		return false, errCantExtendBestBlock
 	}
-	if blk.Timestamp()+meter.BlockInterval > now {
+	if blk.Timestamp()+types.BlockInterval > now {
 		QCValid := n.reactor.ValidateQC(blk, escortQC)
 		if !QCValid {
 			return false, errors.New(fmt.Sprintf("invalid %s on Block %s", escortQC.String(), blk.ID().ToBlockShortID()))
@@ -362,7 +361,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	start := time.Now()
 	err := n.reactor.ProcessSyncedBlock(blk, now)
 	if time.Since(start) > time.Millisecond*500 {
-		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", meter.PrettyDuration(time.Since(start)))
+		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", types.PrettyDuration(time.Since(start)))
 	}
 
 	if err != nil {
@@ -407,7 +406,7 @@ func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*
 
 	// skip logdb access if no txs
 	if len(newBlock.Transactions()) > 0 {
-		forkIDs := make([]meter.Bytes32, 0, len(fork.Branch))
+		forkIDs := make([]types.Bytes32, 0, len(fork.Branch))
 		for _, header := range fork.Branch {
 			forkIDs = append(forkIDs, header.ID())
 		}
@@ -415,10 +414,10 @@ func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*
 	}
 
 	if n.reactor.SyncDone {
-		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", meter.PrettyDuration(time.Since(start)))
+		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 	} else {
 		if time.Since(start) > time.Millisecond*500 {
-			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", meter.PrettyDuration(time.Since(start)))
+			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 		}
 	}
 	return fork, nil
@@ -456,7 +455,7 @@ func checkClockOffset() {
 		slog.Debug("failed to access NTP", "err", err)
 		return
 	}
-	if resp.ClockOffset > time.Duration(meter.BlockInterval)*time.Second/2 {
-		slog.Warn("clock offset detected", "offset", meter.PrettyDuration(resp.ClockOffset))
+	if resp.ClockOffset > time.Duration(types.BlockInterval)*time.Second/2 {
+		slog.Warn("clock offset detected", "offset", types.PrettyDuration(resp.ClockOffset))
 	}
 }

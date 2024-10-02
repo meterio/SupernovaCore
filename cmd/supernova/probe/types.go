@@ -9,16 +9,16 @@ import (
 	"errors"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/comm"
 	"github.com/meterio/supernova/consensus"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm"
+	"github.com/meterio/supernova/types"
 )
 
 // Block block
 type Block struct {
 	Number           uint32        `json:"number"`
-	ID               meter.Bytes32 `json:"id"`
-	ParentID         meter.Bytes32 `json:"parentID"`
+	ID               types.Bytes32 `json:"id"`
+	ParentID         types.Bytes32 `json:"parentID"`
 	BlockType        string        `json:"blockType"`
 	QC               *QC           `json:"qc"`
 	Timestamp        uint64        `json:"timestamp"`
@@ -137,7 +137,7 @@ type Network interface {
 
 type PeerStats struct {
 	Name         string        `json:"name"`
-	BestBlockID  meter.Bytes32 `json:"bestBlockID"`
+	BestBlockID  types.Bytes32 `json:"bestBlockID"`
 	BestBlockNum uint32        `json:"bestBlockNum"`
 	PeerID       string        `json:"peerID"`
 	NetAddr      string        `json:"netAddr"`

@@ -23,12 +23,11 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/cmd/supernova/probe"
-	"github.com/meterio/supernova/comm"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/co"
+	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
@@ -189,7 +188,7 @@ func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, tx
 	}
 
 	opts := &p2psrv.Options{
-		Name:           meter.MakeName("meter", fullVersion()),
+		Name:           types.MakeName("meter", fullVersion()),
 		PrivateKey:     key,
 		MaxPeers:       cliCtx.Int(maxPeersFlag.Name),
 		ListenAddr:     fmt.Sprintf(":%v", cliCtx.Int(p2pPortFlag.Name)),
@@ -245,10 +244,10 @@ func (p *p2pComm) Start() {
 	if err := p.p2pSrv.Start(p.comm.Protocols()); err != nil {
 		fatal("start P2P server:", err)
 	}
-	slog.Info("P2P server started", "elapsed", meter.PrettyDuration(time.Since(start)))
+	slog.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
 	start = time.Now()
 	p.comm.Start()
-	slog.Info("communicator started", "elapsed", meter.PrettyDuration(time.Since(start)))
+	slog.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
 }
 
 func (p *p2pComm) Stop() {
@@ -330,7 +329,7 @@ func startObserveServer(cons *consensus.Reactor, blsPubKey bls.PublicKey, nw pro
 	}
 }
 
-func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID meter.Bytes32) (string, func()) {
+func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID types.Bytes32) (string, func()) {
 	addr := ctx.String(apiAddrFlag.Name)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -397,12 +396,12 @@ func printStartupMessage(
     Instance dir    [ %v ]
     API portal      [ %v ]
 `,
-		meter.MakeName("Meter", fullVersion()),
+		types.MakeName("Meter", fullVersion()),
 		topic,
 		hex.EncodeToString(p2pMagic[:]),
 		gene.ID(), gene.Name,
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
-		meter.GetForkConfig(gene.ID()),
+		types.GetForkConfig(gene.ID()),
 		hex.EncodeToString(blsMaster.PubKey.Marshal()),
 		dataDir,
 		apiURL)

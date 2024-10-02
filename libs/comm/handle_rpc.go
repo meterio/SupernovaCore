@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/comm/proto"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm/proto"
+	"github.com/meterio/supernova/types"
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -50,18 +50,18 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`notify in: NewBlock(%s) from %s`, newBlock.Block.ShortID(), meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`notify in: NewBlock(%s) from %s`, newBlock.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
 		peer.MarkBlock(newBlock.Block.ID())
 		peer.UpdateHead(newBlock.Block.ID(), newBlock.Block.Number())
 		c.newBlockFeed.Send(&NewBlockEvent{EscortedBlock: newBlock})
 		write(&struct{}{})
 	case proto.MsgNewBlockID:
-		var newBlockID meter.Bytes32
+		var newBlockID types.Bytes32
 		if err := msg.Decode(&newBlockID); err != nil {
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`notify in: NewBlockID(%s) from %s`, newBlockID.ToBlockShortID(), meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`notify in: NewBlockID(%s) from %s`, newBlockID.ToBlockShortID(), types.Addr2IP(peer.RemoteAddr())))
 		peer.MarkBlock(newBlockID)
 		select {
 		case <-c.ctx.Done():
@@ -73,18 +73,18 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 		if err := msg.Decode(&newTx); err != nil {
 			return errors.WithMessage(err, "decode msg")
 		}
-		c.logger.Debug(fmt.Sprintf(`notify in: NewTx(%s) from %s`, newTx.Hash(), meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`notify in: NewTx(%s) from %s`, newTx.Hash(), types.Addr2IP(peer.RemoteAddr())))
 		peer.MarkTransaction(newTx.Hash())
 		c.txPool.StrictlyAdd(newTx)
 		write(&struct{}{})
 	case proto.MsgGetBlockByID:
-		var blockID meter.Bytes32
+		var blockID types.Bytes32
 		if err := msg.Decode(&blockID); err != nil {
 			return errors.WithMessage(err, "decode msg")
 		}
 		var result []rlp.RawValue
 
-		c.logger.Debug(fmt.Sprintf(`call in: GetBlockByID(%s) from %s`, blockID.ToBlockShortID(), meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`call in: GetBlockByID(%s) from %s`, blockID.ToBlockShortID(), types.Addr2IP(peer.RemoteAddr())))
 		blk, err := c.chain.GetBlock(blockID)
 		if err != nil {
 			if !c.chain.IsNotFound(err) {
@@ -118,14 +118,14 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`call in: GetBlockIDByNumber(%v) from %s`, num, meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`call in: GetBlockIDByNumber(%v) from %s`, num, types.Addr2IP(peer.RemoteAddr())))
 		id, err := c.chain.GetTrunkBlockID(num)
 		if err != nil {
 			if !c.chain.IsNotFound(err) {
 				c.logger.Error("failed to get block id by number", "err", err)
 			}
-			c.logger.Info(fmt.Sprintf(`call in NO RESULT: GetBlockIDByNumber(%v) from %s`, num, meter.Addr2IP(peer.RemoteAddr())))
-			write(meter.Bytes32{})
+			c.logger.Info(fmt.Sprintf(`call in NO RESULT: GetBlockIDByNumber(%v) from %s`, num, types.Addr2IP(peer.RemoteAddr())))
+			write(types.Bytes32{})
 		} else {
 			// peer.logger.Info(fmt.Sprintf(`call in result: GetBlockIDByNumber(%v)`, num), "id", id.ToBlockShortID())
 			write(id)
@@ -136,7 +136,7 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`call in: GetBlocksFromNumber(%v) from %s`, num, meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`call in: GetBlocksFromNumber(%v) from %s`, num, types.Addr2IP(peer.RemoteAddr())))
 		const maxBlocks = 1024
 		const maxSize = 512 * 1024
 		result := make([]rlp.RawValue, 0, maxBlocks)
@@ -180,7 +180,7 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`call in: GetTxs from %s`, meter.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`call in: GetTxs from %s`, types.Addr2IP(peer.RemoteAddr())))
 		if txsToSync.synced {
 			peer.logger.Info(`call in NO RESULT: GetTxs`, "len", 0)
 			write(tx.Transactions(nil))

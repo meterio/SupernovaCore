@@ -17,8 +17,8 @@ import (
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
 
@@ -87,7 +87,7 @@ func (b *Blocks) parseRevision(revision string) (interface{}, error) {
 		return nil, nil
 	}
 	if len(revision) == 66 || len(revision) == 64 {
-		blockID, err := meter.ParseBytes32(revision)
+		blockID, err := types.ParseBytes32(revision)
 		if err != nil {
 			return nil, err
 		}
@@ -116,8 +116,8 @@ func (b *Blocks) parseEpoch(epoch string) (uint32, error) {
 
 func (b *Blocks) getBlock(revision interface{}) (*block.Block, error) {
 	switch revision.(type) {
-	case meter.Bytes32:
-		blk, err := b.chain.GetBlock(revision.(meter.Bytes32))
+	case types.Bytes32:
+		blk, err := b.chain.GetBlock(revision.(types.Bytes32))
 		if err != nil {
 			return blk, err
 		}
@@ -226,7 +226,7 @@ func (b *Blocks) getKBlockByEpoch(epoch uint64) (*block.Block, error) {
 	}
 }
 
-func (b *Blocks) isTrunk(blkID meter.Bytes32, blkNum uint32) (bool, error) {
+func (b *Blocks) isTrunk(blkID types.Bytes32, blkNum uint32) (bool, error) {
 	best := b.chain.BestBlock()
 	ancestorID, err := b.chain.GetAncestorBlockID(best.ID(), blkNum)
 	if err != nil {

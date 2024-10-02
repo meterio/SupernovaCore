@@ -17,7 +17,6 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -165,7 +164,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 	}
 
 	rawBlocksCache := newCache(blockCacheLimit, func(key interface{}) (interface{}, error) {
-		raw, err := loadBlockRaw(kv, key.(meter.Bytes32))
+		raw, err := loadBlockRaw(kv, key.(types.Bytes32))
 		if err != nil {
 			return nil, err
 		}
@@ -397,26 +396,26 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 	return fork, nil
 }
 
-func (c *Chain) IsBlockFinalized(id meter.Bytes32) bool {
+func (c *Chain) IsBlockFinalized(id types.Bytes32) bool {
 	return block.Number(id) <= c.bestBlock.Number()
 }
 
 // GetBlockHeader get block header by block id.
-func (c *Chain) GetBlockHeader(id meter.Bytes32) (*block.Header, error) {
+func (c *Chain) GetBlockHeader(id types.Bytes32) (*block.Header, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getBlockHeader(id)
 }
 
 // GetBlockBody get block body by block id.
-func (c *Chain) GetBlockBody(id meter.Bytes32) (*block.Body, error) {
+func (c *Chain) GetBlockBody(id types.Bytes32) (*block.Body, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getBlockBody(id)
 }
 
 // GetBlock get block by id.
-func (c *Chain) GetBlock(id meter.Bytes32) (*block.Block, error) {
+func (c *Chain) GetBlock(id types.Bytes32) (*block.Block, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getBlock(id)
@@ -424,7 +423,7 @@ func (c *Chain) GetBlock(id meter.Bytes32) (*block.Block, error) {
 
 // GetBlockRaw get block rlp encoded bytes for given id.
 // Never modify the returned raw block.
-func (c *Chain) GetBlockRaw(id meter.Bytes32) (block.Raw, error) {
+func (c *Chain) GetBlockRaw(id types.Bytes32) (block.Raw, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	raw, err := c.getRawBlock(id)
@@ -435,7 +434,7 @@ func (c *Chain) GetBlockRaw(id meter.Bytes32) (block.Raw, error) {
 }
 
 // GetAncestorBlockID get ancestor block ID of descendant for given ancestor block.
-func (c *Chain) GetAncestorBlockID(descendantID meter.Bytes32, ancestorNum uint32) (meter.Bytes32, error) {
+func (c *Chain) GetAncestorBlockID(descendantID types.Bytes32, ancestorNum uint32) (types.Bytes32, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return loadBlockHash(c.kv, ancestorNum)
@@ -443,7 +442,7 @@ func (c *Chain) GetAncestorBlockID(descendantID meter.Bytes32, ancestorNum uint3
 }
 
 // GetTransactionMeta get transaction meta info, on the chain defined by head block ID.
-func (c *Chain) GetTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxMeta, error) {
+func (c *Chain) GetTransactionMeta(txID []byte, headBlockID types.Bytes32) (*TxMeta, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getTransactionMeta(txID, headBlockID)
@@ -457,14 +456,14 @@ func (c *Chain) HasTransactionMeta(txID []byte) (bool, error) {
 }
 
 // GetTransaction get transaction for given block and index.
-func (c *Chain) GetTransaction(blockID meter.Bytes32, index uint64) (cmttypes.Tx, error) {
+func (c *Chain) GetTransaction(blockID types.Bytes32, index uint64) (cmttypes.Tx, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.getTransaction(blockID, index)
 }
 
 // GetTrunkBlockID get block id on trunk by given block number.
-func (c *Chain) GetTrunkBlockID(num uint32) (meter.Bytes32, error) {
+func (c *Chain) GetTrunkBlockID(num uint32) (types.Bytes32, error) {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return loadBlockHash(c.kv, num)
@@ -537,7 +536,7 @@ func (c *Chain) GetTrunkTransaction(txID []byte) (cmttypes.Tx, *TxMeta, error) {
 }
 
 // NewSeeker returns a new seeker instance.
-func (c *Chain) NewSeeker(headBlockID meter.Bytes32) *Seeker {
+func (c *Chain) NewSeeker(headBlockID types.Bytes32) *Seeker {
 	return newSeeker(c, headBlockID)
 }
 
@@ -610,7 +609,7 @@ func (c *Chain) buildFork(trunkHead *block.Header, branchHead *block.Header) (*F
 	}
 }
 
-func (c *Chain) getRawBlock(id meter.Bytes32) (*rawBlock, error) {
+func (c *Chain) getRawBlock(id types.Bytes32) (*rawBlock, error) {
 	raw, err := c.caches.rawBlocks.GetOrLoad(id)
 	if err != nil {
 		return nil, err
@@ -619,7 +618,7 @@ func (c *Chain) getRawBlock(id meter.Bytes32) (*rawBlock, error) {
 	return raw.(*rawBlock), nil
 }
 
-func (c *Chain) getBlockHeader(id meter.Bytes32) (*block.Header, error) {
+func (c *Chain) getBlockHeader(id types.Bytes32) (*block.Header, error) {
 	raw, err := c.getRawBlock(id)
 	if err != nil {
 		return nil, err
@@ -627,14 +626,14 @@ func (c *Chain) getBlockHeader(id meter.Bytes32) (*block.Header, error) {
 	return raw.Header()
 }
 
-func (c *Chain) getBlockBody(id meter.Bytes32) (*block.Body, error) {
+func (c *Chain) getBlockBody(id types.Bytes32) (*block.Body, error) {
 	raw, err := c.getRawBlock(id)
 	if err != nil {
 		return nil, err
 	}
 	return raw.Body()
 }
-func (c *Chain) getBlock(id meter.Bytes32) (*block.Block, error) {
+func (c *Chain) getBlock(id types.Bytes32) (*block.Block, error) {
 	raw, err := c.getRawBlock(id)
 	if err != nil {
 		return nil, err
@@ -646,7 +645,7 @@ func (c *Chain) hasTransactionMeta(txID []byte) (bool, error) {
 	return c.kv.Has(txID[:])
 }
 
-func (c *Chain) getTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxMeta, error) {
+func (c *Chain) getTransactionMeta(txID []byte, headBlockID types.Bytes32) (*TxMeta, error) {
 	meta, err := loadTxMeta(c.kv, txID)
 	if err != nil {
 		return nil, err
@@ -666,7 +665,7 @@ func (c *Chain) getTransactionMeta(txID []byte, headBlockID meter.Bytes32) (*TxM
 	return nil, ErrNotFound
 }
 
-func (c *Chain) getTransaction(blockID meter.Bytes32, index uint64) (cmttypes.Tx, error) {
+func (c *Chain) getTransaction(blockID types.Bytes32, index uint64) (cmttypes.Tx, error) {
 	body, err := c.getBlockBody(blockID)
 	if err != nil {
 		return nil, err
@@ -710,7 +709,7 @@ func (r readBlock) Read() ([]*Block, error) {
 }
 
 // NewBlockReader generate an object that implements the BlockReader interface
-func (c *Chain) NewBlockReader(position meter.Bytes32) BlockReader {
+func (c *Chain) NewBlockReader(position types.Bytes32) BlockReader {
 	return readBlock(func() ([]*Block, error) {
 		c.rw.RLock()
 		defer c.rw.RUnlock()
@@ -754,7 +753,7 @@ func (c *Chain) NewBlockReader(position meter.Bytes32) BlockReader {
 	})
 }
 
-func (c *Chain) nextBlock(descendantID meter.Bytes32, num uint32) (*block.Block, error) {
+func (c *Chain) nextBlock(descendantID types.Bytes32, num uint32) (*block.Block, error) {
 	next, err := loadBlockHash(c.kv, num+1)
 	if err != nil {
 		return nil, err
@@ -785,13 +784,13 @@ func (c *Chain) AddDraft(b *block.DraftBlock) {
 	c.proposalMap.Add(b)
 }
 
-func (c *Chain) HasDraft(blkID meter.Bytes32) bool {
+func (c *Chain) HasDraft(blkID types.Bytes32) bool {
 	c.drw.RLock()
 	defer c.drw.RUnlock()
 	return c.proposalMap.Has(blkID)
 }
 
-func (c *Chain) GetDraft(blkID meter.Bytes32) *block.DraftBlock {
+func (c *Chain) GetDraft(blkID types.Bytes32) *block.DraftBlock {
 	c.drw.RLock()
 	defer c.drw.RUnlock()
 	return c.proposalMap.Get(blkID)
@@ -836,7 +835,7 @@ func (c *Chain) PruneDraftsUpTo(lastCommitted *block.DraftBlock) {
 	log.Debug("ended prune drafts")
 }
 
-func (c *Chain) GetDraftsUpTo(commitedBlkID meter.Bytes32, qcHigh *block.QuorumCert) []*block.DraftBlock {
+func (c *Chain) GetDraftsUpTo(commitedBlkID types.Bytes32, qcHigh *block.QuorumCert) []*block.DraftBlock {
 	c.drw.RLock()
 	defer c.drw.RUnlock()
 	return c.proposalMap.GetProposalsUpTo(commitedBlkID, qcHigh)

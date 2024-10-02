@@ -13,7 +13,7 @@ import (
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -78,7 +78,7 @@ func loadBlockByRevision(meterChain *chain.Chain, revision string) (*block.Block
 		return meterChain.BestBlock(), nil
 	}
 	if len(revision) == 66 || len(revision) == 64 {
-		blockID, err := meter.ParseBytes32(revision)
+		blockID, err := types.ParseBytes32(revision)
 		if err != nil {
 			return nil, InvalidRevision
 		}

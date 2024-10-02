@@ -17,8 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/p2psrv/rpc"
+	"github.com/meterio/supernova/types"
 )
 
 const (
@@ -55,7 +55,7 @@ type Peer struct {
 	// knownPowBlocks *lru.Cache
 	head struct {
 		sync.Mutex
-		id     meter.Bytes32
+		id     types.Bytes32
 		number uint32
 	}
 }
@@ -66,7 +66,7 @@ func newPeer(peer *p2p.Peer, rw p2p.MsgReadWriter, magic [4]byte) (*Peer, string
 		dir = "inbound"
 	}
 	ctx := []interface{}{
-		"peer", meter.Addr2IP(peer.RemoteAddr()),
+		"peer", types.Addr2IP(peer.RemoteAddr()),
 		"dir", dir,
 	}
 	knownTxs, err := lru.New(maxKnownTxs)
@@ -96,14 +96,14 @@ func newPeer(peer *p2p.Peer, rw p2p.MsgReadWriter, magic [4]byte) (*Peer, string
 }
 
 // Head returns head block ID and total score.
-func (p *Peer) Head() (id meter.Bytes32, number uint32) {
+func (p *Peer) Head() (id types.Bytes32, number uint32) {
 	p.head.Lock()
 	defer p.head.Unlock()
 	return p.head.id, p.head.number
 }
 
 // UpdateHead update ID and total score of head block.
-func (p *Peer) UpdateHead(id meter.Bytes32, number uint32) {
+func (p *Peer) UpdateHead(id types.Bytes32, number uint32) {
 	p.head.Lock()
 	defer p.head.Unlock()
 	if number > p.head.number {
@@ -117,12 +117,12 @@ func (p *Peer) MarkTransaction(id []byte) {
 	p.knownTxs.Add(id, struct{}{})
 }
 
-// func (p *Peer) MarkPowBlock(id meter.Bytes32) {
+// func (p *Peer) MarkPowBlock(id types.Bytes32) {
 // 	p.knownPowBlocks.Add(id, struct{}{})
 // }
 
 // MarkBlock marks a block to known.
-func (p *Peer) MarkBlock(id meter.Bytes32) {
+func (p *Peer) MarkBlock(id types.Bytes32) {
 	p.knownBlocks.Add(id, struct{}{})
 }
 
@@ -131,12 +131,12 @@ func (p *Peer) IsTransactionKnown(id []byte) bool {
 	return p.knownTxs.Contains(id)
 }
 
-// func (p *Peer) IsPowBlockKnown(id meter.Bytes32) bool {
+// func (p *Peer) IsPowBlockKnown(id types.Bytes32) bool {
 // 	return p.knownPowBlocks.Contains(id)
 // }
 
 // IsBlockKnown returns if the block is known.
-func (p *Peer) IsBlockKnown(id meter.Bytes32) bool {
+func (p *Peer) IsBlockKnown(id types.Bytes32) bool {
 	return p.knownBlocks.Contains(id)
 }
 
@@ -146,7 +146,7 @@ func (p *Peer) Duration() mclock.AbsTime {
 }
 
 func (p *Peer) String() string {
-	return meter.Addr2IP(p.Peer.RemoteAddr())
+	return types.Addr2IP(p.Peer.RemoteAddr())
 	// return fmt.Sprintf("%s(%d)", p.head.id.String(), p.head.totalScore)
 }
 

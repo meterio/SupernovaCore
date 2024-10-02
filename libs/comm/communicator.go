@@ -19,12 +19,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/comm/proto"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm/proto"
 	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/txpool"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -93,7 +93,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 			bestBlockHeight := c.chain.BestBlock().Number()
 			bestBlockTime := c.chain.BestBlock().Timestamp()
 			now := uint64(time.Now().Unix())
-			if bestBlockTime+meter.BlockInterval >= now && bestQCHeight == bestBlockHeight {
+			if bestBlockTime+types.BlockInterval >= now && bestQCHeight == bestBlockHeight {
 				return true
 			}
 			if syncCount > 2 {
@@ -236,7 +236,7 @@ func (c *Communicator) runPeer(peer *Peer, dir string) {
 	if localClock < remoteClock {
 		diff = remoteClock - localClock
 	}
-	if diff > meter.BlockInterval*2 {
+	if diff > types.BlockInterval*2 {
 		peer.logger.Error("Failed to handshake", "err", "sys time diff too large")
 		return
 	}
@@ -291,7 +291,7 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
-			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.ShortID(), meter.Addr2IP(peer.RemoteAddr())))
+			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
 			if err := proto.NotifyNewBlock(c.ctx, peer, blk); err != nil {
 				peer.logger.Error(fmt.Sprintf("Failed to propagate %s", blk.Block.ShortID()), "err", err)
 			}
@@ -302,7 +302,7 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
-			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.ShortID(), meter.Addr2IP(peer.RemoteAddr())))
+			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
 			if err := proto.NotifyNewBlockID(c.ctx, peer, blk.Block.ID()); err != nil {
 				peer.logger.Error(fmt.Sprintf("Failed to announce %s", blk.Block.ShortID()), "err", err)
 			}

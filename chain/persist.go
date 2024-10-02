@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 )
 
@@ -38,7 +37,7 @@ func numberAsKey(num uint32) []byte {
 
 // TxMeta contains information about a tx is settled.
 type TxMeta struct {
-	BlockID meter.Bytes32
+	BlockID types.Bytes32
 
 	// Index the position of the tx in block's txs.
 	Index uint64 // rlp require uint64.
@@ -63,16 +62,16 @@ func loadRLP(r kv.Getter, key []byte, val interface{}) error {
 }
 
 // loadBestBlockID returns the best block ID on trunk.
-func loadBestBlockID(r kv.Getter) (meter.Bytes32, error) {
+func loadBestBlockID(r kv.Getter) (types.Bytes32, error) {
 	data, err := r.Get(bestBlockKey)
 	if err != nil {
-		return meter.Bytes32{}, err
+		return types.Bytes32{}, err
 	}
-	return meter.BytesToBytes32(data), nil
+	return types.BytesToBytes32(data), nil
 }
 
 // saveBestBlockID save the best block ID on trunk.
-func saveBestBlockID(w kv.Putter, id meter.Bytes32) error {
+func saveBestBlockID(w kv.Putter, id types.Bytes32) error {
 	return w.Put(bestBlockKey, id[:])
 }
 
@@ -82,51 +81,51 @@ func deleteBlockHash(w kv.Putter, num uint32) error {
 }
 
 // loadBlockHash returns the block hash on trunk with num.
-func loadBlockHash(r kv.Getter, num uint32) (meter.Bytes32, error) {
+func loadBlockHash(r kv.Getter, num uint32) (types.Bytes32, error) {
 	numKey := numberAsKey(num)
 	data, err := r.Get(append(hashKeyPrefix, numKey...))
 	if err != nil {
-		return meter.Bytes32{}, err
+		return types.Bytes32{}, err
 	}
-	return meter.BytesToBytes32(data), nil
+	return types.BytesToBytes32(data), nil
 }
 
 // saveBlockHash save the block hash on trunk corresponding to a num.
-func saveBlockHash(w kv.Putter, num uint32, id meter.Bytes32) error {
+func saveBlockHash(w kv.Putter, num uint32, id types.Bytes32) error {
 	numKey := numberAsKey(num)
 	return w.Put(append(hashKeyPrefix, numKey...), id[:])
 }
 
 // loadBlockRaw load rlp encoded block raw data.
-func loadBlockRaw(r kv.Getter, id meter.Bytes32) (block.Raw, error) {
+func loadBlockRaw(r kv.Getter, id types.Bytes32) (block.Raw, error) {
 	return r.Get(append(blockPrefix, id[:]...))
 }
 
-func removeBlockRaw(w kv.Putter, id meter.Bytes32) error {
+func removeBlockRaw(w kv.Putter, id types.Bytes32) error {
 	return w.Delete(append(blockPrefix, id[:]...))
 }
 
 // saveBlockRaw save rlp encoded block raw data.
-func saveBlockRaw(w kv.Putter, id meter.Bytes32, raw block.Raw) error {
+func saveBlockRaw(w kv.Putter, id types.Bytes32, raw block.Raw) error {
 	return w.Put(append(blockPrefix, id[:]...), raw)
 }
 
-func deleteBlockRaw(w kv.Putter, id meter.Bytes32) error {
+func deleteBlockRaw(w kv.Putter, id types.Bytes32) error {
 	return w.Delete(append(blockPrefix, id[:]...))
 }
 
 // saveBlockNumberIndexTrieRoot save the root of trie that contains number to id index.
-func saveBlockNumberIndexTrieRoot(w kv.Putter, id meter.Bytes32, root meter.Bytes32) error {
+func saveBlockNumberIndexTrieRoot(w kv.Putter, id types.Bytes32, root types.Bytes32) error {
 	return w.Put(append(indexTrieRootPrefix, id[:]...), root[:])
 }
 
 // loadBlockNumberIndexTrieRoot load trie root.
-func loadBlockNumberIndexTrieRoot(r kv.Getter, id meter.Bytes32) (meter.Bytes32, error) {
+func loadBlockNumberIndexTrieRoot(r kv.Getter, id types.Bytes32) (types.Bytes32, error) {
 	root, err := r.Get(append(indexTrieRootPrefix, id[:]...))
 	if err != nil {
-		return meter.Bytes32{}, err
+		return types.Bytes32{}, err
 	}
-	return meter.BytesToBytes32(root), nil
+	return types.BytesToBytes32(root), nil
 }
 
 // saveTxMeta save locations of a tx.
@@ -152,7 +151,7 @@ func loadTxMeta(r kv.Getter, txID []byte) ([]TxMeta, error) {
 	return meta, nil
 }
 
-func deleteBlock(rw kv.GetPutter, blockID meter.Bytes32) (*block.Block, error) {
+func deleteBlock(rw kv.GetPutter, blockID types.Bytes32) (*block.Block, error) {
 	raw, err := loadBlockRaw(rw, blockID)
 	if err != nil {
 		return nil, err

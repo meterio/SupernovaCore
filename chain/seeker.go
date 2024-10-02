@@ -9,17 +9,17 @@ import (
 	"fmt"
 
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 // Seeker to seek block by given number on the chain defined by head block ID.
 type Seeker struct {
 	chain       *Chain
-	headBlockID meter.Bytes32
+	headBlockID types.Bytes32
 	err         error
 }
 
-func newSeeker(chain *Chain, headBlockID meter.Bytes32) *Seeker {
+func newSeeker(chain *Chain, headBlockID types.Bytes32) *Seeker {
 	return &Seeker{
 		chain:       chain,
 		headBlockID: headBlockID,
@@ -46,7 +46,7 @@ func (s *Seeker) LastPowNonce() (uint64, error) {
 }
 
 // GetID returns block ID by the given number.
-func (s *Seeker) GetID(num uint32) meter.Bytes32 {
+func (s *Seeker) GetID(num uint32) types.Bytes32 {
 	if num > block.Number(s.headBlockID) {
 		panic("num exceeds head block")
 	}
@@ -67,7 +67,7 @@ func (s *Seeker) GetID(num uint32) meter.Bytes32 {
 }
 
 // GetHeader returns block header by the given number.
-func (s *Seeker) GetHeader(id meter.Bytes32) *block.Header {
+func (s *Seeker) GetHeader(id types.Bytes32) *block.Header {
 	header, err := s.chain.GetBlockHeader(id)
 	if err != nil {
 		fmt.Println("chain.GetBlockHeaer error in seeker.GetHeader", "id", id, "err", err)
@@ -78,6 +78,6 @@ func (s *Seeker) GetHeader(id meter.Bytes32) *block.Header {
 }
 
 // GenesisID get genesis block ID.
-func (s *Seeker) GenesisID() meter.Bytes32 {
+func (s *Seeker) GenesisID() types.Bytes32 {
 	return s.chain.GenesisBlock().ID()
 }

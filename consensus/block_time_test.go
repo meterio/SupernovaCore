@@ -7,11 +7,10 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/meter"
 )
 
 var (
-	TestAddr, _ = meter.ParseAddress("0x7567d83b7b8d80addcb281a71d54fc7b3364ffed")
+	TestAddr, _ = types.ParseAddress("0x7567d83b7b8d80addcb281a71d54fc7b3364ffed")
 )
 
 func buildGenesis(kv kv.GetPutter, proc func() error) *block.Block {

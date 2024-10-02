@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/meter"
 )
 
 // definition for TimeoutCert
@@ -18,8 +17,8 @@ type TimeoutCert struct {
 	AggSig   []byte
 }
 
-func (tc *TimeoutCert) SigningHash() (hash meter.Bytes32) {
-	hw := meter.NewBlake2b()
+func (tc *TimeoutCert) SigningHash() (hash Bytes32) {
+	hw := NewBlake2b()
 	err := rlp.Encode(hw, []interface{}{
 		tc.Epoch,
 		tc.Round,

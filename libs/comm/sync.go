@@ -12,9 +12,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/comm/proto"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm/proto"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +52,7 @@ func (c *Communicator) download(peer *Peer, fromNum uint32, handler HandleBlockS
 				return
 			}
 			if len(result) > 0 {
-				c.logger.Info(fmt.Sprintf("downloaded blocks(%d) from %d", len(result), fromNum), "peer", peer.String(), "elapsed", meter.PrettyDuration(time.Since(start)))
+				c.logger.Info(fmt.Sprintf("downloaded blocks(%d) from %d", len(result), fromNum), "peer", peer.String(), "elapsed", types.PrettyDuration(time.Since(start)))
 			}
 			if len(result) == 0 {
 				return

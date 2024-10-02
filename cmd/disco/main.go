@@ -125,7 +125,7 @@ func main() {
 		Version:   fmt.Sprintf("%s-%s-%s", version, gitCommit, versionMeta),
 		Name:      "Disco",
 		Usage:     "Meter.io bootstrap node",
-		Copyright: "2018 Meter Foundation <https://meter.io/>",
+		Copyright: "2018 Meter Foundation <https://types.io/>",
 		Flags:     flags,
 		Action:    run,
 	}

@@ -20,7 +20,6 @@ import (
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
 	"github.com/meterio/supernova/types"
 )
@@ -149,7 +148,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs, block.MBlockType)
 		if time.Now().Before(targetTime) {
 			d := time.Until(targetTime)
-			p.logger.Info("sleep until", "targetTime", targetTime, "for", meter.PrettyDuration(d))
+			p.logger.Info("sleep until", "targetTime", targetTime, "for", types.PrettyDuration(d))
 			time.Sleep(time.Until(targetTime))
 		}
 		return err, draftBlock
@@ -523,7 +522,7 @@ func (p *Pacemaker) OnBeat(epoch uint64, round uint32) {
 	pStart := time.Now()
 	bnew := p.OnPropose(p.QCHigh, round)
 	if bnew != nil {
-		p.logger.Info(fmt.Sprintf("proposed %s", bnew.ProposedBlock.Oneliner()), "elapsed", meter.PrettyDuration(time.Since(pStart)))
+		p.logger.Info(fmt.Sprintf("proposed %s", bnew.ProposedBlock.Oneliner()), "elapsed", types.PrettyDuration(time.Since(pStart)))
 
 		// create slot in proposalMap directly, instead of sendmsg to self.
 		p.chain.AddDraft(bnew)
@@ -661,7 +660,7 @@ func (p *Pacemaker) scheduleBroadcast(proposalMsg *block.PMProposalMessage, d ti
 		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) with no delay", blk.ShortID(), proposalMsg.GetEpoch()))
 		scheduleFunc()
 	} else {
-		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) after %s", blk.ShortID(), proposalMsg.GetEpoch(), meter.PrettyDuration(d)))
+		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) after %s", blk.ShortID(), proposalMsg.GetEpoch(), types.PrettyDuration(d)))
 		p.broadcastTimer = time.AfterFunc(d, scheduleFunc)
 	}
 }
@@ -851,10 +850,10 @@ func (p *Pacemaker) enterRound(round uint32, rtype roundType) bool {
 
 	if restart {
 		p.logger.Info("---------------------------------------------------------")
-		p.logger.Info(fmt.Sprintf("R:%d restart", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", meter.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("R:%d restart", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
 	} else {
 		p.logger.Info("---------------------------------------------------------")
-		p.logger.Info(fmt.Sprintf("R:%d start", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", meter.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("R:%d start", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
 	}
 	pmRoundGauge.Set(float64(p.currentRound))
 	return true

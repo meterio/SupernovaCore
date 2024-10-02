@@ -3,7 +3,7 @@
 // Distributed under the GNU Lesser General Public License v3.0 software license, see the accompanying
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package meter
+package types
 
 import (
 	"encoding/json"
@@ -20,14 +20,4 @@ func TestBytes32(t *testing.T) {
 	var dec Bytes32
 	assert.Nil(t, json.Unmarshal(data, &dec))
 	assert.Equal(t, bytes32, dec)
-}
-
-func TestAddress(t *testing.T) {
-	addr := BytesToAddress([]byte("addr"))
-	data, _ := json.Marshal(&addr)
-	assert.Equal(t, "\""+addr.String()+"\"", string(data))
-
-	var dec Address
-	assert.Nil(t, json.Unmarshal(data, &dec))
-	assert.Equal(t, addr, dec)
 }

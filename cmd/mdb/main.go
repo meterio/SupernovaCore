@@ -55,7 +55,7 @@ func main() {
 		Version:   fullVersion(),
 		Name:      "MeterDB",
 		Usage:     "Node of Meter.io",
-		Copyright: "2020 Meter Foundation <https://meter.io/>",
+		Copyright: "2020 Meter Foundation <https://types.io/>",
 		Flags:     flags,
 		Action:    defaultAction,
 		Commands: []cli.Command{

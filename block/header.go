@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 type BlockType uint32
@@ -32,12 +32,12 @@ const (
 // Header contains almost all information about a block, except block body.
 // It's immutable.
 type Header struct {
-	ParentID         meter.Bytes32
+	ParentID         types.Bytes32
 	Timestamp        uint64
 	BlockType        BlockType
 	Proposer         common.Address
 	TxsRoot          cmtbytes.HexBytes
-	EvidenceDataRoot meter.Bytes32 // deprecated, saved just for compatibility
+	EvidenceDataRoot types.Bytes32 // deprecated, saved just for compatibility
 
 	LastKBlockHeight uint32
 	Nonce            uint64 // the last of the pow block
@@ -58,7 +58,7 @@ type Header struct {
 // Number returns sequential number of this block.
 func (h *Header) Number() uint32 {
 	// inferred from parent id
-	if bytes.Equal(h.ParentID.Bytes(), meter.Bytes32{}.Bytes()) {
+	if bytes.Equal(h.ParentID.Bytes(), types.Bytes32{}.Bytes()) {
 		return 0
 	}
 	return Number(h.ParentID) + 1
@@ -66,9 +66,9 @@ func (h *Header) Number() uint32 {
 
 // ID computes id of block.
 // The block ID is defined as: blockNumber + hash(signingHash, signer)[4:].
-func (h *Header) ID() (id meter.Bytes32) {
+func (h *Header) ID() (id types.Bytes32) {
 	if cached := h.cache.id.Load(); cached != nil {
-		return cached.(meter.Bytes32)
+		return cached.(types.Bytes32)
 	}
 	defer func() {
 		// overwrite first 4 bytes of block hash to block number.
@@ -81,7 +81,7 @@ func (h *Header) ID() (id meter.Bytes32) {
 		return
 	}
 
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	hw.Write(h.SigningHash().Bytes())
 	hw.Write(signer.Bytes())
 	hw.Sum(id[:0])
@@ -90,13 +90,13 @@ func (h *Header) ID() (id meter.Bytes32) {
 }
 
 // SigningHash computes hash of all header fields excluding signature.
-func (h *Header) SigningHash() (hash meter.Bytes32) {
+func (h *Header) SigningHash() (hash types.Bytes32) {
 	if cached := h.cache.signingHash.Load(); cached != nil {
-		return cached.(meter.Bytes32)
+		return cached.(types.Bytes32)
 	}
 	defer func() { h.cache.signingHash.Store(hash) }()
 
-	hw := meter.NewBlake2b()
+	hw := types.NewBlake2b()
 	err := rlp.Encode(hw, []interface{}{
 		h.ParentID,
 		h.Timestamp,
@@ -169,7 +169,7 @@ func (h *Header) String() string {
 }
 
 // Number extract block number from block id.
-func Number(blockID meter.Bytes32) uint32 {
+func Number(blockID types.Bytes32) uint32 {
 	// first 4 bytes are over written by block number (big endian).
 	return binary.BigEndian.Uint32(blockID[:])
 }

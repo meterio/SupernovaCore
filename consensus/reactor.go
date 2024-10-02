@@ -31,8 +31,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/comm"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 )
@@ -371,7 +370,7 @@ func (r *Reactor) OnReceiveMsg(w http.ResponseWriter, req *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	r.logger.Debug("before receive", "alloc", meter.PrettyStorage(m.Alloc), "sys", meter.PrettyStorage(m.Sys))
+	r.logger.Debug("before receive", "alloc", types.PrettyStorage(m.Alloc), "sys", types.PrettyStorage(m.Sys))
 
 	data, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -386,7 +385,7 @@ func (r *Reactor) OnReceiveMsg(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		var ma runtime.MemStats
 		runtime.ReadMemStats(&ma)
-		r.logger.Debug(fmt.Sprintf("after receive %s", mi.Msg.GetType()), "allocDiff", meter.PrettyStorage(ma.Alloc-m.Alloc), "sysDiff(KB)", meter.PrettyStorage(ma.Sys-m.Sys))
+		r.logger.Debug(fmt.Sprintf("after receive %s", mi.Msg.GetType()), "allocDiff", types.PrettyStorage(ma.Alloc-m.Alloc), "sysDiff(KB)", types.PrettyStorage(ma.Sys-m.Sys))
 	}()
 
 	r.AddIncoming(*mi, data)
@@ -473,7 +472,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		start := time.Now()
 		valid, err = b.VerifyQC(escortQC, r.blsMaster, r.lastCommittee)
 		if valid && err == nil {
-			r.logger.Debug("validated QC with last committee", "elapsed", meter.PrettyDuration(time.Since(start)))
+			r.logger.Debug("validated QC with last committee", "elapsed", types.PrettyDuration(time.Since(start)))
 			validQCs.Add(qcID, true)
 			return true
 		}
@@ -489,7 +488,7 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 	}
 	valid, err = b.VerifyQC(escortQC, r.blsMaster, r.committee)
 	if valid && err == nil {
-		r.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()), "elapsed", meter.PrettyDuration(time.Since(start)))
+		r.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()), "elapsed", types.PrettyDuration(time.Since(start)))
 		validQCs.Add(qcID, true)
 		return true
 	}

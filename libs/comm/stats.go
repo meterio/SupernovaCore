@@ -5,9 +5,7 @@
 
 package comm
 
-import (
-	"github.com/meterio/supernova/meter"
-)
+import "github.com/meterio/supernova/types"
 
 // type Traffic struct {
 // 	Bytes    uint64
@@ -18,7 +16,7 @@ import (
 // PeerStats records stats of a peer.
 type PeerStats struct {
 	Name         string
-	BestBlockID  meter.Bytes32
+	BestBlockID  types.Bytes32
 	BestBlockNum uint32
 	PeerID       string
 	NetAddr      string

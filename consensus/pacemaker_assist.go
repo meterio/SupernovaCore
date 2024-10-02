@@ -14,7 +14,6 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -115,7 +114,7 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	b.SuccessProcessed = true
 	b.ProcessError = err
 
-	p.logger.Info(fmt.Sprintf("validated proposal %s R:%v, %v, txs:%d", b.ProposedBlock.GetCanonicalName(), b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", meter.PrettyDuration(time.Since(start)), "processElapsed", meter.PrettyDuration(processElapsed))
+	p.logger.Info(fmt.Sprintf("validated proposal %s R:%v, %v, txs:%d", b.ProposedBlock.GetCanonicalName(), b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
 	return nil
 }
 

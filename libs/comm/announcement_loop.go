@@ -9,12 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/comm/proto"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/libs/comm/proto"
+	"github.com/meterio/supernova/types"
 )
 
 type announcement struct {
-	newBlockID meter.Bytes32
+	newBlockID types.Bytes32
 	peer       *Peer
 }
 
@@ -22,7 +22,7 @@ func (c *Communicator) announcementLoop() {
 	const maxFetches = 3 // per block ID
 
 	fetchingPeers := map[enode.ID]bool{}
-	fetchingBlockIDs := map[meter.Bytes32]int{}
+	fetchingBlockIDs := map[types.Bytes32]int{}
 
 	fetchDone := make(chan *announcement)
 
@@ -58,7 +58,7 @@ func (c *Communicator) announcementLoop() {
 	}
 }
 
-func (c *Communicator) fetchBlockByID(peer *Peer, newBlockID meter.Bytes32) {
+func (c *Communicator) fetchBlockByID(peer *Peer, newBlockID types.Bytes32) {
 	if _, err := c.chain.GetBlockHeader(newBlockID); err != nil {
 		if !c.chain.IsNotFound(err) {
 			peer.Error("failed to get block header", "err", err)

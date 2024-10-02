@@ -6,14 +6,14 @@ package consensus
 import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
+	"github.com/meterio/supernova/types"
 )
 
 type BlockProbe struct {
 	Height uint32
 	Round  uint32
 	Type   block.BlockType
-	ID     meter.Bytes32
+	ID     types.Bytes32
 }
 type PMProbeResult struct {
 	CurRound       uint32

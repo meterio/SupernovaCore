@@ -1,4 +1,4 @@
-package meter_test
+package types_test
 
 import (
 	"encoding/binary"

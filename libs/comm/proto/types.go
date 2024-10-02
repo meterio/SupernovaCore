@@ -11,16 +11,16 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 )
 
 type (
 	// Status result of MsgGetStatus.
 	Status struct {
-		GenesisBlockID meter.Bytes32
+		GenesisBlockID types.Bytes32
 		SysTimestamp   uint64
-		BestBlockID    meter.Bytes32
+		BestBlockID    types.Bytes32
 		BestBlockNum   uint32
 	}
 )
@@ -50,7 +50,7 @@ func GetStatus(ctx context.Context, rpc RPC) (*Status, error) {
 }
 
 // NotifyNewBlockID notify new block ID to remote peer.
-func NotifyNewBlockID(ctx context.Context, rpc RPC, id meter.Bytes32) error {
+func NotifyNewBlockID(ctx context.Context, rpc RPC, id types.Bytes32) error {
 	return rpc.Notify(ctx, MsgNewBlockID, &id)
 }
 
@@ -66,7 +66,7 @@ func NotifyNewTx(ctx context.Context, rpc RPC, tx cmttypes.Tx) error {
 
 // GetBlockByID query block from remote peer by given block ID.
 // It may return nil block even no error.
-func GetBlockByID(ctx context.Context, rpc RPC, id meter.Bytes32) (rlp.RawValue, error) {
+func GetBlockByID(ctx context.Context, rpc RPC, id types.Bytes32) (rlp.RawValue, error) {
 	var result []rlp.RawValue
 	if err := rpc.Call(ctx, MsgGetBlockByID, id, &result); err != nil {
 
@@ -82,11 +82,11 @@ func GetBlockByID(ctx context.Context, rpc RPC, id meter.Bytes32) (rlp.RawValue,
 }
 
 // GetBlockIDByNumber query block ID from remote peer by given number.
-func GetBlockIDByNumber(ctx context.Context, rpc RPC, num uint32) (meter.Bytes32, error) {
-	var id meter.Bytes32
+func GetBlockIDByNumber(ctx context.Context, rpc RPC, num uint32) (types.Bytes32, error) {
+	var id types.Bytes32
 	if err := rpc.Call(ctx, MsgGetBlockIDByNumber, num, &id); err != nil {
 		rpc.Debug("GetBlockIDByNumber failed", "err", err)
-		return meter.Bytes32{}, err
+		return types.Bytes32{}, err
 	}
 	rpc.Debug("GetBlockIDByNumber success", "id", id)
 	return id, nil
