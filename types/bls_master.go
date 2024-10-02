@@ -6,7 +6,11 @@
 package types
 
 import (
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -30,10 +34,29 @@ func NewBlsMasterWithRandKey() *BlsMaster {
 }
 
 func NewBlsMaster(privKey bls.SecretKey, pubKey bls.PublicKey) *BlsMaster {
-	return &BlsMaster{
+	bm := &BlsMaster{
 		PrivKey: privKey,
 		PubKey:  pubKey,
 	}
+	validated := bm.ValidateKeyPair()
+	if !validated {
+		panic("invalid bls key pairs")
+	}
+	return bm
+}
+
+func (bm *BlsMaster) ValidateKeyPair() bool {
+	h := md5.New()
+
+	_, err := io.WriteString(h, "This is a message to be signed and verified by BLS!")
+	if err != nil {
+		return false
+	}
+	msg := h.Sum(nil)
+	sig := bm.SignMessage(msg)
+	fmt.Println("msg: ", hex.EncodeToString(msg))
+
+	return sig.Verify(bm.PubKey, msg)
 }
 
 // BLS is implemented by C, memeory need to be freed.
@@ -73,4 +96,11 @@ func (bm *BlsMaster) VerifySignature(signature, msgHash, blsPK []byte) (bool, er
 		return false, nil
 	}
 	return bls.VerifySignature(signature, [32]byte(msgHash), pubkey)
+}
+
+func (bm *BlsMaster) Print() {
+	fmt.Println("Bls Secret (Hex): ", hex.EncodeToString(bm.PrivKey.Marshal()))
+	fmt.Println("Bls Secret (B64): ", base64.StdEncoding.EncodeToString(bm.PrivKey.Marshal()))
+	fmt.Println("Bls Pubkey (Hex): ", hex.EncodeToString(bm.PubKey.Marshal()))
+	fmt.Println("Bls Pubkey (B64): ", base64.StdEncoding.EncodeToString(bm.PubKey.Marshal()))
 }

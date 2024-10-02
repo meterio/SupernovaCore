@@ -32,7 +32,6 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/comm"
-	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
@@ -296,12 +295,9 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 
 	var nonce uint64
 	epoch := uint64(0)
-	if bestK.Number() == 0 {
-		nonce = genesis.GenesisNonce
-	} else {
-		nonce = bestK.Nonce()
-		epoch = bestK.GetBlockEpoch() + 1
-	}
+
+	nonce = bestK.Nonce()
+	epoch = bestK.GetBlockEpoch() + 1
 	if epoch >= r.curEpoch && r.curNonce != nonce {
 		r.logger.Info(fmt.Sprintf("Entering epoch %v", epoch), "lastEpoch", r.curEpoch)
 		r.logger.Info("---------------------------------------------------------")

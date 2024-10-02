@@ -176,14 +176,6 @@ func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
 	return chain
 }
 
-func masterKeyPath(ctx *cli.Context) string {
-	return filepath.Join(ctx.String("data-dir"), "master.key")
-}
-
-func publicKeyPath(ctx *cli.Context) string {
-	return filepath.Join(ctx.String("data-dir"), "public.key")
-}
-
 func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 
 	nd := ctx.StringSlice(discoServerFlag.Name)
@@ -202,16 +194,6 @@ func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
 	}
 
 	return nodes, true, nil
-}
-
-func loadNodeMaster(ctx *cli.Context) *types.BlsMaster {
-
-	keyLoader := NewKeyLoader(ctx)
-	blsMaster, err := keyLoader.Load()
-	if err != nil {
-		fatal("load key error: ", err)
-	}
-	return blsMaster
 }
 
 type p2pComm struct {

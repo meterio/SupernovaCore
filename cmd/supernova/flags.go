@@ -76,14 +76,6 @@ var (
 		Name:  "persist",
 		Usage: "blockchain data storage option, if setted data will be saved to disk",
 	}
-	importMasterKeyFlag = cli.BoolFlag{
-		Name:  "import",
-		Usage: "import master key from keystore",
-	}
-	exportMasterKeyFlag = cli.BoolFlag{
-		Name:  "export",
-		Usage: "export master key to keystore",
-	}
 	noDiscoverFlag = cli.BoolFlag{
 		Name:  "no-discover",
 		Usage: "disable auto discovery mode",

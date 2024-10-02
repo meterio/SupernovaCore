@@ -12,6 +12,11 @@ import (
 	"github.com/meterio/supernova/types"
 )
 
+type GenesisDoc struct {
+	Time       uint64             `json:"time"`
+	Validators []*types.Validator `json:"validators"`
+}
+
 // NewMainnet create mainnet genesis.
 func NewMainnet() *Genesis {
 	launchTime := uint64(1593907199) // 2020-07-04T23:59:59+00:00

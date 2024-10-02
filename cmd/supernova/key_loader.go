@@ -6,17 +6,14 @@
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"fmt"
-	"io"
+	"encoding/base64"
+	"encoding/json"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/meterio/supernova/types"
-	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls/blst"
-	cli "gopkg.in/urfave/cli.v1"
 )
 
 // fileExists checks if a file exists and is not a directory before we
@@ -29,75 +26,65 @@ func fileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-func verifyBLS(blsMaster *types.BlsMaster) bool {
-	h := md5.New()
-
-	_, err := io.WriteString(h, "This is a message to be signed and verified by BLS!")
-	if err != nil {
-		return false
-	}
-	msg := h.Sum(nil)
-	sig := blsMaster.SignMessage(msg)
-	fmt.Println("msg: ", hex.EncodeToString(msg))
-
-	return sig.Verify(blsMaster.PubKey, msg)
-}
-
 type KeyLoader struct {
-	masterPath string
-	publicPath string
+	baseDir  string
+	keysPath string
 }
 
-func NewKeyLoader(ctx *cli.Context) *KeyLoader {
-	masterPath := masterKeyPath(ctx)
-	publicPath := publicKeyPath(ctx)
+type KeysContent struct {
+	Secret string `json:"secret"`
+	Pubkey string `json:"pubkey"`
+}
+
+func NewKeyLoader(baseDir string) *KeyLoader {
+	keysPath := filepath.Join(baseDir, "keys.json")
 
 	return &KeyLoader{
-		masterPath: masterPath,
-		publicPath: publicPath,
+		baseDir:  baseDir,
+		keysPath: keysPath,
 	}
 }
 
 func (k *KeyLoader) Load() (*types.BlsMaster, error) {
-	masterBytes := make([]byte, 0)
-	publicBytes := make([]byte, 0)
-	if fileExists(k.masterPath) {
-		masterBytes, _ = os.ReadFile(k.masterPath)
-		masterBytes = []byte(strings.TrimSuffix(string(masterBytes), "\n"))
+	var secret bls.SecretKey
+	var pubkey bls.PublicKey
+
+	var keysContent KeysContent
+	if fileExists(k.keysPath) {
+
 	} else {
 		secretKey, err := blst.RandKey()
 		if err != nil {
 			return nil, err
 		}
-		err = os.WriteFile(k.masterPath, secretKey.Marshal(), 0600)
+		keysContent := KeysContent{
+			Secret: base64.StdEncoding.EncodeToString(secretKey.Marshal()),
+			Pubkey: base64.StdEncoding.EncodeToString(secretKey.PublicKey().Marshal()),
+		}
+		keysBytes, err := json.Marshal(keysContent)
 		if err != nil {
 			return nil, err
 		}
-		err = os.WriteFile(k.publicPath, secretKey.PublicKey().Marshal(), 0600)
-		if err != nil {
-			return nil, err
-		}
-		masterBytes = secretKey.Marshal()
-		publicBytes = secretKey.PublicKey().Marshal()
-		return types.NewBlsMaster(secretKey, secretKey.PublicKey()), nil
+		err = os.WriteFile(k.keysPath, keysBytes, 0600)
 	}
-	if fileExists(k.publicPath) {
-		publicBytes, _ = os.ReadFile(k.publicPath)
-		publicBytes = []byte(strings.TrimSuffix(string(publicBytes), "\n"))
+	keysBytes, err := os.ReadFile(k.keysPath)
+	if err != nil {
+		return nil, err
 	}
+	err = json.Unmarshal(keysBytes, &keysContent)
+	if err != nil {
+		return nil, err
+	}
+	secretBytes, err := base64.StdEncoding.DecodeString(keysContent.Secret)
+	if err != nil {
+		return nil, err
+	}
+	secret, err = bls.SecretKeyFromBytes(secretBytes)
 
-	secret, err := blst.SecretKeyFromBytes(masterBytes)
+	pubBytes, err := base64.StdEncoding.DecodeString(keysContent.Pubkey)
 	if err != nil {
 		return nil, err
 	}
-	pubkey, err := blst.PublicKeyFromBytes(publicBytes)
-	if err != nil {
-		return nil, err
-	}
-	blsMaster := types.NewBlsMaster(secret, pubkey)
-	verified := verifyBLS(blsMaster)
-	if !verified {
-		return nil, errors.New("secret and pubkey mismatch")
-	}
-	return blsMaster, nil
+	pubkey, err = bls.PublicKeyFromBytes(pubBytes)
+	return types.NewBlsMaster(secret, pubkey), nil
 }

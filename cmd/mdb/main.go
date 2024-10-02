@@ -117,7 +117,7 @@ func main() {
 }
 
 func defaultAction(ctx *cli.Context) error {
-	cmn.EnsureDir(ctx.String("data-dir"), os.ModeDir)
+	cmn.EnsureDir(ctx.String("data-dir"), 0700)
 	fmt.Println("default action for mdb")
 	return nil
 }

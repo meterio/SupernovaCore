@@ -8,9 +8,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"os"
@@ -25,12 +23,7 @@ import (
 	_ "net/http/pprof"
 
 	cmtproxy "github.com/cometbft/cometbft/proxy"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/google/uuid"
-	isatty "github.com/mattn/go-isatty"
 	"github.com/meterio/supernova/api"
 	"github.com/meterio/supernova/api/doc"
 	"github.com/meterio/supernova/cmd/supernova/node"
@@ -39,7 +32,6 @@ import (
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/preset"
 	"github.com/meterio/supernova/txpool"
-	"github.com/pkg/errors"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -105,9 +97,8 @@ func main() {
 		},
 		Action: defaultAction,
 		Commands: []cli.Command{
-			{Name: "master-key", Usage: "import and export master key", Flags: []cli.Flag{dataDirFlag, importMasterKeyFlag, exportMasterKeyFlag}, Action: masterKeyAction},
+			{Name: "keys", Usage: "export keys", Flags: []cli.Flag{dataDirFlag}, Action: keysAction},
 			{Name: "enode-id", Usage: "display enode-id", Flags: []cli.Flag{dataDirFlag, p2pPortFlag}, Action: showEnodeIDAction},
-			{Name: "public-key", Usage: "export public key", Flags: []cli.Flag{dataDirFlag}, Action: publicKeyAction},
 			{Name: "peers", Usage: "export peers", Flags: []cli.Flag{networkFlag, dataDirFlag}, Action: peersAction},
 		},
 	}
@@ -127,18 +118,6 @@ func showEnodeIDAction(ctx *cli.Context) error {
 	port := ctx.Int(p2pPortFlag.Name)
 	// fmt.Printf("enode://%v@[]:%d\n", id, port)
 	fmt.Printf("%v@[]:%d\n", node.String(), port)
-	return nil
-}
-
-func publicKeyAction(ctx *cli.Context) error {
-	makeDataDir(ctx)
-	keyLoader := NewKeyLoader(ctx)
-	blsMaster, err := keyLoader.Load()
-	if err != nil {
-		fatal("error load keys", err)
-	}
-
-	fmt.Println(hex.EncodeToString(blsMaster.PrivKey.Marshal()))
 	return nil
 }
 
@@ -173,7 +152,7 @@ func defaultAction(ctx *cli.Context) error {
 	exitSignal := handleExitSignal()
 	debug.SetMemoryLimit(5 * 1024 * 1024 * 1024) // 5GB
 
-	err := cmn.EnsureDir(ctx.String("data-dir"), os.ModeDir)
+	err := cmn.EnsureDir(ctx.String("data-dir"), 0700)
 	if err != nil {
 		panic(err)
 	}
@@ -198,7 +177,7 @@ func defaultAction(ctx *cli.Context) error {
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
-	keyLoader := NewKeyLoader(ctx)
+	keyLoader := NewKeyLoader(ctx.String("data-dir"))
 	blsMaster, err := keyLoader.Load()
 	if err != nil {
 		panic(err)
@@ -321,81 +300,13 @@ func defaultAction(ctx *cli.Context) error {
 		Run(exitSignal)
 }
 
-func masterKeyAction(ctx *cli.Context) error {
-	hasImportFlag := ctx.Bool(importMasterKeyFlag.Name)
-	hasExportFlag := ctx.Bool(exportMasterKeyFlag.Name)
-	if hasImportFlag && hasExportFlag {
-		return fmt.Errorf("flag %s and %s are exclusive", importMasterKeyFlag.Name, exportMasterKeyFlag.Name)
-	}
-
-	if !hasImportFlag && !hasExportFlag {
-		return fmt.Errorf("missing flag, either %s or %s", importMasterKeyFlag.Name, exportMasterKeyFlag.Name)
-	}
-
-	if hasImportFlag {
-		if isatty.IsTerminal(os.Stdin.Fd()) {
-			fmt.Println("Input JSON keystore (end with ^d):")
-		}
-		keyjson, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return err
-		}
-
-		if err := json.Unmarshal(keyjson, &map[string]interface{}{}); err != nil {
-			return errors.WithMessage(err, "unmarshal")
-		}
-		password, err := readPasswordFromNewTTY("Enter passphrase: ")
-		if err != nil {
-			return err
-		}
-
-		key, err := keystore.DecryptKey(keyjson, password)
-		if err != nil {
-			return errors.WithMessage(err, "decrypt")
-		}
-
-		if err := crypto.SaveECDSA(masterKeyPath(ctx), key.PrivateKey); err != nil {
-			return err
-		}
-		fmt.Println("Master key imported:", common.Address(key.Address))
-		return nil
-	}
-
-	if hasExportFlag {
-		masterKey, err := loadOrGeneratePrivateKey(masterKeyPath(ctx))
-		if err != nil {
-			return err
-		}
-
-		password, err := readPasswordFromNewTTY("Enter passphrase: ")
-		if err != nil {
-			return err
-		}
-		if password == "" {
-			return errors.New("non-empty passphrase required")
-		}
-		confirm, err := readPasswordFromNewTTY("Confirm passphrase: ")
-		if err != nil {
-			return err
-		}
-
-		if password != confirm {
-			return errors.New("passphrase confirmation mismatch")
-		}
-		id, _ := uuid.NewRandom()
-		keyjson, err := keystore.EncryptKey(&keystore.Key{
-			PrivateKey: masterKey,
-			Address:    crypto.PubkeyToAddress(masterKey.PublicKey),
-			Id:         id},
-			password, keystore.StandardScryptN, keystore.StandardScryptP)
-		if err != nil {
-			return err
-		}
-		if isatty.IsTerminal(os.Stdout.Fd()) {
-			fmt.Println("=== JSON keystore ===")
-		}
-		_, err = fmt.Println(string(keyjson))
-		return err
+func keysAction(ctx *cli.Context) error {
+	keyloader := NewKeyLoader(ctx.String("data-dir"))
+	blsMaster, err := keyloader.Load()
+	if err != nil {
+		fmt.Println("Err: ", err)
+	} else {
+		blsMaster.Print()
 	}
 	return nil
 }

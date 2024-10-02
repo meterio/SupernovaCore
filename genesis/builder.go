@@ -60,5 +60,6 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 		ParentID(parentID).
 		Timestamp(b.timestamp).
 		ValidatorHash(b.vset.Hash()).BlockType(block.KBlockType).
+		Nonce(GenesisNonce).
 		Build(), nil
 }
