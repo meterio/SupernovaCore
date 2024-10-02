@@ -22,7 +22,7 @@ func openMainDB(ctx *cli.Context) (*lvldb.LevelDB, *genesis.Genesis) {
 	gene := genesis.LoadGenesis(baseDir)
 	// init block chain config
 	dbFilePath := ctx.String(dataDirFlag.Name)
-	instanceDir := filepath.Join(dbFilePath, fmt.Sprintf("instance-%x", gene.ID().Bytes()[24:]))
+	instanceDir := filepath.Join(dbFilePath, fmt.Sprintf("instance-%d", gene.ChainId))
 	if _, err := fdlimit.Raise(5120 * 4); err != nil {
 		panic(fmt.Sprintf("failed to increase fd limit due to %v", err))
 	}

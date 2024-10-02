@@ -27,7 +27,6 @@ import (
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/co"
-	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/p2psrv"
@@ -44,27 +43,11 @@ var (
 	consensusMagic [4]byte
 )
 
-type Leveler struct {
-	level slog.Level
-}
-
-func NewLeveler(level int) *Leveler {
-	return &Leveler{level: slog.Level(level)}
-}
-
-func (l *Leveler) Level() slog.Level {
-	return l.level
-}
-
 func initLogger(ctx *cli.Context) {
 	logLevel := ctx.Int(verbosityFlag.Name)
-	fmt.Println("logLevel: ", logLevel)
-	fmt.Println("slog: ", slog.Level(logLevel))
+	fmt.Println("slog level: ", slog.Level(logLevel))
 	// set global logger with custom options
 	w := os.Stderr
-
-	// create a new logger
-	// logger := slog.New(tint.NewHandler(w, nil))
 
 	// set global logger with custom options
 	slog.SetDefault(slog.New(
@@ -83,12 +66,12 @@ type ConfigDirs struct {
 
 func ensureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
 	baseDir := ctx.String(dataDirFlag.Name)
-	err := cmn.EnsureDir(baseDir, 0700)
+	err := os.MkdirAll(baseDir, 0700)
 	if err != nil {
 		fatal("could not create data-dir")
 	}
 
-	instanceDir := filepath.Join(baseDir, fmt.Sprintf("instance-%x", gene.ID().Bytes()[24:]))
+	instanceDir := filepath.Join(baseDir, fmt.Sprintf("instance-%v", gene.ChainId))
 	if err := os.MkdirAll(instanceDir, 0700); err != nil {
 		fatal(fmt.Sprintf("create instance dir [%v]: %v", instanceDir, err))
 	}

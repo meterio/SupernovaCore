@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 )

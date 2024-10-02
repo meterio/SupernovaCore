@@ -53,7 +53,6 @@ func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
 	return b
 }
 
-// Build build genesis block according to presets.
 func (b *Builder) Build() (blk *block.Block, err error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "commit state")

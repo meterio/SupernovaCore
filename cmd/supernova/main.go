@@ -171,7 +171,6 @@ func defaultAction(ctx *cli.Context) error {
 		panic(err)
 	}
 
-	// load preset config
 	config := consensus.ReactorConfig{
 		MinCommitteeSize: ctx.Int("committee-min-size"),
 		MaxCommitteeSize: ctx.Int("committee-max-size"),

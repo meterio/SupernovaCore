@@ -8,8 +8,6 @@ package meter
 import (
 	"math/big"
 	"time"
-
-	"github.com/meterio/supernova/params"
 )
 
 // Constants of block chain.
@@ -40,17 +38,17 @@ const (
 	AuctionReleaseInflation = 5e16     // yoy 5%, in unit of wei (aka. 1e18)
 
 	//  ------------------ Basics ----------------------------
-	BlockInterval             uint64 = 10           // time interval between two consecutive blocks.
-	BaseTxGas                 uint64 = params.TxGas // 21000
+	BlockInterval             uint64 = 10          // time interval between two consecutive blocks.
+	BaseTxGas                 uint64 = ParamsTxGas // 21000
 	TxGas                     uint64 = 5000
-	ClauseGas                 uint64 = params.TxGas - TxGas
-	ClauseGasContractCreation uint64 = params.TxGasContractCreation - TxGas
+	ClauseGas                 uint64 = ParamsTxGas - TxGas
+	ClauseGasContractCreation uint64 = ParamsTxGasContractCreation - TxGas
 
 	// InitialGasLimit was 10 *1000 *100, only accommodates 476 Txs, block size 61k, so change to 200M
 	GetBalanceGas  uint64 = 400 //EIP158 gas table
 	SloadGas       uint64 = 200 // EIP158 gas table
-	SstoreSetGas   uint64 = params.SstoreSetGas
-	SstoreResetGas uint64 = params.SstoreResetGas
+	SstoreSetGas   uint64 = ParamsSstoreSetGas
+	SstoreResetGas uint64 = ParamsSstoreResetGas
 
 	MaxTxWorkDelay uint32 = 30 // (unit: block) if tx delay exceeds this value, no energy can be exchanged.
 

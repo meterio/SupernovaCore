@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 
 	"github.com/meterio/supernova/block"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 )
@@ -67,9 +68,8 @@ func mustDecodeHex(str string) []byte {
 	return data
 }
 
-var emptyRuntimeBytecode = mustDecodeHex("6060604052600256")
-
 func LoadGenesis(baseDir string) *Genesis {
+	cmn.EnsureDir(baseDir, 0700)
 	loader := types.NewGenesisDocLoader(baseDir)
 	gdoc, err := loader.Load()
 	if err != nil {

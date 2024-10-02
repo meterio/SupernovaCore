@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	b64 "encoding/base64"
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -28,10 +27,6 @@ import (
 	"github.com/meterio/supernova/api/doc"
 	"github.com/meterio/supernova/meter"
 )
-
-const paraString = "7479706520610a7120393838353834383131343738353339323431393933323931313633343633383233393237323539333630313734353437303331303937363333343133333530303632303839383839373036333235323836313831303431393231303532353631343638393937373833313833373239383735313336373034373032383734373731313033383234383836323436333937353435373032373639310a682031333532383333373038363039373437363036393233353830313130323833353636323231393236323833343938313336333130333037363536313036373633383333353631353531343531363531393734363630363036363434333134333539303831373330323933320a72203733303735313136373131343539353138363134323832393030323835333733393531393935383631343830323433310a65787032203135390a65787031203133380a7369676e3120310a7369676e30202d310a"
-
-const systemString = "2db8cb49c44a1c7ba19fdaf6947425a7c0191c710b64fd89cdc8b573881d98d814e377bb5a158c90a93e077b6ec1c3c92ae51f53fb22ef42d117b95f84c2dfec00"
 
 func fatal(args ...interface{}) {
 	var w io.Writer
@@ -83,21 +78,12 @@ func loadOrGeneratePrivateKey(path string) (*ecdsa.PrivateKey, error) {
 	return key, nil
 }
 
-func fromBase64Pub(pub string) (*ecdsa.PublicKey, error) {
-	b, err := b64.StdEncoding.DecodeString(pub)
-	if err != nil {
-		return nil, err
-	}
-
-	return crypto.UnmarshalPubkey(b)
-}
-
 // copy from go-ethereum
 func defaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	if home := homeDir(); home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support", "Supernova")
+			return filepath.Join(home, "Library", "Supernova")
 		} else if runtime.GOOS == "windows" {
 			return filepath.Join(home, "AppData", "Roaming", "supernova")
 		} else {

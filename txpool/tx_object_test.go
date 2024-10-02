@@ -13,7 +13,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/stretchr/testify/assert"
 )

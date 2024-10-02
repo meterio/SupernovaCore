@@ -18,7 +18,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/meter"
 )

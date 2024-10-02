@@ -11,7 +11,7 @@ import (
 
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
 )

@@ -8,6 +8,7 @@ package types
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -41,7 +42,6 @@ func (k *KeyLoader) Load() (*BlsMaster, error) {
 
 	var keysContent KeysContent
 	if !common.FileExist(k.keysPath) {
-	} else {
 		secretKey, err := blst.RandKey()
 		if err != nil {
 			return nil, err
@@ -54,7 +54,11 @@ func (k *KeyLoader) Load() (*BlsMaster, error) {
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("output to ", k.keysPath)
 		err = os.WriteFile(k.keysPath, keysBytes, 0600)
+		if err != nil {
+			return nil, err
+		}
 	}
 	keysBytes, err := os.ReadFile(k.keysPath)
 	if err != nil {
