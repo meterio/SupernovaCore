@@ -16,8 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
-	"github.com/meterio/supernova/cache"
-	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/libs/cache"
+	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/p2psrv/discv5"
 )
 

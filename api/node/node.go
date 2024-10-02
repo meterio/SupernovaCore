@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/meterio/supernova/api/utils"
-	"github.com/meterio/supernova/meter"
 )
 
 type Node struct {
@@ -32,10 +31,9 @@ func (n *Node) handleNetwork(w http.ResponseWriter, req *http.Request) error {
 }
 
 func (n *Node) handleGetChainId(w http.ResponseWriter, req *http.Request) error {
-	if meter.IsMainNet() {
-		return utils.WriteJSON(w, 82) // mainnet
-	}
-	return utils.WriteJSON(w, 83) // testnet
+
+	// FIXME: get the correct chainId
+	return utils.WriteJSON(w, 82) // mainnet
 }
 
 func (n *Node) Mount(root *mux.Router, pathPrefix string) {

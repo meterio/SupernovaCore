@@ -47,6 +47,12 @@ func (b *Builder) ValidatorSet(vset *types.ValidatorSet) *Builder {
 	return b
 }
 
+func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
+	b.vset = types.NewValidatorSet(gdoc.Validators)
+	b.timestamp = gdoc.Time
+	return b
+}
+
 // Build build genesis block according to presets.
 func (b *Builder) Build() (blk *block.Block, err error) {
 	if err != nil {

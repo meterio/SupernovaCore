@@ -480,17 +480,6 @@ func (r *Reactor) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool {
 		r.logger.Warn(fmt.Sprintf("validate %s with last committee FAILED", escortQC.CompactString()), "size", r.lastCommittee.Size(), "err", err)
 
 	}
-	if b.IsKBlock() && b.Number() > 0 && b.Number() >= r.chain.BestBlock().Number() && meter.IsStaging() {
-		bestK, _ := r.chain.BestKBlock()
-		lastBestK, _ := r.chain.GetTrunkBlock(bestK.LastKBlockHeight())
-		lastStagingCommitee, _, _ := r.calcCommitteeByNonce("lastStaging", r.committee, lastBestK.Nonce())
-		valid, err = b.VerifyQC(escortQC, r.blsMaster, lastStagingCommitee)
-		if valid && err == nil {
-			validQCs.Add(qcID, true)
-			return true
-		}
-		r.logger.Warn(fmt.Sprintf("validate %s with last staging committee FAILED", escortQC.CompactString()), "size", r.lastCommittee.Size(), "err", err)
-	}
 
 	// validate with current committee
 	start := time.Now()

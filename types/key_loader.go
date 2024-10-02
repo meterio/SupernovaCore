@@ -3,7 +3,7 @@
 
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package main
+package types
 
 import (
 	"encoding/base64"
@@ -11,20 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/meterio/supernova/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls/blst"
 )
-
-// fileExists checks if a file exists and is not a directory before we
-// try using it to prevent further errors.
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
 
 type KeyLoader struct {
 	baseDir  string
@@ -45,13 +35,12 @@ func NewKeyLoader(baseDir string) *KeyLoader {
 	}
 }
 
-func (k *KeyLoader) Load() (*types.BlsMaster, error) {
+func (k *KeyLoader) Load() (*BlsMaster, error) {
 	var secret bls.SecretKey
 	var pubkey bls.PublicKey
 
 	var keysContent KeysContent
-	if fileExists(k.keysPath) {
-
+	if !common.FileExist(k.keysPath) {
 	} else {
 		secretKey, err := blst.RandKey()
 		if err != nil {
@@ -86,5 +75,5 @@ func (k *KeyLoader) Load() (*types.BlsMaster, error) {
 		return nil, err
 	}
 	pubkey, err = bls.PublicKeyFromBytes(pubBytes)
-	return types.NewBlsMaster(secret, pubkey), nil
+	return NewBlsMaster(secret, pubkey), nil
 }

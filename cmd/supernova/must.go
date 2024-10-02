@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -24,11 +23,12 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/cmd/supernova/probe"
-	"github.com/meterio/supernova/co"
 	"github.com/meterio/supernova/comm"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/libs/co"
+	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
@@ -75,58 +75,33 @@ func initLogger(ctx *cli.Context) {
 	))
 }
 
-func selectGenesis(ctx *cli.Context) *genesis.Genesis {
-	network := ctx.String(networkFlag.Name)
-	switch network {
-	case "warringstakes":
-		fallthrough
-	case "test":
-		return genesis.NewTestnet()
-	case "main":
-		return genesis.NewMainnet()
-	case "staging":
-		return genesis.NewMainnet()
-	default:
-		cli.ShowAppHelp(ctx)
-		if network == "" {
-			fmt.Printf("network flag not specified: -%s\n", networkFlag.Name)
-		} else {
-			fmt.Printf("unrecognized value '%s' for flag -%s\n", network, networkFlag.Name)
-		}
-		os.Exit(1)
-		return nil
-	}
+type ConfigDirs struct {
+	BaseDir     string
+	InstanceDir string
+	SnapshotDir string
 }
 
-func makeDataDir(ctx *cli.Context) string {
-	dataDir := ctx.String(dataDirFlag.Name)
-	if dataDir == "" {
-		fatal(fmt.Sprintf("unable to infer default data dir, use -%s to specify", dataDirFlag.Name))
+func ensureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
+	baseDir := ctx.String(dataDirFlag.Name)
+	err := cmn.EnsureDir(baseDir, 0700)
+	if err != nil {
+		fatal("could not create data-dir")
 	}
-	if err := os.MkdirAll(dataDir, 0700); err != nil {
-		fatal(fmt.Sprintf("create data dir [%v]: %v", dataDir, err))
+
+	instanceDir := filepath.Join(baseDir, fmt.Sprintf("instance-%x", gene.ID().Bytes()[24:]))
+	if err := os.MkdirAll(instanceDir, 0700); err != nil {
+		fatal(fmt.Sprintf("create instance dir [%v]: %v", instanceDir, err))
 	}
-	return dataDir
-}
 
-func makeInstanceDir(ctx *cli.Context, gene *genesis.Genesis) string {
-	dataDir := makeDataDir(ctx)
-
-	instanceDir := filepath.Join(dataDir, fmt.Sprintf("instance-%x", gene.ID().Bytes()[24:]))
-	if err := os.MkdirAll(dataDir, 0700); err != nil {
-		fatal(fmt.Sprintf("create data dir [%v]: %v", instanceDir, err))
+	snapshotDir := filepath.Join(baseDir, "snapshot")
+	if err := os.MkdirAll(snapshotDir, 0700); err != nil {
+		fatal(fmt.Sprintf("create snapshot dir [%v]: %v", snapshotDir, err))
 	}
-	return instanceDir
-}
-
-func makeSnapshotDir(ctx *cli.Context) string {
-	dataDir := makeDataDir(ctx)
-
-	snapshotDir := filepath.Join(dataDir, "snapshot")
-	if err := os.MkdirAll(dataDir, 0700); err != nil {
-		fatal(fmt.Sprintf("create data dir [%v]: %v", snapshotDir, err))
+	return ConfigDirs{
+		BaseDir:     baseDir,
+		InstanceDir: instanceDir,
+		SnapshotDir: snapshotDir,
 	}
-	return snapshotDir
 }
 
 func openMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
@@ -402,40 +377,7 @@ func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID meter.Byte
 
 	returnStr := "http://" + listener.Addr().String() + "/"
 	var tlsSrv *http.Server
-	dataDir := ctx.String(dataDirFlag.Name)
-	httpsCertFile := filepath.Join(dataDir, ctx.String(httpsCertFlag.Name))
-	httpsKeyFile := filepath.Join(dataDir, ctx.String(httpsKeyFlag.Name))
-	if fileExists(httpsCertFile) && fileExists(httpsKeyFile) {
-		cer, err := tls.LoadX509KeyPair(httpsCertFile, httpsKeyFile)
-		if err != nil {
-			panic(err)
-		}
-
-		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}}
-		tlsSrv = &http.Server{
-			Handler:      handler,
-			TLSConfig:    tlsConfig,
-			ReadTimeout:  5 * time.Second,
-			WriteTimeout: 18 * time.Second,
-			IdleTimeout:  120 * time.Second,
-		}
-		tlsListener, err := tls.Listen("tcp", ":8667", tlsConfig)
-		if err != nil {
-			panic(err)
-		}
-		goes.Go(func() {
-			err := tlsSrv.Serve(tlsListener)
-			if err != nil {
-				if err != http.ErrServerClosed {
-					fmt.Println("observe server stopped, error:", err)
-				}
-			}
-
-		})
-		returnStr = returnStr + " | https://" + tlsListener.Addr().String() + "/"
-	} else {
-		returnStr = returnStr + " | https service is disabled due to missing cert/key file"
-	}
+	returnStr = returnStr + " | https service is disabled due to missing cert/key file"
 	return returnStr, func() {
 		err := srv.Close()
 		if err != nil {
@@ -475,7 +417,7 @@ func printStartupMessage(
 		meter.MakeName("Meter", fullVersion()),
 		topic,
 		hex.EncodeToString(p2pMagic[:]),
-		gene.ID(), gene.Name(),
+		gene.ID(), gene.Name,
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
 		meter.GetForkConfig(gene.ID()),
 		hex.EncodeToString(blsMaster.PubKey.Marshal()),

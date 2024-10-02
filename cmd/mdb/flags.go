@@ -17,7 +17,6 @@ var (
 		EnvVar: "MDB_DATA_DIR",
 	}
 
-	networkFlag  = cli.StringFlag{Name: "network", Usage: "the network to join (main|test)", EnvVar: "MDB_NETWORK"}
 	heightFlag   = cli.Int64Flag{Name: "height", Usage: "the height for target block"}
 	revisionFlag = cli.StringFlag{Name: "revision", Usage: "the revision for target block", Value: "best"}
 	rawFlag      = cli.StringFlag{Name: "raw", Usage: "raw hex for block", Value: ""}
@@ -41,7 +40,7 @@ func defaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	if home := homeDir(); home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support", "supernova")
+			return filepath.Join(home, "Library", "Supernova")
 		} else if runtime.GOOS == "windows" {
 			return filepath.Join(home, "AppData", "Roaming", "supernova")
 		} else {

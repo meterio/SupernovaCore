@@ -15,8 +15,8 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/co"
 	"github.com/meterio/supernova/kv"
+	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -199,7 +199,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 		fmt.Println("---------------------------------------------------------")
 		fmt.Println("                  METER CHAIN INITIALIZED                ")
 		fmt.Println("---------------------------------------------------------")
-		fmt.Println("Config:  ", meter.BlockChainConfig.ToString())
 		fmt.Println("Genesis: ", genesisBlock.ID())
 		fmt.Println("Best:    ", bestBlock.CompactString())
 		fmt.Println("Best QC: ", bestQC.String())

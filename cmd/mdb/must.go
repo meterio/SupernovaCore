@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 	"strconv"
 
@@ -13,17 +12,14 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/meter"
 	"gopkg.in/urfave/cli.v1"
 )
 
-func initLogger() {
-
-}
 func openMainDB(ctx *cli.Context) (*lvldb.LevelDB, *genesis.Genesis) {
-	meter.InitBlockChainConfig(ctx.String(networkFlag.Name))
-	gene := selectGenesis(ctx)
+	baseDir := ctx.String(dataDirFlag.Name)
+	gene := genesis.LoadGenesis(baseDir)
 	// init block chain config
 	dbFilePath := ctx.String(dataDirFlag.Name)
 	instanceDir := filepath.Join(dbFilePath, fmt.Sprintf("instance-%x", gene.ID().Bytes()[24:]))
@@ -60,30 +56,7 @@ func fullVersion() string {
 	return fmt.Sprintf("%s-%s-%s", version, gitCommit, versionMeta)
 }
 
-func selectGenesis(ctx *cli.Context) *genesis.Genesis {
-	network := ctx.String(networkFlag.Name)
-	switch network {
-	case "warringstakes":
-		fallthrough
-	case "test":
-		return genesis.NewTestnet()
-	case "main":
-		return genesis.NewMainnet()
-	case "staging":
-		return genesis.NewMainnet()
-	default:
-		cli.ShowAppHelp(ctx)
-		if network == "" {
-			fmt.Printf("network flag not specified: -%s\n", networkFlag.Name)
-		} else {
-			fmt.Printf("unrecognized value '%s' for flag -%s\n", network, networkFlag.Name)
-		}
-		os.Exit(1)
-		return nil
-	}
-}
-
-func initChain(ctx *cli.Context, gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
+func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
 	genesisBlock, err := gene.Build()
 	if err != nil {
 		fatal("build genesis block: ", err)

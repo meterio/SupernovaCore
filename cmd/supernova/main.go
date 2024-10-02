@@ -15,7 +15,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,10 +27,9 @@ import (
 	"github.com/meterio/supernova/api/doc"
 	"github.com/meterio/supernova/cmd/supernova/node"
 	"github.com/meterio/supernova/consensus"
-	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/meter"
-	"github.com/meterio/supernova/preset"
+	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/txpool"
+	"github.com/meterio/supernova/types"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -75,7 +73,6 @@ func main() {
 		Usage:     "Node of Meter.io",
 		Copyright: "2018 Meter Foundation <https://meter.io/>",
 		Flags: []cli.Flag{
-			networkFlag,
 			dataDirFlag,
 			apiAddrFlag,
 			apiCorsFlag,
@@ -92,14 +89,12 @@ func main() {
 			discoServerFlag,
 			discoTopicFlag,
 			epochBlockCountFlag,
-			httpsCertFlag,
-			httpsKeyFlag,
 		},
 		Action: defaultAction,
 		Commands: []cli.Command{
 			{Name: "keys", Usage: "export keys", Flags: []cli.Flag{dataDirFlag}, Action: keysAction},
 			{Name: "enode-id", Usage: "display enode-id", Flags: []cli.Flag{dataDirFlag, p2pPortFlag}, Action: showEnodeIDAction},
-			{Name: "peers", Usage: "export peers", Flags: []cli.Flag{networkFlag, dataDirFlag}, Action: peersAction},
+			{Name: "peers", Usage: "export peers", Flags: []cli.Flag{dataDirFlag}, Action: peersAction},
 		},
 	}
 
@@ -125,12 +120,12 @@ func peersAction(ctx *cli.Context) error {
 	initLogger(ctx)
 
 	fmt.Println("Peers from peers.cache")
-	// init blockchain config
-	meter.InitBlockChainConfig(ctx.String(networkFlag.Name))
 
-	gene := selectGenesis(ctx)
-	instanceDir := makeInstanceDir(ctx, gene)
-	peersCachePath := path.Join(instanceDir, "peers.cache")
+	baseDir := ctx.String(dataDirFlag.Name)
+	gene := genesis.LoadGenesis(baseDir)
+	dirConfigs := ensureDirs(ctx, gene)
+
+	peersCachePath := path.Join(dirConfigs.InstanceDir, "peers.cache")
 	nodes := make([]string, 0)
 	if data, err := os.ReadFile(peersCachePath); err != nil {
 		if !os.IsNotExist(err) {
@@ -152,24 +147,17 @@ func defaultAction(ctx *cli.Context) error {
 	exitSignal := handleExitSignal()
 	debug.SetMemoryLimit(5 * 1024 * 1024 * 1024) // 5GB
 
-	err := cmn.EnsureDir(ctx.String("data-dir"), 0700)
-	if err != nil {
-		panic(err)
-	}
 	fmt.Println("ensure dir: ", ctx.String("data-dir"))
 	defer func() { slog.Info("exited") }()
 
 	initLogger(ctx)
 
-	// init blockchain config
-	meter.InitBlockChainConfig(ctx.String(networkFlag.Name))
-
-	gene := selectGenesis(ctx)
-	instanceDir := makeInstanceDir(ctx, gene)
-	makeSnapshotDir(ctx)
+	baseDir := ctx.String(dataDirFlag.Name)
+	gene := genesis.LoadGenesis(baseDir)
+	dirConfig := ensureDirs(ctx, gene)
 
 	slog.Info("Meter Start ...")
-	mainDB := openMainDB(ctx, instanceDir)
+	mainDB := openMainDB(ctx, dirConfig.InstanceDir)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
 
 	chain := initChain(gene, mainDB)
@@ -177,77 +165,17 @@ func defaultAction(ctx *cli.Context) error {
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
-	keyLoader := NewKeyLoader(ctx.String("data-dir"))
+	keyLoader := types.NewKeyLoader(ctx.String("data-dir"))
 	blsMaster, err := keyLoader.Load()
 	if err != nil {
 		panic(err)
 	}
 
 	// load preset config
-	if "warringstakes" == ctx.String(networkFlag.Name) {
-		config := preset.TestnetPresetConfig
-		if ctx.IsSet("committee-min-size") {
-			config.CommitteeMinSize = ctx.Int("committee-min-size")
-		} else {
-			ctx.Set("committee-min-size", strconv.Itoa(config.CommitteeMinSize))
-		}
-
-		if ctx.IsSet("committee-max-size") {
-			config.CommitteeMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
-		}
-
-		if ctx.IsSet("disco-topic") {
-			config.DiscoTopic = ctx.String("disco-topic")
-		} else {
-			ctx.Set("disco-topic", config.DiscoTopic)
-		}
-
-		if ctx.IsSet("disco-server") {
-			config.DiscoServer = ctx.String("disco-server")
-		} else {
-			ctx.Set("disco-server", config.DiscoServer)
-		}
-	} else if "main" == ctx.String(networkFlag.Name) {
-		config := preset.MainnetPresetConfig
-		if ctx.IsSet("committee-min-size") {
-			config.CommitteeMinSize = ctx.Int("committee-min-size")
-		} else {
-			ctx.Set("committee-min-size", strconv.Itoa(config.CommitteeMinSize))
-		}
-
-		if ctx.IsSet("committee-max-size") {
-			config.CommitteeMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
-		}
-
-		if ctx.IsSet("disco-topic") {
-			config.DiscoTopic = ctx.String("disco-topic")
-		} else {
-			ctx.Set("disco-topic", config.DiscoTopic)
-		}
-
-		if ctx.IsSet("disco-server") {
-			config.DiscoServer = ctx.String("disco-server")
-		} else {
-			ctx.Set("disco-server", config.DiscoServer)
-		}
-	} else if "staging" == ctx.String(networkFlag.Name) {
-		config := preset.MainnetPresetConfig
-		if ctx.IsSet("committee-min-size") {
-			config.CommitteeMinSize = ctx.Int("committee-min-size")
-		} else {
-			ctx.Set("committee-min-size", strconv.Itoa(config.CommitteeMinSize))
-		}
-
-		if ctx.IsSet("committee-max-size") {
-			config.CommitteeMaxSize = ctx.Int("committee-max-size")
-		} else {
-			ctx.Set("committee-max-size", strconv.Itoa(config.CommitteeMaxSize))
-		}
-
+	config := consensus.ReactorConfig{
+		MinCommitteeSize: ctx.Int("committee-min-size"),
+		MaxCommitteeSize: ctx.Int("committee-max-size"),
+		EpochMBlockCount: consensus.MIN_MBLOCKS_AN_EPOCH,
 	}
 
 	// set magic
@@ -268,15 +196,9 @@ func defaultAction(ctx *cli.Context) error {
 	txPool := txpool.New(chain, defaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
-	p2pcom := newP2PComm(ctx, exitSignal, chain, txPool, instanceDir, p2pMagic)
+	p2pcom := newP2PComm(ctx, exitSignal, chain, txPool, dirConfig.InstanceDir, p2pMagic)
 
 	proxyApp := cmtproxy.NewLocalClientCreator(NewDumbApplication())
-
-	config := consensus.ReactorConfig{
-		EpochMBlockCount: uint32(ctx.Uint("epoch-mblock-count")),
-		MinCommitteeSize: ctx.Int("committee-min-size"),
-		MaxCommitteeSize: ctx.Int("committee-max-size"),
-	}
 
 	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), p2pcom.p2pSrv)
 	defer func() { slog.Info("closing API..."); apiCloser() }()
@@ -284,7 +206,7 @@ func defaultAction(ctx *cli.Context) error {
 	apiURL, srvCloser := startAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())
 	defer func() { slog.Info("stopping API server..."); srvCloser() }()
 
-	printStartupMessage(topic, gene, chain, blsMaster, instanceDir, apiURL)
+	printStartupMessage(topic, gene, chain, blsMaster, dirConfig.InstanceDir, apiURL)
 
 	p2pcom.Start()
 	defer p2pcom.Stop()
@@ -294,14 +216,14 @@ func defaultAction(ctx *cli.Context) error {
 		chain,
 		blsMaster,
 		txPool,
-		filepath.Join(instanceDir, "tx.stash"),
+		filepath.Join(dirConfig.InstanceDir, "tx.stash"),
 		p2pcom.comm,
 		proxyApp, config).
 		Run(exitSignal)
 }
 
 func keysAction(ctx *cli.Context) error {
-	keyloader := NewKeyLoader(ctx.String("data-dir"))
+	keyloader := types.NewKeyLoader(ctx.String("data-dir"))
 	blsMaster, err := keyloader.Load()
 	if err != nil {
 		fmt.Println("Err: ", err)

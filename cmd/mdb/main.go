@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/txpool"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -34,7 +32,7 @@ var (
 	version   string
 	gitCommit string
 	gitTag    string
-	flags     = []cli.Flag{dataDirFlag, networkFlag, revisionFlag}
+	flags     = []cli.Flag{dataDirFlag, revisionFlag}
 
 	defaultTxPoolOptions = txpool.Options{
 		Limit:           200000,
@@ -53,7 +51,6 @@ func main() {
 	go func() {
 		fmt.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
-	initLogger()
 	app := cli.App{
 		Version:   fullVersion(),
 		Name:      "MeterDB",
@@ -64,46 +61,40 @@ func main() {
 		Commands: []cli.Command{
 			// Read-only info
 			{Name: "key", Usage: "generate key from string", Flags: []cli.Flag{rawFlag}, Action: genKeyAction},
-			{Name: "raw", Usage: "Load raw value from database with key", Flags: []cli.Flag{dataDirFlag, networkFlag, keyFlag}, Action: loadRawAction},
-			{Name: "block", Usage: "Load block from database on revision", Flags: []cli.Flag{dataDirFlag, networkFlag, revisionFlag}, Action: loadBlockAction},
-			{Name: "hash", Usage: "Load block hash with block number", Flags: []cli.Flag{dataDirFlag, networkFlag, heightFlag}, Action: loadHashAction},
-			{Name: "peek", Usage: "Load pointers like best-qc, best-block from database", Flags: []cli.Flag{networkFlag, dataDirFlag}, Action: peekAction},
-			{Name: "stash", Usage: "Load all txs from tx.stash", Flags: []cli.Flag{dataDirFlag, networkFlag}, Action: loadStashAction},
-			{Name: "report-db", Usage: "Scan and give total size separately for blocks/txmetas/receipts/index", Flags: []cli.Flag{dataDirFlag, networkFlag}, Action: reportDBAction},
+			{Name: "raw", Usage: "Load raw value from database with key", Flags: []cli.Flag{dataDirFlag, keyFlag}, Action: loadRawAction},
+			{Name: "block", Usage: "Load block from database on revision", Flags: []cli.Flag{dataDirFlag, revisionFlag}, Action: loadBlockAction},
+			{Name: "hash", Usage: "Load block hash with block number", Flags: []cli.Flag{dataDirFlag, heightFlag}, Action: loadHashAction},
+			{Name: "peek", Usage: "Load pointers like best-qc, best-block from database", Flags: []cli.Flag{dataDirFlag}, Action: peekAction},
+			{Name: "stash", Usage: "Load all txs from tx.stash", Flags: []cli.Flag{dataDirFlag}, Action: loadStashAction},
+			{Name: "report-db", Usage: "Scan and give total size separately for blocks/txmetas/receipts/index", Flags: []cli.Flag{dataDirFlag}, Action: reportDBAction},
 			// LevelDB operations
 
 			// DANGER! USE THIS ONLY IF YOU KNOW THE DETAILS
 			// database fix
 			{
-				Name:   "unsafe-reset",
-				Usage:  "Reset chain to any block in history",
-				Flags:  []cli.Flag{networkFlag, dataDirFlag, heightFlag, forceFlag},
-				Action: unsafeResetAction,
-			},
-			{
 				Name:   "unsafe-delete-raw",
 				Usage:  "Delete raw key from local db",
-				Flags:  []cli.Flag{networkFlag, dataDirFlag, keyFlag},
+				Flags:  []cli.Flag{dataDirFlag, keyFlag},
 				Action: unsafeDeleteRawAction,
 			},
 			{
 				Name:   "unsafe-set-raw",
 				Usage:  "Set raw key/value to local db",
-				Flags:  []cli.Flag{networkFlag, dataDirFlag, keyFlag, valueFlag},
+				Flags:  []cli.Flag{dataDirFlag, keyFlag, valueFlag},
 				Action: unsafeSetRawAction,
 			},
 			{
 				Name:   "local-reset",
 				Usage:  "Reset chain with local highest block",
-				Flags:  []cli.Flag{networkFlag, dataDirFlag},
+				Flags:  []cli.Flag{dataDirFlag},
 				Action: safeResetAction,
 			},
 
-			{Name: "delete-block", Usage: "delete blocks", Flags: []cli.Flag{networkFlag, dataDirFlag, fromFlag, toFlag}, Action: runDeleteBlockAction},
+			{Name: "delete-block", Usage: "delete blocks", Flags: []cli.Flag{dataDirFlag, fromFlag, toFlag}, Action: runDeleteBlockAction},
 			{
 				Name:   "accumulated-receipt-size",
 				Usage:  "Get accumulated block receipt size in range [from,to]",
-				Flags:  []cli.Flag{networkFlag, dataDirFlag, fromFlag, toFlag},
+				Flags:  []cli.Flag{dataDirFlag, fromFlag, toFlag},
 				Action: runAccumulatedReceiptSize,
 			},
 		},
@@ -117,7 +108,6 @@ func main() {
 }
 
 func defaultAction(ctx *cli.Context) error {
-	cmn.EnsureDir(ctx.String("data-dir"), 0700)
 	fmt.Println("default action for mdb")
 	return nil
 }
@@ -133,7 +123,6 @@ type QCInfo struct {
 }
 
 func unsafeDeleteRawAction(ctx *cli.Context) error {
-	initLogger()
 
 	mainDB, _ := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
@@ -154,7 +143,6 @@ func unsafeDeleteRawAction(ctx *cli.Context) error {
 }
 
 func unsafeSetRawAction(ctx *cli.Context) error {
-	initLogger()
 
 	mainDB, _ := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
@@ -177,112 +165,11 @@ func unsafeSetRawAction(ctx *cli.Context) error {
 	return nil
 }
 
-func unsafeResetAction(ctx *cli.Context) error {
-	mainDB, gene := openMainDB(ctx)
-	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
-
-	var (
-		myClient = &http.Client{Timeout: 5 * time.Second}
-
-		network = ctx.String(networkFlag.Name)
-		datadir = ctx.String(dataDirFlag.Name)
-		force   = ctx.Bool(forceFlag.Name)
-		height  = ctx.Int(heightFlag.Name)
-		blkInfo = BlockInfo{}
-		qcInfo  = QCInfo{}
-		domain  = ""
-		err     error
-
-		dryrun = !force
-	)
-
-	if network == "main" {
-		domain = "mainnet.meter.io"
-	} else if network == "test" {
-		domain = "testnet.meter.io"
-	} else {
-		panic(fmt.Sprintf("not supported network: %v", network))
-	}
-
-	localFix := false
-	err = getJson(myClient, fmt.Sprintf("http://%v/blocks/%v", domain, height), &blkInfo)
-	if err != nil {
-		localFix = true
-		fmt.Printf("could not get block info: %v\n", height)
-	}
-
-	err = getJson(myClient, fmt.Sprintf("http://%v/blocks/qc/%v", domain, height+1), &qcInfo)
-	if err != nil {
-		localFix = true
-		fmt.Printf("could not get qc info: %v\n", height+1)
-	}
-
-	// Read/Decode/Display Block
-	var newBestHash, newBestQC string
-	if localFix {
-		meterChain := initChain(ctx, gene, mainDB)
-		cur, err := meterChain.GetTrunkBlock(uint32(height))
-		if err != nil {
-			panic("could not load block")
-		}
-		newBestHash = strings.Replace(cur.ID().String(), "0x", "", 1)
-		nxt, err := meterChain.GetTrunkBlock(uint32(height + 1))
-		if err != nil {
-			panic("could not load block")
-		}
-		b := new(bytes.Buffer)
-		rlp.Encode(b, nxt.QC)
-		newBestQC = hex.EncodeToString(b.Bytes())
-	} else {
-		newBestHash = strings.Replace(blkInfo.Id, "0x", "", 1)
-		newBestQC = qcInfo.Raw
-	}
-	fmt.Println("------------ Reset ------------")
-	fmt.Println("Datadir: ", datadir)
-	fmt.Println("Network: ", network)
-	fmt.Println("Forceful: ", force)
-	fmt.Println("Height: ", height)
-
-	fmt.Println("New Best Hash:", newBestHash)
-	fmt.Println("New BestQC: ", newBestQC)
-	fmt.Println("-------------------------------")
-	// fromHash := BestBlockHash
-
-	// Update Best
-	updateBest(mainDB, newBestHash, dryrun)
-	// Update Best QC
-	updateBestQC(mainDB, newBestQC, dryrun)
-	if !dryrun {
-		best, err := readBest(mainDB)
-		if err != nil {
-			panic(err)
-		}
-		if strings.Compare(best, newBestHash) == 0 {
-			fmt.Println("best VERIFIED.")
-		} else {
-			panic("best verify failed.")
-		}
-		val, err := readBestQC(mainDB)
-		if err != nil {
-			panic(fmt.Sprintf("could not read best qc: %v", err))
-		}
-		if strings.Compare(val, newBestQC) == 0 {
-			fmt.Println("best-qc VERIFIED.")
-		} else {
-			panic("best-qc verify failed.")
-		}
-
-	}
-	fmt.Println("")
-
-	return nil
-}
-
 func reportDBAction(ctx *cli.Context) error {
 	mainDB, gene := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
 
-	meterChain := initChain(ctx, gene, mainDB)
+	meterChain := initChain(gene, mainDB)
 	bestBlock := meterChain.BestBlock()
 	blkKeySize := 0
 	blkSize := 0
@@ -343,7 +230,7 @@ func safeResetAction(ctx *cli.Context) error {
 	mainDB, gene := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
 
-	meterChain := initChain(ctx, gene, mainDB)
+	meterChain := initChain(gene, mainDB)
 
 	var (
 		step = 1000000

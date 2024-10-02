@@ -12,8 +12,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/co"
 	"github.com/meterio/supernova/comm/proto"
+	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/meter"
 	"github.com/pkg/errors"
 )

@@ -11,7 +11,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +36,7 @@ func newBlock(parent *block.Block, score uint64) (*block.Block, *block.QuorumCer
 	b.SetQC(&qc)
 	sig := blsMaster.SignMessage(b.Header().SigningHash().Bytes())
 	b.WithSignature(sig)
-	escortQC := &block.QuorumCert{QCHeight: b.Number(), QCRound: b.QC.QCRound + 1, EpochID: b.QC.EpochID, VoterMsgHash: b.VotingHash()}
+	escortQC := &block.QuorumCert{QCHeight: b.Number(), QCRound: b.QC.QCRound + 1, EpochID: b.QC.EpochID, MsgHash: b.VotingHash()}
 
 	return b, escortQC
 }

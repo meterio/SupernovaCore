@@ -12,11 +12,6 @@ import (
 )
 
 var (
-	networkFlag = cli.StringFlag{
-		Name:   "network",
-		Usage:  "the network to join (main|test|warringstakes)",
-		EnvVar: "METER_NETWORK",
-	}
 	dataDirFlag = cli.StringFlag{
 		Name:   "data-dir",
 		Value:  defaultDataDir(),
@@ -38,7 +33,6 @@ var (
 		Value: 10000,
 		Usage: "API request timeout value in milliseconds",
 	}
-
 	apiBacktraceLimitFlag = cli.IntFlag{
 		Name:  "api-backtrace-limit",
 		Value: 1000,
@@ -68,14 +62,6 @@ var (
 		Value: "any",
 		Usage: "port mapping mechanism (any|none|upnp|pmp|extip:<IP>)",
 	}
-	onDemandFlag = cli.BoolFlag{
-		Name:  "on-demand",
-		Usage: "create new block when there is pending transaction",
-	}
-	persistFlag = cli.BoolFlag{
-		Name:  "persist",
-		Usage: "blockchain data storage option, if setted data will be saved to disk",
-	}
 	noDiscoverFlag = cli.BoolFlag{
 		Name:  "no-discover",
 		Usage: "disable auto discovery mode",
@@ -90,7 +76,6 @@ var (
 		Usage: "committee maximum size",
 		Value: 50,
 	}
-
 	discoServerFlag = cli.StringSliceFlag{
 		Name:  "disco-server",
 		Usage: "override the default discover servers setting",
@@ -104,15 +89,5 @@ var (
 		Name:  "epoch-mblock-count",
 		Usage: "mblock count between epochs",
 		Value: 1200,
-	}
-	httpsCertFlag = cli.StringFlag{
-		Name:  "https-cert",
-		Usage: "path for https cert file (default is meterio.crt)",
-		Value: "meterio.crt",
-	}
-	httpsKeyFlag = cli.StringFlag{
-		Name:  "https-key",
-		Usage: "path for https key file (default is meterio.key)",
-		Value: "meterio.key",
 	}
 )

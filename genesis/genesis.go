@@ -21,8 +21,20 @@ const (
 type Genesis struct {
 	builder *Builder
 	id      meter.Bytes32
-	name    string
 	vset    *types.ValidatorSet
+
+	Name    string
+	ChainId uint64
+}
+
+func newGenesis(gdoc *types.GenesisDoc) *Genesis {
+	builder := &Builder{}
+	builder.GenesisDoc(gdoc)
+	id, err := builder.ComputeID()
+	if err != nil {
+		panic(err)
+	}
+	return &Genesis{builder, id, types.NewValidatorSet(gdoc.Validators), gdoc.Name, gdoc.ChainId}
 }
 
 // Build build the genesis block.
@@ -43,11 +55,6 @@ func (g *Genesis) ID() meter.Bytes32 {
 	return g.id
 }
 
-// Name returns network name.
-func (g *Genesis) Name() string {
-	return g.name
-}
-
 func (g *Genesis) ValidatorSet() *types.ValidatorSet {
 	return g.vset
 }
@@ -61,3 +68,12 @@ func mustDecodeHex(str string) []byte {
 }
 
 var emptyRuntimeBytecode = mustDecodeHex("6060604052600256")
+
+func LoadGenesis(baseDir string) *Genesis {
+	loader := types.NewGenesisDocLoader(baseDir)
+	gdoc, err := loader.Load()
+	if err != nil {
+		panic("could not load genesis doc")
+	}
+	return newGenesis(gdoc)
+}

@@ -12,7 +12,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/libs/lvldb"
 	Tx "github.com/meterio/supernova/tx"
 	"github.com/stretchr/testify/assert"
 )

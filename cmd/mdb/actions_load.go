@@ -10,7 +10,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/kv"
-	"github.com/meterio/supernova/lvldb"
+	"github.com/meterio/supernova/libs/lvldb"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -40,7 +40,6 @@ func loadStashAction(ctx *cli.Context) error {
 }
 
 func genKeyAction(ctx *cli.Context) error {
-	initLogger()
 
 	name := ctx.String(rawFlag.Name)
 	key := []byte(name)
@@ -49,7 +48,6 @@ func genKeyAction(ctx *cli.Context) error {
 }
 
 func loadRawAction(ctx *cli.Context) error {
-	initLogger()
 
 	mainDB, _ := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
@@ -73,7 +71,7 @@ func loadBlockAction(ctx *cli.Context) error {
 	mainDB, gene := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
 
-	meterChain := initChain(ctx, gene, mainDB)
+	meterChain := initChain(gene, mainDB)
 
 	blk, err := loadBlockByRevision(meterChain, ctx.String(revisionFlag.Name))
 	if err != nil {
@@ -109,10 +107,9 @@ func peekAction(ctx *cli.Context) error {
 	mainDB, gene := openMainDB(ctx)
 	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
 
-	meterChain := initChain(ctx, gene, mainDB)
+	meterChain := initChain(gene, mainDB)
 
 	var (
-		network = ctx.String(networkFlag.Name)
 		datadir = ctx.String(dataDirFlag.Name)
 		err     error
 	)
@@ -120,7 +117,6 @@ func peekAction(ctx *cli.Context) error {
 	// Read/Decode/Display Block
 	fmt.Println("------------ Pointers ------------")
 	fmt.Println("Datadir: ", datadir)
-	fmt.Println("Network: ", network)
 	fmt.Println("-------------------------------")
 
 	// Read Best QC

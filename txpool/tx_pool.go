@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/co"
+	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/meter"
 	"github.com/meterio/supernova/tx"
 	"github.com/pkg/errors"
