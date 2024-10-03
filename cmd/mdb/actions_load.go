@@ -4,40 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"path"
 	"strings"
 
-	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/libs/kv"
-	"github.com/meterio/supernova/libs/lvldb"
 	"gopkg.in/urfave/cli.v1"
 )
-
-func loadStashAction(ctx *cli.Context) error {
-	dataDir := ctx.String(dataDirFlag.Name)
-	stashDir := path.Join(dataDir, "tx.stash")
-	db, err := lvldb.New(stashDir, lvldb.Options{})
-	if err != nil {
-		slog.Error("create tx stash", "err", err)
-		return nil
-	}
-	defer db.Close()
-
-	iter := db.NewIterator(*kv.NewRangeWithBytesPrefix(nil))
-	for iter.Next() {
-		var tx cmttypes.Tx
-		if err := rlp.DecodeBytes(iter.Value(), &tx); err != nil {
-			slog.Warn("decode stashed tx", "err", err)
-			if err := db.Delete(iter.Key()); err != nil {
-				slog.Warn("delete corrupted stashed tx", "err", err)
-			}
-		} else {
-			slog.Info("found tx: ", "id", tx.Hash(), "raw", hex.EncodeToString(tx))
-		}
-	}
-	return nil
-}
 
 func genKeyAction(ctx *cli.Context) error {
 

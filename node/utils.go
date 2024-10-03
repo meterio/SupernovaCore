@@ -3,7 +3,7 @@
 // Distributed under the GNU Lesser General Public License v3.0 software license, see the accompanying
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package main
+package node
 
 import (
 	"context"
@@ -104,7 +104,7 @@ func homeDir() string {
 	return ""
 }
 
-func handleExitSignal() context.Context {
+func HandleExitSignal() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		exitSignalCh := make(chan os.Signal)

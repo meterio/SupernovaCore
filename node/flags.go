@@ -3,7 +3,7 @@
 // Distributed under the GNU Lesser General Public License v3.0 software license, see the accompanying
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package main
+package node
 
 import (
 	"log/slog"
@@ -91,3 +91,22 @@ var (
 		Value: 1200,
 	}
 )
+
+var Flags = []cli.Flag{
+	dataDirFlag,
+	apiAddrFlag,
+	apiCorsFlag,
+	apiTimeoutFlag,
+	apiBacktraceLimitFlag,
+	verbosityFlag,
+	maxPeersFlag,
+	p2pPortFlag,
+	natFlag,
+	peersFlag,
+	noDiscoverFlag,
+	minCommitteeSizeFlag,
+	maxCommitteeSizeFlag,
+	discoServerFlag,
+	discoTopicFlag,
+	epochBlockCountFlag,
+}

@@ -8,11 +8,12 @@ package node
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
-	"runtime"
+	"runtime/debug"
 	"sort"
 	"time"
 
@@ -21,10 +22,12 @@ import (
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/meterio/supernova/api"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/cmd/supernova/probe"
 	"github.com/meterio/supernova/consensus"
+	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm"
@@ -34,6 +37,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -43,6 +47,7 @@ var (
 
 type Node struct {
 	goes    co.Goes
+	ctx     context.Context
 	reactor *consensus.Reactor
 
 	chain       *chain.Chain
@@ -55,33 +60,85 @@ type Node struct {
 }
 
 func New(
+	ctx *cli.Context,
 	version string,
-	chain *chain.Chain,
-	blsMaster *types.BlsMaster,
-	txPool *txpool.TxPool,
-	txStashPath string,
-	comm *comm.Communicator,
 	clientCreator cmtproxy.ClientCreator,
-	config consensus.ReactorConfig,
 ) *Node {
+	exitSignal := HandleExitSignal()
+	debug.SetMemoryLimit(5 * 1024 * 1024 * 1024) // 5GB
+
+	fmt.Println("ensure dir: ", ctx.String("data-dir"))
+	defer func() { slog.Info("exited") }()
+
+	InitLogger(ctx)
+
+	baseDir := ctx.String("data-dir")
+	gene := genesis.LoadGenesis(baseDir)
+	dirConfig := EnsureDirs(ctx, gene)
+
+	slog.Info("Meter Start ...")
+	mainDB := OpenMainDB(ctx, dirConfig.InstanceDir)
+	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
+
+	chain := InitChain(gene, mainDB)
+
+	// if flattern index start is not set, or pruning is not complete
+	// start the pruning routine right now
+
+	keyLoader := types.NewKeyLoader(ctx.String("data-dir"))
+	blsMaster, err := keyLoader.Load()
+	if err != nil {
+		panic(err)
+	}
+
+	config := consensus.ReactorConfig{
+		MinCommitteeSize: ctx.Int("committee-min-size"),
+		MaxCommitteeSize: ctx.Int("committee-max-size"),
+		EpochMBlockCount: consensus.MIN_MBLOCKS_AN_EPOCH,
+	}
+
+	// set magic
+	topic := ctx.String("disco-topic")
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%v %v", version, topic)))
+
+	// Split magic to p2p_magic and consensus_magic
+	copy(p2pMagic[:], sum[:4])
+	copy(consensusMagic[:], sum[:4])
+
+	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
+	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
+
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp, err := createAndStartProxyAppConns(clientCreator, cmtproxy.NopMetrics())
 	if err != nil {
 		panic(err)
 	}
 
-	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
+	p2pcom := NewP2PComm(ctx, exitSignal, chain, txPool, dirConfig.InstanceDir, p2pMagic)
 
-	startObserveServer(reactor, version, blsMaster.GetPublicKey(), comm, chain)
+	reactor := consensus.NewConsensusReactor(config, chain, p2pcom.comm, txPool, blsMaster, proxyApp)
+
+	startObserveServer(reactor, version, blsMaster.GetPublicKey(), p2pcom.comm, chain)
+
+	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), p2pcom.p2pSrv)
+	defer func() { slog.Info("closing API..."); apiCloser() }()
+
+	apiURL, srvCloser := StartAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())
+	defer func() { slog.Info("stopping API server..."); srvCloser() }()
+
+	printStartupMessage(topic, gene, chain, blsMaster, dirConfig.InstanceDir, apiURL)
+
+	p2pcom.Start()
+	defer p2pcom.Stop()
 
 	node := &Node{
-		reactor:     reactor,
-		chain:       chain,
-		txPool:      txPool,
-		txStashPath: txStashPath,
-		comm:        comm,
-		logger:      slog.With("pkg", "node"),
-		proxyApp:    proxyApp,
+		ctx:      context.TODO(),
+		reactor:  reactor,
+		chain:    chain,
+		txPool:   txPool,
+		comm:     p2pcom.comm,
+		logger:   slog.With("pkg", "node"),
+		proxyApp: proxyApp,
 	}
 
 	return node
@@ -135,35 +192,16 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func (n *Node) Run(ctx context.Context) error {
+func (n *Node) Run() error {
 	n.comm.Sync(n.handleBlockStream)
 
-	n.goes.Go(func() { n.houseKeeping(ctx) })
-	n.goes.Go(func() { n.txStashLoop(ctx) })
+	n.goes.Go(func() { n.houseKeeping(n.ctx) })
+	n.goes.Go(func() { n.txStashLoop(n.ctx) })
 
-	n.goes.Go(func() { n.reactor.OnStart(ctx) })
-	go n.printStats(time.Minute)
+	n.goes.Go(func() { n.reactor.OnStart(n.ctx) })
 
 	n.goes.Wait()
 	return nil
-}
-
-func (n *Node) printStats(duration time.Duration) {
-	ticker := time.NewTicker(duration)
-	counter := 0
-	for true {
-		select {
-		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-			n.logger.Info("<Stats>", "peerSet", n.comm.PeerCount(), "rawBlocksCache", n.chain.RawBlocksCacheLen(), "receiptsCache", "inQueue", n.reactor.IncomingQueueLen(), "outQueue", n.reactor.OutgoingQueueLen(), "txPool", n.txPool.Len())
-			n.logger.Info("<Memory>", "alloc", types.PrettyStorage(m.Alloc), "sys", types.PrettyStorage(m.Sys), "numGC", m.NumGC)
-			if counter%10 == 0 {
-				runtime.GC()
-			}
-		}
-	}
 }
 
 func (n *Node) handleBlockStream(ctx context.Context, stream <-chan *block.EscortedBlock) (err error) {

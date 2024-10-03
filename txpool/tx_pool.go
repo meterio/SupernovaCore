@@ -25,6 +25,12 @@ const (
 	maxTxSize = 64 * 1024 * 2
 )
 
+var DefaultTxPoolOptions = Options{
+	Limit:           200000,
+	LimitPerAccount: 1024, /*16,*/ //XXX: increase to 1024 from 16 during the testing
+	MaxLifetime:     20 * time.Minute,
+}
+
 // Options options for tx pool.
 type Options struct {
 	Limit           int

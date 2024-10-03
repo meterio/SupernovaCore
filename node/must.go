@@ -3,7 +3,7 @@
 // Distributed under the GNU Lesser General Public License v3.0 software license, see the accompanying
 // file LICENSE or <https://www.gnu.org/licenses/lgpl-3.0.html>
 
-package main
+package node
 
 import (
 	"context"
@@ -42,7 +42,7 @@ var (
 	consensusMagic [4]byte
 )
 
-func initLogger(ctx *cli.Context) {
+func InitLogger(ctx *cli.Context) {
 	logLevel := ctx.Int(verbosityFlag.Name)
 	fmt.Println("slog level: ", slog.Level(logLevel))
 	// set global logger with custom options
@@ -63,7 +63,7 @@ type ConfigDirs struct {
 	SnapshotDir string
 }
 
-func ensureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
+func EnsureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
 	baseDir := ctx.String(dataDirFlag.Name)
 	err := os.MkdirAll(baseDir, 0700)
 	if err != nil {
@@ -86,7 +86,7 @@ func ensureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
 	}
 }
 
-func openMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
+func OpenMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 	if _, err := fdlimit.Raise(5120 * 4); err != nil {
 		fatal("failed to increase fd limit", err)
 	}
@@ -119,7 +119,7 @@ func openMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 	return db
 }
 
-func initChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
+func InitChain(gene *genesis.Genesis, mainDB *lvldb.LevelDB) *chain.Chain {
 	genesisBlock, err := gene.Build()
 	if err != nil {
 		fatal("build genesis block: ", err)
@@ -159,7 +159,7 @@ type p2pComm struct {
 	peersCachePath string
 }
 
-func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, instanceDir string, magic [4]byte) *p2pComm {
+func NewP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, instanceDir string, magic [4]byte) *p2pComm {
 	key, err := loadOrGeneratePrivateKey(filepath.Join(cliCtx.String("data-dir"), "p2p.key"))
 	if err != nil {
 		fatal("load or generate P2P key:", err)
@@ -183,12 +183,10 @@ func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, tx
 	var BootstrapNodes []*enode.Node
 	if overrided == true {
 		BootstrapNodes = discoSvr
-	} else {
-		BootstrapNodes = bootstrapNodes
 	}
 
 	opts := &p2psrv.Options{
-		Name:           types.MakeName("supernova", fullVersion()),
+		Name:           types.MakeName("supernova", "v0.0.1" /* TODO: change this */),
 		PrivateKey:     key,
 		MaxPeers:       cliCtx.Int(maxPeersFlag.Name),
 		ListenAddr:     fmt.Sprintf(":%v", cliCtx.Int(p2pPortFlag.Name)),
@@ -269,18 +267,8 @@ func (p *p2pComm) Stop() {
 	}
 }
 
-func pubkeyHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("version = %s", fullVersion())))
-}
-
 type Dispatcher struct {
 	cons *consensus.Reactor
-}
-
-func handleVersion(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fullVersion()))
 }
 
 func (d *Dispatcher) handlePeers(w http.ResponseWriter, r *http.Request) {
@@ -288,13 +276,13 @@ func (d *Dispatcher) handlePeers(w http.ResponseWriter, r *http.Request) {
 	// api_utils.WriteJSON(w, d.nw.PeersStats())
 }
 
-func startObserveServer(cons *consensus.Reactor, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain) (string, func()) {
+func StartObserveServer(cons *consensus.Reactor, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain) (string, func()) {
 	addr := ":8670"
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		fatal(fmt.Sprintf("listen observe addr [%v]: %v", addr, err))
 	}
-	probe := &probe.Probe{cons, blsPubKey, chain, fullVersion(), nw}
+	probe := &probe.Probe{cons, blsPubKey, chain, "v0.0.1", nw}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/probe", probe.HandleProbe)
@@ -329,7 +317,7 @@ func startObserveServer(cons *consensus.Reactor, blsPubKey bls.PublicKey, nw pro
 	}
 }
 
-func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID types.Bytes32) (string, func()) {
+func StartAPIServer(ctx *cli.Context, handler http.Handler, genesisID types.Bytes32) (string, func()) {
 	addr := ctx.String(apiAddrFlag.Name)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -396,7 +384,7 @@ func printStartupMessage(
     Instance dir    [ %v ]
     API portal      [ %v ]
 `,
-		types.MakeName("Meter", fullVersion()),
+		types.MakeName("Supernova", "v0.0.1"),
 		topic,
 		hex.EncodeToString(p2pMagic[:]),
 		gene.ID(), gene.Name,
