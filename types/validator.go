@@ -30,12 +30,12 @@ type ValidatorSortKey struct {
 }
 
 type Validator struct {
-	Name        string
-	Address     common.Address
-	PubKey      bls.PublicKey
-	IP          netip.Addr
-	Port        uint32
-	VotingPower uint64
+	Name        string         `json:"name"`
+	Address     common.Address `json:"address"`
+	PubKey      bls.PublicKey  `json:"pubkey"`
+	IP          netip.Addr     `json:"ip"`
+	Port        uint32         `json:"port"`
+	VotingPower uint64         `json:"voting_power"`
 }
 
 func NewValidator(address common.Address, hexPubkey string, ip string, port uint32) *Validator {

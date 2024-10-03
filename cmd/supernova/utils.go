@@ -148,8 +148,8 @@ func handleXGenesisID(h http.Handler, genesisID types.Bytes32) http.Handler {
 }
 
 // middleware to set 'x-meter-ver' to response headers.
-func handleXMeterVersion(h http.Handler) http.Handler {
-	const headerKey = "x-meter-ver"
+func handleXVersion(h http.Handler) http.Handler {
+	const headerKey = "x-version"
 	ver := doc.Version()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(headerKey, ver)

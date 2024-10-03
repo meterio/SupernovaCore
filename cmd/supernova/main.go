@@ -7,7 +7,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net"
@@ -69,9 +68,9 @@ func main() {
 	}()
 	app := cli.App{
 		Version:   fullVersion(),
-		Name:      "Meter",
-		Usage:     "Node of Meter.io",
-		Copyright: "2018 Meter Foundation <https://types.io/>",
+		Name:      "Supernova",
+		Usage:     "Node of Supernova",
+		Copyright: "2024 Decentralized Finance Lab",
 		Flags: []cli.Flag{
 			dataDirFlag,
 			apiAddrFlag,
@@ -180,13 +179,7 @@ func defaultAction(ctx *cli.Context) error {
 	// set magic
 	topic := ctx.String("disco-topic")
 	version := doc.Version()
-	versionItems := strings.Split(version, ".")
-	maskedVersion := version
-	if len(versionItems) > 1 {
-		maskedVersion = strings.Join(versionItems[:len(versionItems)-1], ".") + ".0"
-	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%v %v", maskedVersion, topic)))
-	slog.Info("Version", "maskedVersion", maskedVersion, "version", version, "topic", topic, "sum", hex.EncodeToString(sum[:]), "magic", hex.EncodeToString(sum[:4]))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%v %v", version, topic)))
 
 	// Split magic to p2p_magic and consensus_magic
 	copy(p2pMagic[:], sum[:4])

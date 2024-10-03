@@ -100,10 +100,6 @@ func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-func GenesisQC() *QuorumCert {
-	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0}
-}
-
 func GenesisEscortQC(b *Block) *QuorumCert {
 	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: b.VotingHash(), BitArray: cmn.NewBitArray(1)}
 }

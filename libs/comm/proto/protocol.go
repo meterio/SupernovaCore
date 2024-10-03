@@ -9,13 +9,13 @@ import "fmt"
 
 // Constants
 const (
-	Name              = "meter"
+	Name              = "supernova"
 	Version    uint   = 1
 	Length     uint64 = 11
 	MaxMsgSize        = 2 * 1024 * 1024 // max size 2M bytes
 )
 
-// Protocol messages of meter
+// Protocol messages of supernova
 const (
 	MsgGetStatus = iota
 	MsgNewBlockID

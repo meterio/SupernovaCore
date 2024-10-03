@@ -7,7 +7,7 @@ type ValidatorDef struct {
 	Address string `json:"address"`
 	PubKey  string `json:"pubkey"`
 	IP      string `json:"ip"`
-	Port    uint64 `json:"port"`
+	Port    uint32 `json:"port"`
 }
 
 func (d ValidatorDef) String() string {

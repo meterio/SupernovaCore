@@ -100,7 +100,7 @@ var (
 
 	// Initial values
 	InitialRewardRatio         = big.NewInt(3e17) // 30%
-	InitialBaseGasPrice        = big.NewInt(5e11) // each tx gas is about 0.01 meter
+	InitialBaseGasPrice        = big.NewInt(5e11) // each tx gas is about 0.01
 	InitialProposerEndorsement = new(big.Int).Mul(big.NewInt(1e18), big.NewInt(25000000))
 
 	InitialValidatorBenefitRatio = big.NewInt(4e17)                                                   //40% percent of total auciton gain

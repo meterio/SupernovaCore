@@ -57,6 +57,8 @@ type Chain struct {
 	proposalMap                  *ProposalMap
 	drw                          sync.RWMutex
 	bestPowNonce                 uint64
+
+	logger *slog.Logger
 }
 
 type caches struct {
@@ -69,6 +71,7 @@ var log = slog.With("pkg", "c")
 func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.ValidatorSet, verbose bool) (*Chain, error) {
 	prometheus.Register(bestQCHeightGauge)
 	prometheus.Register(bestHeightGauge)
+	logger := slog.With("pkg", "c")
 
 	if genesisBlock.Number() != 0 {
 		fmt.Println(genesisBlock.Number())
@@ -91,7 +94,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 	genesisID := genesisBlock.ID()
 
 	if bestBlockID, err := loadBestBlockID(kv); err != nil {
-		fmt.Println("could not load best block id")
 		if !kv.IsNotFound(err) {
 			return nil, err
 		}
@@ -120,7 +122,6 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 		bestBlock = genesisBlock
 		bestHeightGauge.Set(float64(bestBlock.Number()))
 	} else {
-		fmt.Println("could load best block id")
 		existGenesisID, err := loadBlockHash(kv, 0)
 		if err != nil {
 			return nil, err
@@ -137,17 +138,16 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 			return nil, err
 		}
 		if bestBlock.Number() == 0 && bestBlock.QC == nil {
-			log.Info("QC of best block is empty, set it to genesis QC")
-			bestBlock.QC = block.GenesisQC()
+			logger.Info("QC of best block is empty, set it to genesis QC")
 			saveBestQC(kv, block.GenesisEscortQC(bestBlock))
 		}
 
 		if bestBlock.IsSBlock() {
-			log.Info("Start fixing because best block is SBlock")
+			logger.Info("Start fixing because best block is SBlock")
 			lastBestBlock := bestBlock
 			for bestBlock.IsSBlock() {
 				// Error happend
-				log.Info("Load best block parent: ", bestBlock.ParentID())
+				logger.Info("Load best block parent: ", bestBlock.ParentID())
 				rawParent, err := loadBlockRaw(kv, bestBlock.ParentID())
 				if err != nil {
 					return nil, err
@@ -155,9 +155,9 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 				lastBestBlock = bestBlock
 				bestBlock, _ = (&rawBlock{raw: rawParent}).Block()
 			}
-			log.Info("save best qc", "blk", lastBestBlock.Number(), "qc", lastBestBlock.QC)
+			logger.Info("save best qc", "blk", lastBestBlock.Number(), "qc", lastBestBlock.QC)
 			saveBestQC(kv, lastBestBlock.QC)
-			log.Info("save best block", "num", bestBlock.Number(), "id", bestBlock.ID())
+			logger.Info("save best block", "num", bestBlock.Number(), "id", bestBlock.ID())
 			saveBestBlockID(kv, bestBlock.ID())
 		}
 
@@ -173,20 +173,20 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 
 	bestQC, err := loadBestQC(kv)
 	if err != nil {
-		log.Debug("BestQC is empty, set it to use genesisEscortQC")
+		logger.Debug("BestQC is empty, set it to use genesisEscortQC")
 		bestQC = block.GenesisEscortQC(genesisBlock)
 		bestQCHeightGauge.Set(float64(bestQC.QCHeight))
 	}
 
 	if bestBlock.Number() > bestQC.QCHeight {
-		log.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.QCHeight)
+		logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.QCHeight)
 		matchBestBlockID, err := loadBlockHash(kv, bestQC.QCHeight)
 		if err != nil {
-			log.Error("could not load match best block", "err", err)
+			logger.Error("could not load match best block", "err", err)
 		} else {
 			matchBestBlockRaw, err := loadBlockRaw(kv, matchBestBlockID)
 			if err != nil {
-				fmt.Println("could not load raw for bestBlockBeforeFlattern: ", err)
+				logger.Error("could not load raw for bestBlockBeforeFlattern", "err", err)
 			} else {
 				bestBlock, _ = (&rawBlock{raw: matchBestBlockRaw}).Block()
 				saveBestBlockID(kv, matchBestBlockID)
@@ -198,7 +198,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 	bestQCHeightGauge.Set(float64(bestQC.QCHeight))
 
 	if verbose {
-		log.Info("METER CHAIN INITIALIZED", "genesis: ", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String())
+		slog.Info("METER CHAIN INITIALIZED", "genesis: ", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String())
 	}
 	c := &Chain{
 		kv:           kv,
@@ -209,6 +209,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 		caches: caches{
 			rawBlocks: rawBlocksCache,
 		},
+		logger: logger,
 	}
 
 	c.proposalMap = NewProposalMap(c)
@@ -221,7 +222,7 @@ func (c *Chain) houseKeeping(duration time.Duration) {
 	for true {
 		select {
 		case <-ticker.C:
-			log.Info("Chain housekeeping: purge ancestor trie")
+			c.logger.Info("Chain housekeeping: purge ancestor trie")
 		}
 	}
 }
@@ -334,7 +335,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 	}
 
 	for i, tx := range newBlock.Transactions() {
-		log.Debug(fmt.Sprintf("saving tx meta for %s", tx.Hash()), "block", newBlock.Number())
+		c.logger.Debug(fmt.Sprintf("saving tx meta for %s", tx.Hash()), "block", newBlock.Number())
 		meta, err := loadTxMeta(c.kv, tx.Hash())
 		if err != nil {
 			if !c.IsNotFound(err) {
@@ -352,7 +353,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 
 	var fork *Fork
 	isTrunk := c.isTrunk(newBlock.Header())
-	// log.Info("isTrunk", "blk", newBlock.Number(), "isTrunk", isTrunk)
+	// c.logger.Info("isTrunk", "blk", newBlock.Number(), "isTrunk", isTrunk)
 	if isTrunk {
 		if fork, err = c.buildFork(newBlock.Header(), c.bestBlock.Header()); err != nil {
 			return nil, err
@@ -363,7 +364,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 		}
 		c.bestBlock = newBlock
 		bestHeightGauge.Set(float64(c.bestBlock.Number()))
-		log.Debug("saved best block", "blk", newBlock.ID())
+		c.logger.Debug("saved best block", "blk", newBlock.ID())
 
 		if escortQC == nil {
 			return nil, errors.New("escort QC is nil")
@@ -372,14 +373,14 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 		if err != nil {
 			fmt.Println("Error during update QC: ", err)
 		}
-		log.Debug("saved best qc")
+		c.logger.Debug("saved best qc")
 		c.bestQC = escortQC
 
 		if newBlock.IsKBlock() {
 			if err != nil {
 				fmt.Println("Error during update pow nonce:", err)
 			}
-			log.Info("saved best pow nonce", "powNonce", newBlock.Nonce())
+			c.logger.Info("saved best pow nonce", "powNonce", newBlock.Nonce())
 		}
 
 	} else {
@@ -830,9 +831,9 @@ func (c *Chain) DraftLen() int {
 func (c *Chain) PruneDraftsUpTo(lastCommitted *block.DraftBlock) {
 	c.drw.Lock()
 	defer c.drw.Unlock()
-	log.Debug("start to prune drafts up to", "lastCommitted", lastCommitted.ProposedBlock.Number(), "draftSize", c.proposalMap.Len())
+	c.logger.Debug("start to prune drafts up to", "lastCommitted", lastCommitted.ProposedBlock.Number(), "draftSize", c.proposalMap.Len())
 	c.proposalMap.PruneUpTo(lastCommitted)
-	log.Debug("ended prune drafts")
+	c.logger.Debug("ended prune drafts")
 }
 
 func (c *Chain) GetDraftsUpTo(commitedBlkID types.Bytes32, qcHigh *block.QuorumCert) []*block.DraftBlock {

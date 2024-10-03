@@ -7,6 +7,7 @@ package genesis
 
 import (
 	"github.com/meterio/supernova/block"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
@@ -47,7 +48,7 @@ func (b *Builder) ValidatorSet(vset *types.ValidatorSet) *Builder {
 }
 
 func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
-	b.vset = types.NewValidatorSet(gdoc.Validators)
+	b.vset = gdoc.ValidatorSet
 	b.timestamp = gdoc.Time
 	return b
 }
@@ -65,5 +66,6 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 		Timestamp(b.timestamp).
 		ValidatorHash(b.vset.Hash()).BlockType(block.KBlockType).
 		Nonce(GenesisNonce).
+		QC(&block.QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: types.Bytes32{}, AggSig: make([]byte, 0), BitArray: cmn.NewBitArray(1)}).
 		Build(), nil
 }

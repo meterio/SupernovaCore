@@ -34,7 +34,7 @@ func newGenesis(gdoc *types.GenesisDoc) *Genesis {
 	if err != nil {
 		panic(err)
 	}
-	return &Genesis{builder, id, types.NewValidatorSet(gdoc.Validators), gdoc.Name, gdoc.ChainId}
+	return &Genesis{builder, id, gdoc.ValidatorSet, gdoc.Name, gdoc.ChainId}
 }
 
 // Build build the genesis block.
@@ -46,7 +46,6 @@ func (g *Genesis) Build() (*block.Block, error) {
 	if blk.ID() != g.id {
 		panic("built genesis ID incorrect")
 	}
-	blk.QC = block.GenesisQC()
 	return blk, nil
 }
 

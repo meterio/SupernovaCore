@@ -67,7 +67,7 @@ type Reactor struct {
 	mapMutex      sync.RWMutex
 	knownIPs      map[string]string
 
-	committee     *types.ValidatorSet // current committee that I start meter into
+	committee     *types.ValidatorSet // current committee on latest block
 	lastCommittee *types.ValidatorSet
 
 	committeeIndex   uint32
@@ -113,7 +113,7 @@ func NewConsensusReactor(config ReactorConfig, chain *chain.Chain, comm *comm.Co
 	}
 
 	// initialize consensus common
-	r.logger.Info("my keys", "pubkey", blsMaster.PubKey.Marshal())
+	r.logger.Info("my keys", "pubkey", b64.StdEncoding.EncodeToString(blsMaster.PubKey.Marshal()))
 
 	// committee info is stored in the first of Mblock after Kblock
 	r.UpdateCurEpoch()
@@ -301,7 +301,8 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		r.logger.Info(fmt.Sprintf("Entering epoch %v", epoch), "lastEpoch", r.curEpoch)
 		r.logger.Info("---------------------------------------------------------")
 
-		if r.committee.Size() > 0 {
+		if r.committee != nil && r.committee.Size() > 0 {
+			r.logger.Info("committee", "size", r.committee.Size())
 			r.lastCommittee = r.committee
 		} else {
 			lastBestKHeight := bestK.LastKBlockHeight()

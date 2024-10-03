@@ -188,7 +188,7 @@ func newP2PComm(cliCtx *cli.Context, ctx context.Context, chain *chain.Chain, tx
 	}
 
 	opts := &p2psrv.Options{
-		Name:           types.MakeName("meter", fullVersion()),
+		Name:           types.MakeName("supernova", fullVersion()),
 		PrivateKey:     key,
 		MaxPeers:       cliCtx.Int(maxPeersFlag.Name),
 		ListenAddr:     fmt.Sprintf(":%v", cliCtx.Int(p2pPortFlag.Name)),
@@ -341,7 +341,7 @@ func startAPIServer(ctx *cli.Context, handler http.Handler, genesisID types.Byte
 		handler = handleAPITimeout(handler, time.Duration(timeout)*time.Millisecond)
 	}
 	handler = handleXGenesisID(handler, genesisID)
-	handler = handleXMeterVersion(handler)
+	handler = handleXVersion(handler)
 	handler = requestBodyLimit(handler)
 	srv := &http.Server{
 		Handler:      handler,
@@ -392,7 +392,7 @@ func printStartupMessage(
     Network         [ %v %v ]    
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
-    PubKey       [ %v ]
+    PubKey          [ %v ]
     Instance dir    [ %v ]
     API portal      [ %v ]
 `,

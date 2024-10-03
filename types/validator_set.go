@@ -2,11 +2,15 @@ package types
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/ethereum/go-ethereum/common"
@@ -171,4 +175,38 @@ func (vals *ValidatorSet) SortWithNonce(nonce uint64) *ValidatorSet {
 
 	newVals := NewValidatorSet(vs)
 	return newVals
+}
+
+func (vals *ValidatorSet) UnmarshalJSON(b []byte) error {
+	vaildatorDefs := make([]*ValidatorDef, 0)
+	err := json.Unmarshal(b, &vaildatorDefs)
+	if err != nil {
+		return err
+	}
+	validators := make([]*Validator, 0)
+	for _, vd := range vaildatorDefs {
+
+		var addr common.Address
+		if len(vd.Address) != 0 {
+			addr = common.HexToAddress(strings.ReplaceAll(vd.Address, "0x", ""))
+		}
+
+		decoded, err := base64.StdEncoding.DecodeString(vd.PubKey)
+		if err != nil {
+			return err
+		}
+		v := NewValidator(addr, hex.EncodeToString(decoded), vd.IP, uint32(vd.Port)).WithName(vd.Name)
+		validators = append(validators, v)
+	}
+	vals = NewValidatorSet(validators)
+	return nil
+}
+
+func (vals ValidatorSet) MarhsalJSON() ([]byte, error) {
+	validatorDefs := make([]ValidatorDef, 0)
+	for _, v := range vals.Validators {
+		validatorDefs = append(validatorDefs, ValidatorDef{Name: v.Name, Address: v.Address.String(), PubKey: hex.EncodeToString(v.PubKey.Marshal()), IP: v.IP.String(), Port: v.Port})
+	}
+	r, err := json.Marshal(validatorDefs)
+	return r, err
 }
