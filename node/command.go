@@ -134,6 +134,8 @@ var RunNodeCmd = &cobra.Command{
 			}
 		})
 
+		node.Start()
+
 		// Run forever.
 		select {}
 	},

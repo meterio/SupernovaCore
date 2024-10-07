@@ -200,7 +200,7 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func (n *Node) Run() error {
+func (n *Node) Start() error {
 	n.p2pComm.Start()
 	n.apiServer.Start(n.ctx)
 	n.comm.Sync(n.handleBlockStream)
