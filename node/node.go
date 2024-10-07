@@ -19,6 +19,7 @@ import (
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/p2p"
 	cmtp2p "github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 
@@ -103,7 +104,7 @@ type Node struct {
 
 func NewNode(
 	config *cmtcfg.Config,
-	privValidator cmttypes.PrivValidator,
+	privValidator *privval.FilePV,
 	nodeKey *cmtp2p.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
 	genesisDocProvider types.GenesisDocProvider,
@@ -127,14 +128,7 @@ func NewNode(
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
-	privValidator.GetPubKey()
-	// keyLoader := types.NewKeyLoader(ctx.String("data-dir"))
-	// blsMaster, err := keyLoader.Load()
-	// if err != nil {
-	// panic(err)
-	// }
-	// FIXME: get secret bytes from privValidator
-	blsMaster := types.NewBlsMasterWithSecretBytes(make([]byte, 0))
+	blsMaster := types.NewBlsMasterWithSecretBytes(privValidator.Key.PrivKey.Bytes())
 
 	// set magic
 	sum := sha256.Sum256([]byte(fmt.Sprintf(config.BaseConfig.Moniker, config.BaseConfig.Version)))
