@@ -9,23 +9,26 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
-	"runtime/debug"
 	"sort"
 	"time"
 
 	"github.com/beevik/ntp"
+	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/p2p"
+	cmtp2p "github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
+	cmttypes "github.com/cometbft/cometbft/types"
+
+	db "github.com/cometbft/cometbft-db"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/meterio/supernova/api"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/cmd/supernova/probe"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/cache"
@@ -35,71 +38,106 @@ import (
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
-	"gopkg.in/urfave/cli.v1"
 )
 
 var (
 	GlobNodeInst           *Node
 	errCantExtendBestBlock = errors.New("can't extend best block")
+	genesisDocHashKey      = []byte("genesisDocHash")
 )
 
+func LoadGenesisDoc(
+	mainDB db.DB,
+	genesisDocProvider types.GenesisDocProvider,
+) (*types.GenesisDoc, error) { // originally, LoadStateFromDBOrGenesisDocProvider
+	// Get genesis doc hash
+	genDocHash, err := mainDB.Get(genesisDocHashKey)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving genesis doc hash: %w", err)
+	}
+	csGenDoc, err := genesisDocProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = csGenDoc.GenesisDoc.ValidateAndComplete(); err != nil {
+		return nil, fmt.Errorf("error in genesis doc: %w", err)
+	}
+
+	if len(genDocHash) == 0 {
+		// Save the genDoc hash in the store if it doesn't already exist for future verification
+		if err = mainDB.SetSync(genesisDocHashKey, csGenDoc.Sha256Checksum); err != nil {
+			return nil, fmt.Errorf("failed to save genesis doc hash to db: %w", err)
+		}
+	} else {
+		if !bytes.Equal(genDocHash, csGenDoc.Sha256Checksum) {
+			return nil, errors.New("genesis doc hash in db does not match loaded genesis doc")
+		}
+	}
+
+	return csGenDoc.GenesisDoc, nil
+}
+
 type Node struct {
-	goes    co.Goes
-	ctx     context.Context
+	goes          co.Goes
+	config        *cmtcfg.Config
+	ctx           context.Context
+	genesisDoc    *types.GenesisDoc      // initial validator set
+	privValidator cmttypes.PrivValidator // local node's validator key
+
+	apiServer *api.APIServer
+
+	// network
+	nodeKey *p2p.NodeKey // our node privkey
 	reactor *consensus.Reactor
 
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
 	txStashPath string
+	p2pComm     *p2pComm
 	comm        *comm.Communicator
 	logger      *slog.Logger
 
 	proxyApp cmtproxy.AppConns
 }
 
-func New(
-	ctx *cli.Context,
-	version string,
+func NewNode(
+	config *cmtcfg.Config,
+	privValidator cmttypes.PrivValidator,
+	nodeKey *cmtp2p.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
+	genesisDocProvider types.GenesisDocProvider,
+	dbProvider cmtcfg.DBProvider,
 ) *Node {
-	exitSignal := HandleExitSignal()
-	debug.SetMemoryLimit(5 * 1024 * 1024 * 1024) // 5GB
 
-	fmt.Println("ensure dir: ", ctx.String("data-dir"))
-	defer func() { slog.Info("exited") }()
-
-	InitLogger(ctx)
-
-	baseDir := ctx.String("data-dir")
-	gene := genesis.LoadGenesis(baseDir)
-	dirConfig := EnsureDirs(ctx, gene)
+	ctx := context.TODO()
+	InitLogger(config)
 
 	slog.Info("Meter Start ...")
-	mainDB := OpenMainDB(ctx, dirConfig.InstanceDir)
-	defer func() { slog.Info("closing main database..."); mainDB.Close() }()
+	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb"})
+
+	genDoc, err := LoadGenesisDoc(mainDB, genesisDocProvider)
+	if err != nil {
+		panic(err)
+	}
+	gene := genesis.NewGenesis(genDoc)
 
 	chain := InitChain(gene, mainDB)
 
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
-	keyLoader := types.NewKeyLoader(ctx.String("data-dir"))
-	blsMaster, err := keyLoader.Load()
-	if err != nil {
-		panic(err)
-	}
-
-	config := consensus.ReactorConfig{
-		MinCommitteeSize: ctx.Int("committee-min-size"),
-		MaxCommitteeSize: ctx.Int("committee-max-size"),
-		EpochMBlockCount: consensus.MIN_MBLOCKS_AN_EPOCH,
-	}
+	privValidator.GetPubKey()
+	// keyLoader := types.NewKeyLoader(ctx.String("data-dir"))
+	// blsMaster, err := keyLoader.Load()
+	// if err != nil {
+	// panic(err)
+	// }
+	// FIXME: get secret bytes from privValidator
+	blsMaster := types.NewBlsMasterWithSecretBytes(make([]byte, 0))
 
 	// set magic
-	topic := ctx.String("disco-topic")
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%v %v", version, topic)))
+	sum := sha256.Sum256([]byte(fmt.Sprintf(config.BaseConfig.Moniker, config.BaseConfig.Version)))
 
 	// Split magic to p2p_magic and consensus_magic
 	copy(p2pMagic[:], sum[:4])
@@ -114,74 +152,50 @@ func New(
 		panic(err)
 	}
 
-	p2pcom := NewP2PComm(ctx, exitSignal, chain, txPool, dirConfig.InstanceDir, p2pMagic)
+	p2pComm := NewP2PComm(ctx, config, nodeKey, chain, txPool, p2pMagic)
 
-	reactor := consensus.NewConsensusReactor(config, chain, p2pcom.comm, txPool, blsMaster, proxyApp)
+	reactor := consensus.NewConsensusReactor(config, chain, p2pComm.comm, txPool, blsMaster, proxyApp)
 
-	startObserveServer(reactor, version, blsMaster.GetPublicKey(), p2pcom.comm, chain)
+	pubkey, err := privValidator.GetPubKey()
 
-	apiHandler, apiCloser := api.New(chain, txPool, p2pcom.comm, ctx.String(apiCorsFlag.Name), uint32(ctx.Int(apiBacktraceLimitFlag.Name)), p2pcom.p2pSrv)
-	defer func() { slog.Info("closing API..."); apiCloser() }()
+	apiAddr := ":8669"
+	apiServer := api.NewAPIServer(apiAddr, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pComm.comm, p2pComm.p2pSrv)
 
-	apiURL, srvCloser := StartAPIServer(ctx, apiHandler, chain.GenesisBlock().ID())
-	defer func() { slog.Info("stopping API server..."); srvCloser() }()
+	bestBlock := chain.BestBlock()
 
-	printStartupMessage(topic, gene, chain, blsMaster, dirConfig.InstanceDir, apiURL)
-
-	p2pcom.Start()
-	defer p2pcom.Stop()
+	fmt.Printf(`Starting %v
+    Magic           [ %v p2p & consensus ]
+    Network         [ %v %v ]    
+    Best block      [ %v #%v @%v ]
+    Forks           [ %v ]
+    PubKey          [ %v ]
+    API portal      [ %v ]
+`,
+		types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
+		hex.EncodeToString(p2pMagic[:]),
+		gene.ID(), gene.Name,
+		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
+		types.GetForkConfig(gene.ID()),
+		hex.EncodeToString(pubkey.Bytes()),
+		apiAddr)
 
 	node := &Node{
-		ctx:      context.TODO(),
-		reactor:  reactor,
-		chain:    chain,
-		txPool:   txPool,
-		comm:     p2pcom.comm,
-		logger:   slog.With("pkg", "node"),
-		proxyApp: proxyApp,
+		ctx:           ctx,
+		config:        config,
+		genesisDoc:    genDoc,
+		privValidator: privValidator,
+		nodeKey:       nodeKey,
+		apiServer:     apiServer,
+		p2pComm:       p2pComm,
+		reactor:       reactor,
+		chain:         chain,
+		txPool:        txPool,
+		comm:          p2pComm.comm,
+		logger:        slog.With("pkg", "node"),
+		proxyApp:      proxyApp,
 	}
 
 	return node
-}
-
-func startObserveServer(cons *consensus.Reactor, version string, blsPubKey bls.PublicKey, nw probe.Network, chain *chain.Chain) (string, func()) {
-	addr := ":8670"
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-	}
-	probe := &probe.Probe{cons, blsPubKey, chain, version, nw}
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/probe", probe.HandleProbe)
-	mux.HandleFunc("/probe/version", probe.HandleVersion)
-	mux.HandleFunc("/probe/peers", probe.HandlePeers)
-
-	// dispatch the msg to reactor/pacemaker
-	mux.HandleFunc("/pacemaker", cons.OnReceiveMsg)
-
-	srv := &http.Server{
-		Handler:      mux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-	var goes co.Goes
-	goes.Go(func() {
-		err := srv.Serve(listener)
-		if err != nil {
-			if err != http.ErrServerClosed {
-				fmt.Println("observe server stopped, error:", err)
-			}
-		}
-
-	})
-	return "http://" + listener.Addr().String() + "/", func() {
-		err := srv.Close()
-		if err != nil {
-			fmt.Println("can't close observe http service, error:", err)
-		}
-		goes.Wait()
-	}
 }
 
 func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *cmtproxy.Metrics) (proxy.AppConns, error) {
@@ -193,6 +207,8 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 }
 
 func (n *Node) Run() error {
+	n.p2pComm.Start()
+	n.apiServer.Start(n.ctx)
 	n.comm.Sync(n.handleBlockStream)
 
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
@@ -201,6 +217,11 @@ func (n *Node) Run() error {
 	n.goes.Go(func() { n.reactor.OnStart(n.ctx) })
 
 	n.goes.Wait()
+	return nil
+}
+
+func (n *Node) Stop() error {
+	n.p2pComm.Stop()
 	return nil
 }
 
@@ -496,4 +517,9 @@ func checkClockOffset() {
 	if resp.ClockOffset > time.Duration(types.BlockInterval)*time.Second/2 {
 		slog.Warn("clock offset detected", "offset", types.PrettyDuration(resp.ClockOffset))
 	}
+}
+
+func (n *Node) IsRunning() bool {
+	// FIXME: set correct value
+	return true
 }

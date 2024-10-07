@@ -6,6 +6,9 @@
 package node
 
 import (
+	"errors"
+
+	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/types"
@@ -46,4 +49,158 @@ func ConvertPeersStats(ss []*comm.PeerStats) []*PeerStats {
 
 type Consensus interface {
 	Committee() []*consensus.ApiCommitteeMember
+}
+
+// Block block
+type Block struct {
+	Number           uint32        `json:"number"`
+	ID               types.Bytes32 `json:"id"`
+	ParentID         types.Bytes32 `json:"parentID"`
+	BlockType        string        `json:"blockType"`
+	QC               *QC           `json:"qc"`
+	Timestamp        uint64        `json:"timestamp"`
+	TxCount          int           `json:"txCount"`
+	LastKBlockHeight uint32        `json:"lastKBlockHeight"`
+	Nonce            uint64        `json:"nonce"`
+}
+
+type QC struct {
+	Height  uint32 `json:"qcHeight"`
+	Round   uint32 `json:"qcRound"`
+	EpochID uint64 `json:"epochID"`
+}
+
+type BlockProbe struct {
+	Height uint32 `json:"height"`
+	Round  uint32 `json:"round"`
+	Type   string `json:"type"`
+	// Raw    string `json:"raw"`
+}
+
+type PacemakerProbe struct {
+	CurRound uint32 `json:"curRound"`
+
+	LastVotingHeight uint32 `json:"lastVotingHeight"`
+	LastOnBeatRound  uint32 `json:"lastOnBeatRound"`
+	ProposalCount    int    `json:"proposalCount"`
+
+	QCHigh        *QC         `json:"qcHigh"`
+	LastCommitted *BlockProbe `json:"lastCommitted"`
+}
+
+type PowProbe struct {
+	Status       string `json:"status"`
+	LatestHeight uint32 `json:"latestHeight"`
+	KFrameHeight uint32 `json:"kframeHeight"`
+	PoolSize     int    `json:"poolSize"`
+}
+
+type ChainProbe struct {
+	BestBlock *Block `json:"bestBlock"`
+	BestQC    *QC    `json:"bestQC"`
+}
+
+func convertQC(qc *block.QuorumCert) (*QC, error) {
+	if qc == nil {
+		return nil, errors.New("empty qc")
+	}
+	return &QC{
+		Height:  qc.QCHeight,
+		Round:   qc.QCRound,
+		EpochID: qc.EpochID,
+	}, nil
+}
+
+func convertBlock(b *block.Block) (*Block, error) {
+	if b == nil {
+		return nil, errors.New("empty block")
+	}
+
+	header := b.Header()
+	blockType := "unknown"
+	switch header.BlockType {
+	case block.KBlockType:
+		blockType = "kBlock"
+	case block.SBlockType:
+		blockType = "sBlock"
+	case block.MBlockType:
+		blockType = "mBlock"
+	}
+
+	result := &Block{
+		Number:           header.Number(),
+		ID:               header.ID(),
+		ParentID:         header.ParentID,
+		Timestamp:        header.Timestamp,
+		TxCount:          len(b.Transactions()),
+		BlockType:        blockType,
+		LastKBlockHeight: header.LastKBlockHeight,
+		Nonce:            b.Nonce(),
+	}
+	var err error
+	if b.QC != nil {
+		result.QC, err = convertQC(b.QC)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+type ProbeResult struct {
+	Name        string `json:"name"`
+	PubKey      string `json:"pubkey"`
+	PubKeyValid bool   `json:"pubkeyValid"`
+	Version     string `json:"version"`
+
+	InCommittee    bool   `json:"inCommittee"`
+	CommitteeIndex uint32 `json:"committeeIndex"`
+	CommitteeSize  uint32 `json:"committeeSize"`
+
+	BestQC    uint32 `json:"bestQC"`
+	BestBlock uint32 `json:"bestBlock"`
+
+	Pacemaker *PacemakerProbe `json:"pacemaker"`
+	Chain     *ChainProbe     `json:"chain"`
+	Pow       *PowProbe       `json:"pow"`
+}
+
+func convertBlockProbe(p *consensus.BlockProbe) (*BlockProbe, error) {
+	if p != nil {
+		typeStr := ""
+		if p.Type == block.KBlockType {
+			typeStr = "KBlock"
+		}
+		if p.Type == block.MBlockType {
+			typeStr = "mBlock"
+		}
+		if p.Type == block.SBlockType {
+			typeStr = "sBlock"
+		}
+		return &BlockProbe{
+			Height: p.Height,
+			Round:  p.Round,
+			Type:   typeStr,
+		}, nil
+	}
+	return nil, nil
+}
+
+func convertPacemakerProbe(r *consensus.PMProbeResult) (*PacemakerProbe, error) {
+	if r != nil {
+		probe := &PacemakerProbe{
+			CurRound: r.CurRound,
+
+			LastVotingHeight: r.LastVotingHeight,
+			LastOnBeatRound:  r.LastOnBeatRound,
+			ProposalCount:    r.ProposalCount,
+		}
+		if r.QCHigh != nil {
+			probe.QCHigh, _ = convertQC(r.QCHigh)
+		}
+		probe.LastCommitted, _ = convertBlockProbe(r.LastCommitted)
+		return probe, nil
+	}
+	return nil, nil
 }

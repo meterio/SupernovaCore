@@ -33,6 +33,24 @@ func NewBlsMasterWithRandKey() *BlsMaster {
 	}
 }
 
+func NewBlsMasterWithSecretBytes(secretBytes []byte) *BlsMaster {
+	secret, err := bls.SecretKeyFromBytes(secretBytes)
+	if err != nil {
+		panic(err)
+	}
+	pubkey := secret.PublicKey()
+
+	bm := &BlsMaster{
+		PrivKey: secret,
+		PubKey:  pubkey,
+	}
+	validated := bm.ValidateKeyPair()
+	if !validated {
+		panic("invalid bls secret")
+	}
+	return bm
+}
+
 func NewBlsMaster(privKey bls.SecretKey, pubKey bls.PublicKey) *BlsMaster {
 	bm := &BlsMaster{
 		PrivKey: privKey,

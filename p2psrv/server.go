@@ -54,7 +54,7 @@ func New(opts *Options) *Server {
 				DiscoveryV5: false, // disable discovery inside p2p.Server instance
 				ListenAddr:  opts.ListenAddr,
 				NetRestrict: opts.NetRestrict,
-				NAT:         opts.NAT,
+				NAT:         nil,
 				NoDial:      opts.NoDial,
 				DialRatio:   int(math.Sqrt(float64(opts.MaxPeers))),
 			},

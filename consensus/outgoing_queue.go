@@ -95,7 +95,7 @@ func (w *outgoingWorker) Run(ctx context.Context, queue chan OutgoingParcel, wg 
 			w.clients[ipAddr] = &http.Client{Timeout: REQ_TIMEOUT}
 		}
 		client := w.clients[ipAddr]
-		url := "http://" + parcel.to.IP + ":8670/pacemaker"
+		url := "http://" + parcel.to.IP + ":8670/node/msg"
 
 		if parcel.relay {
 			w.logger.Debug(fmt.Sprintf(`relay %s`, parcel.msgType), "to", parcel.to)

@@ -7,6 +7,7 @@ package types
 
 import (
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,7 +105,7 @@ func TestNewNetAddress(t *testing.T) {
 // }
 
 func TestNewNetAddressIPPort(t *testing.T) {
-	addr := NewNetAddressIPPort(net.ParseIP("127.0.0.1"), 8080)
+	addr := NewNetAddressFromNetIP(netip.MustParseAddr("127.0.0.1"), 8080)
 	assert.Equal(t, "127.0.0.1:8080", addr.String())
 }
 

@@ -6,21 +6,20 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
-	"net/http"
 	_ "net/http/pprof"
 
-	cmtproxy "github.com/cometbft/cometbft/proxy"
+	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
+	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/cli"
 	"github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/txpool"
-	cli "gopkg.in/urfave/cli.v1"
 )
 
 var (
-	version   string
 	gitCommit string
 	gitTag    string
 	keyStr    string
@@ -30,6 +29,7 @@ var (
 		LimitPerAccount: 1024, /*16,*/ //XXX: increase to 1024 from 16 during the testing
 		MaxLifetime:     20 * time.Minute,
 	}
+	verbose bool
 )
 
 const (
@@ -41,40 +41,16 @@ const (
 	blockPruningBatch = 1024
 )
 
-func fullVersion() string {
-	versionMeta := "release"
-	if gitTag == "" {
-		versionMeta = "dev"
-	}
-	return fmt.Sprintf("%s-%s-%s", version, gitCommit, versionMeta)
-}
-
 func main() {
-	go func() {
-		fmt.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-	app := cli.App{
-		Version:   fullVersion(),
-		Name:      "Supernova",
-		Usage:     "Node of Supernova",
-		Copyright: "2024 Decentralized Finance Lab",
-		Flags:     node.Flags,
-		Action:    defaultAction,
-		Commands:  []cli.Command{},
+	rootCmd := RootCmd
+	rootCmd.AddCommand(
+		node.RunNodeCmd,
+		debug.DebugCmd,
+		cli.NewCompletionCmd(rootCmd, true),
+	)
+
+	cmd := cli.PrepareBaseCmd(rootCmd, "CMT", os.ExpandEnv(filepath.Join("$HOME", cmtcfg.DefaultCometDir)))
+	if err := cmd.Execute(); err != nil {
+		panic(err)
 	}
-
-	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-}
-
-func defaultAction(ctx *cli.Context) error {
-	clientCreator := cmtproxy.NewLocalClientCreator(NewDumbApplication())
-
-	return node.New(
-		ctx,
-		fullVersion(),
-		clientCreator).
-		Run()
 }

@@ -6,10 +6,15 @@
 package genesis
 
 import (
+	"fmt"
+	"net/netip"
+
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 // Builder helper to build genesis block.
@@ -42,15 +47,29 @@ func (b *Builder) ComputeID() (types.Bytes32, error) {
 	return blk.ID(), nil
 }
 
-func (b *Builder) ValidatorSet(vset *types.ValidatorSet) *Builder {
-	b.vset = vset
+func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
+	vs := make([]*types.Validator, 0)
+
+	for _, v := range gdoc.Validators {
+		pubkey, err := bls.PublicKeyFromBytes(v.PubKey.Bytes())
+		if err != nil {
+			panic(fmt.Errorf(`Could not decode pubkey: %v`, err))
+		}
+		vs = append(vs, &types.Validator{
+			Name:    v.Name,
+			Address: common.Address(v.PubKey.Address()),
+			PubKey:  pubkey,
+			IP:      netip.MustParseAddr(v.IP),
+			Port:    uint32(v.Port),
+		})
+	}
+	b.vset = types.NewValidatorSet(vs)
+	b.timestamp = uint64(gdoc.GenesisTime.Unix())
 	return b
 }
 
-func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
-	b.vset = gdoc.ValidatorSet
-	b.timestamp = gdoc.Time
-	return b
+func (b *Builder) ValidatorSet() *types.ValidatorSet {
+	return b.vset
 }
 
 func (b *Builder) Build() (blk *block.Block, err error) {

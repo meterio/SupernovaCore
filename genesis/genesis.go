@@ -7,9 +7,9 @@ package genesis
 
 import (
 	"encoding/hex"
+	"strconv"
 
 	"github.com/meterio/supernova/block"
-	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 )
 
@@ -23,18 +23,19 @@ type Genesis struct {
 	id      types.Bytes32
 	vset    *types.ValidatorSet
 
-	Name    string
 	ChainId uint64
+	Name    string
 }
 
-func newGenesis(gdoc *types.GenesisDoc) *Genesis {
+func NewGenesis(gdoc *types.GenesisDoc) *Genesis {
 	builder := &Builder{}
 	builder.GenesisDoc(gdoc)
 	id, err := builder.ComputeID()
 	if err != nil {
 		panic(err)
 	}
-	return &Genesis{builder, id, gdoc.ValidatorSet, gdoc.Name, gdoc.ChainId}
+	chainId, err := strconv.ParseUint(gdoc.ChainID, 10, 64)
+	return &Genesis{builder, id, builder.ValidatorSet(), chainId, "Supernova"}
 }
 
 // Build build the genesis block.
@@ -64,14 +65,4 @@ func mustDecodeHex(str string) []byte {
 		panic(err)
 	}
 	return data
-}
-
-func LoadGenesis(baseDir string) *Genesis {
-	cmn.EnsureDir(baseDir, 0700)
-	loader := types.NewGenesisDocLoader(baseDir)
-	gdoc, err := loader.Load()
-	if err != nil {
-		panic("could not load genesis doc")
-	}
-	return newGenesis(gdoc)
 }

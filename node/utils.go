@@ -11,21 +11,17 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"syscall"
-	"time"
 
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	tty "github.com/mattn/go-tty"
-	"github.com/meterio/supernova/api/doc"
-	"github.com/meterio/supernova/types"
 )
 
 func fatal(args ...interface{}) {
@@ -117,54 +113,6 @@ func HandleExitSignal() context.Context {
 		}
 	}()
 	return ctx
-}
-
-// middleware to limit request body size.
-func requestBodyLimit(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, 96*1000)
-		h.ServeHTTP(w, r)
-	})
-}
-
-// middleware to verify 'x-genesis-id' header in request, and set to response headers.
-func handleXGenesisID(h http.Handler, genesisID types.Bytes32) http.Handler {
-	const headerKey = "x-genesis-id"
-	expectedID := genesisID.String()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		actualID := r.Header.Get(headerKey)
-		w.Header().Set(headerKey, expectedID)
-		if actualID != "" && actualID != expectedID {
-			_, err := io.Copy(io.Discard, r.Body)
-			if err != nil {
-				fmt.Println("could not copy x-genesis-id, error:", err)
-			}
-
-			http.Error(w, "genesis id mismatch", http.StatusForbidden)
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
-// middleware to set 'x-meter-ver' to response headers.
-func handleXVersion(h http.Handler) http.Handler {
-	const headerKey = "x-version"
-	ver := doc.Version()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set(headerKey, ver)
-		h.ServeHTTP(w, r)
-	})
-}
-
-// middleware for http request timeout.
-func handleAPITimeout(h http.Handler, timeout time.Duration) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), timeout)
-		defer cancel()
-		r = r.WithContext(ctx)
-		h.ServeHTTP(w, r)
-	})
 }
 
 func readPasswordFromNewTTY(prompt string) (string, error) {

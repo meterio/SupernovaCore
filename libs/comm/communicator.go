@@ -49,14 +49,12 @@ type Communicator struct {
 	goes           co.Goes
 	onceSynced     sync.Once
 
-	configTopic string
-
 	magic  [4]byte
 	logger *slog.Logger
 }
 
 // New create a new Communicator instance.
-func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, configTopic string, magic [4]byte) *Communicator {
+func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte) *Communicator {
 	return &Communicator{
 		chain:  chain,
 		txPool: txPool,
@@ -65,7 +63,6 @@ func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, configT
 		peerSet:        newPeerSet(),
 		syncedCh:       make(chan struct{}),
 		announcementCh: make(chan *announcement),
-		configTopic:    configTopic,
 		magic:          magic,
 		logger:         slog.With("pkg", "comm"),
 	}
@@ -157,7 +154,7 @@ func (c *Communicator) Protocols() []*p2psrv.Protocol {
 				Length:  proto.Length,
 				Run:     c.servePeer,
 			},
-			DiscTopic: fmt.Sprintf("%v%v%v@%x", proto.Name, proto.Version, c.configTopic, genesisID[24:]),
+			DiscTopic: fmt.Sprintf("%v%v%v@%x", proto.Name, proto.Version, genesisID[24:]),
 		}}
 }
 

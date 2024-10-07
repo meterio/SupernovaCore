@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
+	db "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -44,7 +44,7 @@ var ErrInvalidGenesis = errors.New("invalid genesis")
 // Chain describes a persistent block chain.
 // It's thread-safe.
 type Chain struct {
-	kv           kv.GetPutter
+	kv           db.DB
 	genesisBlock *block.Block
 	bestBlock    *block.Block
 	bestQC       *block.QuorumCert
@@ -68,7 +68,7 @@ type caches struct {
 var log = slog.With("pkg", "c")
 
 // New create an instance of Chain.
-func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.ValidatorSet, verbose bool) (*Chain, error) {
+func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.ValidatorSet, verbose bool) (*Chain, error) {
 	prometheus.Register(bestQCHeightGauge)
 	prometheus.Register(bestHeightGauge)
 	logger := slog.With("pkg", "c")
@@ -93,10 +93,8 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 	}
 	genesisID := genesisBlock.ID()
 
-	if bestBlockID, err := loadBestBlockID(kv); err != nil {
-		if !kv.IsNotFound(err) {
-			return nil, err
-		}
+	if bestBlockID, _ := loadBestBlockID(kv); bytes.Equal(bestBlockID.Bytes(), (&types.Bytes32{}).Bytes()) {
+
 		// no genesis yet
 		raw, err := rlp.EncodeToBytes(genesisBlock)
 		if err != nil {
@@ -108,7 +106,7 @@ func New(kv kv.GetPutter, genesisBlock *block.Block, genesisValidatorSet *types.
 			return nil, err
 		}
 
-		if err := saveBestBlockID(batch, genesisID); err != nil {
+		if err := batchSaveBestBlockID(batch, genesisID); err != nil {
 			return nil, err
 		}
 		if err := saveBlockHash(batch, 0, genesisID); err != nil {
@@ -359,7 +357,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 			return nil, err
 		}
 
-		if err := saveBestBlockID(batch, newBlockID); err != nil {
+		if err := batchSaveBestBlockID(batch, newBlockID); err != nil {
 			return nil, err
 		}
 		c.bestBlock = newBlock
@@ -369,7 +367,7 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 		if escortQC == nil {
 			return nil, errors.New("escort QC is nil")
 		}
-		err = saveBestQC(batch, escortQC)
+		err = batchSaveBestQC(batch, escortQC)
 		if err != nil {
 			fmt.Println("Error during update QC: ", err)
 		}
@@ -679,7 +677,12 @@ func (c *Chain) getTransaction(blockID types.Bytes32, index uint64) (cmttypes.Tx
 
 // IsNotFound returns if an error means not found.
 func (c *Chain) IsNotFound(err error) bool {
-	return err == ErrNotFound || c.kv.IsNotFound(err)
+	// return err == ErrNotFound || c.kv.IsNotFound(err)
+	return err == ErrNotFound
+	// FIXME: used to have kv to return an NotFound error, now that we're using cometbft-db
+	// so we don't have a specific error to check
+	// instead we need to remove this function and replace everywhere to check returned bytes instead of err
+	// if returned bytes is nil, then that's a not found
 }
 
 // IsBlockExist returns if the error means block was already in the chain.

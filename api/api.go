@@ -6,8 +6,11 @@
 package api
 
 import (
+	"context"
+	"log/slog"
+	"net"
 	"net/http"
-	"strings"
+	"time"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
@@ -17,17 +20,19 @@ import (
 	"github.com/meterio/supernova/api/node"
 	"github.com/meterio/supernova/api/peers"
 	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/consensus"
+	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 )
 
-// New return api router
-func New(chain *chain.Chain, txPool *txpool.TxPool, nw node.Network, allowedOrigins string, backtraceLimit uint32, p2pServer *p2psrv.Server) (http.HandlerFunc, func()) {
-	origins := strings.Split(strings.TrimSpace(allowedOrigins), ",")
-	for i, o := range origins {
-		origins[i] = strings.ToLower(strings.TrimSpace(o))
-	}
+type APIServer struct {
+	listenAddr string
+	handler    http.Handler
+}
 
+// New return api router
+func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, nw node.Network, p2pServer *p2psrv.Server) *APIServer {
 	router := mux.NewRouter()
 
 	// to serve api doc and swagger-ui
@@ -46,12 +51,73 @@ func New(chain *chain.Chain, txPool *txpool.TxPool, nw node.Network, allowedOrig
 
 	blocks.New(chain).
 		Mount(router, "/blocks")
-	node.New(nw).
+	node.New(version, nw, cons, chain, pubkey).
 		Mount(router, "/node")
 	peers.New(p2pServer).Mount(router, "/peers")
 
-	return handlers.CORS(
-			handlers.AllowedOrigins(origins),
-			handlers.AllowedHeaders([]string{"content-type"}))(router).ServeHTTP,
-		func() {} // subscriptions handles hijacked conns, which need to be closed
+	return &APIServer{
+		listenAddr: listenAddr,
+		handler: handlers.CORS(
+			handlers.AllowedOrigins([]string{"*"}),
+			handlers.AllowedHeaders([]string{"content-type"}))(router)}
+}
+
+func (api *APIServer) Start(ctx context.Context) {
+
+	listener, err := net.Listen("tcp", api.listenAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	timeout := 10000
+	handler := api.handler
+	handler = handleAPITimeout(handler, time.Duration(timeout)*time.Millisecond)
+	handler = handleXVersion(handler)
+	handler = requestBodyLimit(handler)
+	srv := &http.Server{
+		Handler:      handler,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 18 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	var goes co.Goes
+	goes.Go(func() {
+		slog.Info("API started", "addr", api.listenAddr)
+		err := srv.Serve(listener)
+		if err != nil {
+			slog.Warn(err.Error())
+		}
+	})
+	<-ctx.Done()
+	srv.Shutdown(ctx)
+	goes.Wait()
+
+}
+
+// middleware to set 'x-meter-ver' to response headers.
+func handleXVersion(h http.Handler) http.Handler {
+	const headerKey = "x-version"
+	ver := doc.Version()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(headerKey, ver)
+		h.ServeHTTP(w, r)
+	})
+}
+
+// middleware for http request timeout.
+func handleAPITimeout(h http.Handler, timeout time.Duration) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		h.ServeHTTP(w, r)
+	})
+}
+
+// middleware to limit request body size.
+func requestBodyLimit(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 96*1000)
+		h.ServeHTTP(w, r)
+	})
 }

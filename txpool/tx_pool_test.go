@@ -13,7 +13,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/lvldb"
-	Tx "github.com/meterio/supernova/tx"
+	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -69,7 +69,7 @@ func TestWashTxs(t *testing.T) {
 
 	txs, _, err = pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
 	assert.Nil(t, err)
-	assert.Equal(t, Tx.Transactions{tx}, txs)
+	assert.Equal(t, types.Transactions{tx}, txs)
 
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
@@ -81,7 +81,7 @@ func TestWashTxs(t *testing.T) {
 
 	txs, _, err = pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
 	assert.Nil(t, err)
-	assert.Equal(t, Tx.Transactions{tx}, txs)
+	assert.Equal(t, types.Transactions{tx}, txs)
 }
 
 func TestAdd(t *testing.T) {

@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 
+	cmtcfg "github.com/cometbft/cometbft/config"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	crypto "github.com/ethereum/go-ethereum/crypto"
 	lru "github.com/hashicorp/golang-lru"
@@ -53,7 +54,7 @@ type Reactor struct {
 	comm     *comm.Communicator
 	chain    *chain.Chain
 	logger   *slog.Logger
-	config   ReactorConfig
+	config   *cmtcfg.Config
 	SyncDone bool
 	proxyApp cmtproxy.AppConns
 
@@ -86,7 +87,7 @@ type Reactor struct {
 }
 
 // NewConsensusReactor returns a new Reactor with config
-func NewConsensusReactor(config ReactorConfig, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Reactor {
+func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(lastKBlockHeightGauge)
