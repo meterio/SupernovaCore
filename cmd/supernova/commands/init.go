@@ -134,8 +134,10 @@ func GenFilePV(keyFilePath, stateFilePath string) *privval.FilePV {
 func initFilesWithConfig(config *cfg.Config) error {
 	logger := slog.With("cmd", "init")
 	// private validator
+	fmt.Println("root: ", config.RootDir, config.BaseConfig.RootDir)
 	privValKeyFile := config.PrivValidatorKeyFile()
 	privValStateFile := config.PrivValidatorStateFile()
+	fmt.Println("privValKey", privValKeyFile, "privValState", privValStateFile)
 	var pv *privval.FilePV
 	if cmn.FileExists(privValKeyFile) {
 		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)

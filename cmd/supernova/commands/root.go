@@ -68,8 +68,8 @@ func ParseConfig(cmd *cobra.Command) (*cmtcfg.Config, error) {
 
 // RootCmd is the root command for CometBFT core.
 var RootCmd = &cobra.Command{
-	Use:   "cometbft",
-	Short: "BFT state machine replication for applications in any programming languages",
+	Use:   "supernova",
+	Short: "Hotstuff2 state machine replication for applications in any programming languages",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) (err error) {
 		if cmd.Name() == VersionCmd.Name() {
 			return nil
@@ -103,7 +103,7 @@ func InitLogger(config *cmtcfg.Config) {
 		logLevel = slog.LevelError
 		break
 	}
-	fmt.Println("slog level: ", logLevel)
+	// fmt.Println("slog level: ", logLevel)
 	// set global logger with custom options
 	w := os.Stdout
 

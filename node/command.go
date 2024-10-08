@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/p2p"
@@ -25,6 +26,7 @@ var (
 func DefaultConfig() *cmtcfg.Config {
 	config := cmtcfg.DefaultConfig()
 	config.P2P.ListenAddress = "tcp://0.0.0.0:11235"
+	config.BaseConfig.RootDir = os.ExpandEnv(filepath.Join("$HOME", ".supernova"))
 	return config
 }
 
@@ -110,7 +112,6 @@ var RunNodeCmd = &cobra.Command{
 		if err := checkGenesisHash(config); err != nil {
 			return err
 		}
-
 		nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 		if err != nil {
 			return fmt.Errorf("failed to load or gen node key %s: %w", config.NodeKeyFile(), err)

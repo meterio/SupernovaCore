@@ -69,35 +69,6 @@ func InitLogger(config *cmtcfg.Config) {
 	))
 }
 
-type ConfigDirs struct {
-	BaseDir     string
-	InstanceDir string
-	SnapshotDir string
-}
-
-func EnsureDirs(ctx *cli.Context, gene *genesis.Genesis) ConfigDirs {
-	baseDir := ctx.String(dataDirFlag.Name)
-	err := os.MkdirAll(baseDir, 0700)
-	if err != nil {
-		fatal("could not create data-dir")
-	}
-
-	instanceDir := filepath.Join(baseDir, fmt.Sprintf("instance-%v", gene.ChainId))
-	if err := os.MkdirAll(instanceDir, 0700); err != nil {
-		fatal(fmt.Sprintf("create instance dir [%v]: %v", instanceDir, err))
-	}
-
-	snapshotDir := filepath.Join(baseDir, "snapshot")
-	if err := os.MkdirAll(snapshotDir, 0700); err != nil {
-		fatal(fmt.Sprintf("create snapshot dir [%v]: %v", snapshotDir, err))
-	}
-	return ConfigDirs{
-		BaseDir:     baseDir,
-		InstanceDir: instanceDir,
-		SnapshotDir: snapshotDir,
-	}
-}
-
 func OpenMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 	if _, err := fdlimit.Raise(5120 * 4); err != nil {
 		fatal("failed to increase fd limit", err)
@@ -143,26 +114,6 @@ func InitChain(gene *genesis.Genesis, mainDB db.DB) *chain.Chain {
 	}
 
 	return chain
-}
-
-func discoServerParse(ctx *cli.Context) ([]*enode.Node, bool, error) {
-
-	nd := ctx.StringSlice(discoServerFlag.Name)
-	if len(nd) == 0 {
-		return []*enode.Node{}, false, nil
-	}
-
-	nodes := make([]*enode.Node, 0)
-	for _, n := range nd {
-		node, err := enode.ParseV4(n)
-		if err != nil {
-			return []*enode.Node{}, false, err
-		}
-
-		nodes = append(nodes, node)
-	}
-
-	return nodes, true, nil
 }
 
 type p2pComm struct {

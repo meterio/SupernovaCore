@@ -13,7 +13,6 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
-	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/cli"
 	"github.com/meterio/supernova/cmd/supernova/commands"
 	"github.com/meterio/supernova/node"
@@ -21,9 +20,10 @@ import (
 )
 
 var (
-	gitCommit string
-	gitTag    string
-	keyStr    string
+	DefaultSupernovaDir = ".supernova"
+	gitCommit           string
+	gitTag              string
+	keyStr              string
 
 	defaultTxPoolOptions = txpool.Options{
 		Limit:           200000,
@@ -43,6 +43,7 @@ const (
 
 func main() {
 	rootCmd := commands.RootCmd
+	node.AddNodeFlags(node.RunNodeCmd)
 	rootCmd.AddCommand(
 		node.RunNodeCmd,
 		debug.DebugCmd,
@@ -50,7 +51,7 @@ func main() {
 		cli.NewCompletionCmd(rootCmd, true),
 	)
 
-	cmd := cli.PrepareBaseCmd(rootCmd, "CMT", os.ExpandEnv(filepath.Join("$HOME", cmtcfg.DefaultCometDir)))
+	cmd := cli.PrepareBaseCmd(rootCmd, "CMT", os.ExpandEnv(filepath.Join("$HOME", DefaultSupernovaDir)))
 	if err := cmd.Execute(); err != nil {
 		panic(err)
 	}

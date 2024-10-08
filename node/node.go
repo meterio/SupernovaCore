@@ -115,7 +115,7 @@ func NewNode(
 	InitLogger(config)
 
 	slog.Info("Meter Start ...")
-	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb"})
+	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb", Config: config})
 
 	genDoc, err := LoadGenesisDoc(mainDB, genesisDocProvider)
 	if err != nil {
