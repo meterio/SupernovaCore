@@ -1,21 +1,22 @@
-package main
+package commands
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"time"
 
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	cfg "github.com/cometbft/cometbft/config"
+	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/cli"
-	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
-	"github.com/cometbft/cometbft/libs/log"
 )
 
 var (
-	config = cfg.DefaultConfig()
-	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	verbose bool
+	config  = cmtcfg.DefaultConfig()
 )
 
 func init() {
@@ -28,8 +29,8 @@ func registerFlagsRootCmd(cmd *cobra.Command) {
 
 // ParseConfig retrieves the default environment configuration,
 // sets up the CometBFT root and ensures that the root exists.
-func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
-	conf := cfg.DefaultConfig()
+func ParseConfig(cmd *cobra.Command) (*cmtcfg.Config, error) {
+	conf := cmtcfg.DefaultConfig()
 	err := viper.Unmarshal(conf)
 	if err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	case os.Getenv("TMHOME") != "":
 		// XXX: Deprecated.
 		home = os.Getenv("TMHOME")
-		logger.Error("Deprecated environment variable TMHOME identified. CMTHOME should be used instead.")
+		slog.Error("Deprecated environment variable TMHOME identified. CMTHOME should be used instead.")
 	default:
 		home, err = cmd.Flags().GetString(cli.HomeFlag)
 		if err != nil {
@@ -53,13 +54,13 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	conf.RootDir = home
 
 	conf.SetRoot(conf.RootDir)
-	cfg.EnsureRoot(conf.RootDir)
+	cmtcfg.EnsureRoot(conf.RootDir)
 	if err := conf.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("error in config file: %v", err)
 	}
 	if warnings := conf.CheckDeprecated(); len(warnings) > 0 {
 		for _, warning := range warnings {
-			logger.Info("deprecated usage found in configuration file", "usage", warning)
+			slog.Info("deprecated usage found in configuration file", "usage", warning)
 		}
 	}
 	return conf, nil
@@ -79,20 +80,38 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		if config.LogFormat == cfg.LogFormatJSON {
-			logger = log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout))
-		}
+		InitLogger(config)
 
-		logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cfg.DefaultLogLevel)
-		if err != nil {
-			return err
-		}
-
-		if viper.GetBool(cli.TraceFlag) {
-			logger = log.NewTracingLogger(logger)
-		}
-
-		logger = logger.With("module", "main")
 		return nil
 	},
+}
+
+func InitLogger(config *cmtcfg.Config) {
+	lvl := config.BaseConfig.LogLevel
+	logLevel := slog.LevelDebug
+	switch lvl {
+	case "INFO":
+	case "info":
+		logLevel = slog.LevelInfo
+		break
+	case "WARN":
+	case "warn":
+		logLevel = slog.LevelWarn
+		break
+	case "ERROR":
+	case "error":
+		logLevel = slog.LevelError
+		break
+	}
+	fmt.Println("slog level: ", logLevel)
+	// set global logger with custom options
+	w := os.Stdout
+
+	// set global logger with custom options
+	slog.SetDefault(slog.New(
+		tint.NewHandler(w, &tint.Options{
+			Level:      logLevel,
+			TimeFormat: time.DateTime,
+		}),
+	))
 }

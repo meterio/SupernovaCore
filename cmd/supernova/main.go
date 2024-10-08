@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/cli"
+	"github.com/meterio/supernova/cmd/supernova/commands"
 	"github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/txpool"
 )
@@ -29,7 +30,6 @@ var (
 		LimitPerAccount: 1024, /*16,*/ //XXX: increase to 1024 from 16 during the testing
 		MaxLifetime:     20 * time.Minute,
 	}
-	verbose bool
 )
 
 const (
@@ -42,10 +42,11 @@ const (
 )
 
 func main() {
-	rootCmd := RootCmd
+	rootCmd := commands.RootCmd
 	rootCmd.AddCommand(
 		node.RunNodeCmd,
 		debug.DebugCmd,
+		commands.InitFilesCmd,
 		cli.NewCompletionCmd(rootCmd, true),
 	)
 
