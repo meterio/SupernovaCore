@@ -58,10 +58,6 @@ type Reactor struct {
 	SyncDone bool
 	proxyApp cmtproxy.AppConns
 
-	// copy of master/node
-	myPubKey  bls.PublicKey // this is my public identification !!
-	myPrivKey bls.SecretKey // copy of private key
-
 	// still references above consensuStae, reactor if this node is
 	// involved the consensus
 	committeeSize uint32
@@ -129,6 +125,7 @@ func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.C
 // broadcasted to other peers and starting state if we're not in fast sync.
 func (r *Reactor) OnStart(ctx context.Context) error {
 
+	r.logger.Info("Reactor Start")
 	go r.outQueue.Start(ctx)
 
 	select {
@@ -146,6 +143,14 @@ func (r *Reactor) OnStart(ctx context.Context) error {
 
 func (r *Reactor) GetLastKBlockHeight() uint32 {
 	return r.lastKBlockHeight
+}
+
+func (r *Reactor) PubKey() bls.PublicKey {
+	return r.blsMaster.PubKey
+}
+
+func (r *Reactor) PrivKey() bls.SecretKey {
+	return r.blsMaster.PrivKey
 }
 
 // get the specific round proposer
@@ -177,7 +182,7 @@ func (r *Reactor) calcCommitteeByNonce(name string, vset *types.ValidatorSet, no
 	// announce. Validators are stored in r.conS.Vlidators
 	if len(committee.Validators) > 0 {
 		for i, val := range committee.Validators {
-			if bytes.Equal(val.PubKey.Marshal(), r.myPubKey.Marshal()) {
+			if bytes.Equal(val.PubKey.Marshal(), r.PubKey().Marshal()) {
 
 				return committee, uint32(i), true
 			}
@@ -287,6 +292,7 @@ func (r *Reactor) getNameByIP(ip net.IP) string {
 }
 
 func (r *Reactor) UpdateCurEpoch() (bool, error) {
+	best := r.chain.BestBlock()
 	bestK, err := r.chain.BestKBlock()
 	if err != nil {
 		r.logger.Error("could not get bestK", "err", err)
@@ -302,6 +308,7 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		r.logger.Info(fmt.Sprintf("Entering epoch %v", epoch), "lastEpoch", r.curEpoch)
 		r.logger.Info("---------------------------------------------------------")
 
+		vset := r.chain.GetValidatorSet(best.Number())
 		if r.committee != nil && r.committee.Size() > 0 {
 			r.logger.Info("committee", "size", r.committee.Size())
 			r.lastCommittee = r.committee
@@ -309,23 +316,21 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 			lastBestKHeight := bestK.LastKBlockHeight()
 			var lastNonce uint64
 			var lastBestK *block.Block
-			if lastBestKHeight == 0 {
-				lastNonce = 0
+
+			lastBestK, err = r.chain.GetTrunkBlock(lastBestKHeight)
+			if err != nil {
+				r.logger.Error("could not get trunk block", "err", err)
 			} else {
-				lastBestK, err = r.chain.GetTrunkBlock(lastBestKHeight)
-				if err != nil {
-					r.logger.Error("could not get trunk block", "err", err)
-				} else {
-					lastNonce = lastBestK.Nonce()
-				}
+				lastNonce = lastBestK.Nonce()
 			}
 
+			r.logger.Info("lastBestK is ", "blk", lastBestK.CompactString())
 			lastVSet := r.chain.GetValidatorSet(lastBestK.Number())
 
 			r.lastCommittee, _, _ = r.calcCommitteeByNonce("last", lastVSet, lastNonce)
 
 		}
-		r.committee, r.committeeIndex, r.inCommittee = r.calcCommitteeByNonce("current", r.committee, nonce)
+		r.committee, r.committeeIndex, r.inCommittee = r.calcCommitteeByNonce("current", vset, nonce)
 		r.committeeSize = uint32(r.committee.Size())
 		r.PrintCommittee()
 		// r.PrintCommittee()
@@ -531,5 +536,5 @@ func (r *Reactor) OutgoingQueueLen() int {
 }
 
 func (r *Reactor) SignMessage(msg []byte) (sig bls.Signature) {
-	return r.myPrivKey.Sign(msg)
+	return r.PrivKey().Sign(msg)
 }

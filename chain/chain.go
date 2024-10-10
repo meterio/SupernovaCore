@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	db "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -211,18 +210,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 	}
 
 	c.proposalMap = NewProposalMap(c)
-	go c.houseKeeping(time.Minute * 10)
 	return c, nil
-}
-
-func (c *Chain) houseKeeping(duration time.Duration) {
-	ticker := time.NewTicker(duration)
-	for true {
-		select {
-		case <-ticker.C:
-			c.logger.Info("Chain housekeeping: purge ancestor trie")
-		}
-	}
 }
 
 // Tag returns chain tag, which is the last byte of genesis id.

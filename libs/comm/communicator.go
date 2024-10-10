@@ -17,6 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/co"
@@ -37,6 +38,7 @@ var (
 
 // Communicator communicates with remote p2p peers to exchange blocks and txs, etc.
 type Communicator struct {
+	p2pSrv *p2psrv.Server
 	chain  *chain.Chain
 	txPool *txpool.TxPool
 	ctx    context.Context
@@ -54,8 +56,9 @@ type Communicator struct {
 }
 
 // New create a new Communicator instance.
-func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte) *Communicator {
+func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte, p2pOptions *p2psrv.Options) *Communicator {
 	return &Communicator{
+		p2pSrv: p2psrv.New(p2pOptions),
 		chain:  chain,
 		txPool: txPool,
 		ctx:    ctx,
@@ -71,6 +74,10 @@ func New(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [
 // Synced returns a channel indicates if synchronization process passed.
 func (c *Communicator) Synced() <-chan struct{} {
 	return c.syncedCh
+}
+
+func (c *Communicator) GetDiscoveredNodes() []*enode.Node {
+	return c.p2pSrv.GetDiscoveredNodes()
 }
 
 // Sync start synchronization process.
@@ -160,13 +167,35 @@ func (c *Communicator) Protocols() []*p2psrv.Protocol {
 
 // Start the communicator.
 func (c *Communicator) Start() {
+	start := time.Now()
+	if err := c.p2pSrv.Start(c.Protocols()); err != nil {
+		panic(err)
+	}
+	slog.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
+	start = time.Now()
 	c.goes.Go(c.txsLoop)
 	c.goes.Go(c.announcementLoop)
+	slog.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
 	//c.goes.Go(c.powsLoop)
 }
 
 // Stop stop the communicator.
 func (c *Communicator) Stop() {
+
+	slog.Info("stopping P2P server...")
+	c.p2pSrv.Stop()
+
+	// FIXME: store peers into cache file
+	// nodes := c.p2pSrv.KnownNodes()
+	// slog.Info("saving peers cache...", "#peers", len(nodes))
+	// strs := make([]string, 0)
+	// for _, n := range nodes {
+	// 	strs = append(strs, n.String())
+	// }
+	// data := strings.Join(strs, "\n")
+	// if err := os.WriteFile(p.peersCachePath, []byte(data), 0600); err != nil {
+	// 	slog.Warn("failed to write peers cache", "err", err)
+	// }
 	// c.cancel()
 	c.feedScope.Close()
 	c.goes.Wait()

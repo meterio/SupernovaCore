@@ -15,7 +15,6 @@ import (
 	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
 	"github.com/cometbft/cometbft/libs/cli"
 	"github.com/meterio/supernova/cmd/supernova/commands"
-	"github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/txpool"
 )
 
@@ -43,15 +42,14 @@ const (
 
 func main() {
 	rootCmd := commands.RootCmd
-	node.AddNodeFlags(node.RunNodeCmd)
 	rootCmd.AddCommand(
-		node.RunNodeCmd,
+		commands.RunNodeCmd(),
 		debug.DebugCmd,
 		commands.InitFilesCmd,
 		cli.NewCompletionCmd(rootCmd, true),
 	)
 
-	cmd := cli.PrepareBaseCmd(rootCmd, "CMT", os.ExpandEnv(filepath.Join("$HOME", DefaultSupernovaDir)))
+	cmd := cli.PrepareBaseCmd(rootCmd, "NOVA", os.ExpandEnv(filepath.Join("$HOME", DefaultSupernovaDir)))
 	if err := cmd.Execute(); err != nil {
 		panic(err)
 	}

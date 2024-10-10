@@ -6,6 +6,8 @@
 package comm
 
 import (
+	"fmt"
+
 	"github.com/meterio/supernova/libs/comm/proto"
 	"github.com/meterio/supernova/txpool"
 )
@@ -19,6 +21,7 @@ func (c *Communicator) txsLoop() {
 	for {
 		select {
 		case <-c.ctx.Done():
+			fmt.Println("communicator ctx is done")
 			return
 		case txEv := <-txEvCh:
 			if txEv.Executable != nil && *txEv.Executable {

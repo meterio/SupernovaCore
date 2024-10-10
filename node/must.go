@@ -6,31 +6,19 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
-	cmtp2p "github.com/cometbft/cometbft/p2p"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/lmittmann/tint"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/libs/lvldb"
-	"github.com/meterio/supernova/p2psrv"
-	"github.com/meterio/supernova/txpool"
-	"github.com/meterio/supernova/types"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -114,81 +102,4 @@ func InitChain(gene *genesis.Genesis, mainDB db.DB) *chain.Chain {
 	}
 
 	return chain
-}
-
-type p2pComm struct {
-	comm           *comm.Communicator
-	p2pSrv         *p2psrv.Server
-	peersCachePath string // FIXME: init this value
-}
-
-func NewP2PComm(ctx context.Context, config *cmtcfg.Config, nodeKey *cmtp2p.NodeKey, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte) *p2pComm {
-	var BootstrapNodes []*enode.Node
-
-	// FIXME: init bootstrap nodes
-	privkey, err := crypto.ToECDSA(nodeKey.PrivKey.Bytes())
-	if err != nil {
-		panic(err)
-	}
-
-	opts := &p2psrv.Options{
-		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
-		PrivateKey:     privkey,
-		MaxPeers:       config.P2P.MaxNumInboundPeers,
-		ListenAddr:     config.P2P.ListenAddress,
-		BootstrapNodes: BootstrapNodes,
-		NAT:            nat.Any(),
-	}
-
-	return &p2pComm{
-		comm:   comm.New(ctx, chain, txPool, magic),
-		p2pSrv: p2psrv.New(opts),
-	}
-}
-
-func (p *p2pComm) Start() {
-	start := time.Now()
-	if err := p.p2pSrv.Start(p.comm.Protocols()); err != nil {
-		fatal("start P2P server:", err)
-	}
-	slog.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
-	start = time.Now()
-	p.comm.Start()
-	slog.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
-}
-
-func (p *p2pComm) Stop() {
-	slog.Info("stopping communicator...")
-	p.comm.Stop()
-
-	slog.Info("stopping P2P server...")
-	p.p2pSrv.Stop()
-
-	nodes := p.p2pSrv.KnownNodes()
-	slog.Info("saving peers cache...", "#peers", len(nodes))
-	strs := make([]string, 0)
-	for _, n := range nodes {
-		strs = append(strs, n.String())
-	}
-	data := strings.Join(strs, "\n")
-	if err := os.WriteFile(p.peersCachePath, []byte(data), 0600); err != nil {
-		slog.Warn("failed to write peers cache", "err", err)
-	}
-}
-
-type Dispatcher struct {
-	cons *consensus.Reactor
-}
-
-func (d *Dispatcher) handlePeers(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	// api_utils.WriteJSON(w, d.nw.PeersStats())
-}
-
-func openMemMainDB() *lvldb.LevelDB {
-	db, err := lvldb.NewMem()
-	if err != nil {
-		fatal(fmt.Sprintf("open chain database: %v", err))
-	}
-	return db
 }

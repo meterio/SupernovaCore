@@ -72,7 +72,6 @@ func (bm *BlsMaster) ValidateKeyPair() bool {
 	}
 	msg := h.Sum(nil)
 	sig := bm.SignMessage(msg)
-	fmt.Println("msg: ", hex.EncodeToString(msg))
 
 	return sig.Verify(bm.PubKey, msg)
 }

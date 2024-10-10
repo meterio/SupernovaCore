@@ -18,11 +18,10 @@ import (
 	"github.com/meterio/supernova/api/blocks"
 	"github.com/meterio/supernova/api/doc"
 	"github.com/meterio/supernova/api/node"
-	"github.com/meterio/supernova/api/peers"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/p2psrv"
+	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/txpool"
 )
 
@@ -32,7 +31,7 @@ type APIServer struct {
 }
 
 // New return api router
-func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, nw node.Network, p2pServer *p2psrv.Server) *APIServer {
+func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, comm *comm.Communicator) *APIServer {
 	router := mux.NewRouter()
 
 	// to serve api doc and swagger-ui
@@ -51,9 +50,8 @@ func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool 
 
 	blocks.New(chain).
 		Mount(router, "/blocks")
-	node.New(version, nw, cons, chain, pubkey).
+	node.New(version, comm, cons, chain, pubkey).
 		Mount(router, "/node")
-	peers.New(p2pServer).Mount(router, "/peers")
 
 	return &APIServer{
 		listenAddr: listenAddr,

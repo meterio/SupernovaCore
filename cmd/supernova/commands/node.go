@@ -1,4 +1,4 @@
-package node
+package commands
 
 import (
 	"bytes"
@@ -7,28 +7,19 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/types"
 	"github.com/spf13/cobra"
 )
 
 var (
-	config      = DefaultConfig()
 	genesisHash []byte
 )
-
-func DefaultConfig() *cmtcfg.Config {
-	config := cmtcfg.DefaultConfig()
-	config.P2P.ListenAddress = "tcp://0.0.0.0:11235"
-	config.BaseConfig.RootDir = os.ExpandEnv(filepath.Join("$HOME", ".supernova"))
-	return config
-}
 
 // AddNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a CometBFT node
@@ -104,42 +95,47 @@ func AddNodeFlags(cmd *cobra.Command) {
 		"database directory")
 }
 
-var RunNodeCmd = &cobra.Command{
-	Use:     "start",
-	Aliases: []string{"node", "run"},
-	Short:   "Run the Supernova node",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := checkGenesisHash(config); err != nil {
-			return err
-		}
-		nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
-		if err != nil {
-			return fmt.Errorf("failed to load or gen node key %s: %w", config.NodeKeyFile(), err)
-		}
-
-		InitLogger(config)
-		node := NewNode(config,
-			privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
-			nodeKey,
-			proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
-			types.DefaultGenesisDocProviderFunc(config),
-			cmtcfg.DefaultDBProvider,
-		)
-
-		// Stop upon receiving SIGTERM or CTRL-C.
-		cmn.TrapSignal(func() {
-			if node.IsRunning() {
-				if err := node.Stop(); err != nil {
-					slog.Error("unable to stop the node", "error", err)
-				}
+func RunNodeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "start",
+		Aliases: []string{"node", "run"},
+		Short:   "Run the Supernova node",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkGenesisHash(config); err != nil {
+				return err
 			}
-		})
+			nodeKey, err := types.LoadOrGenNodeKey(config.NodeKeyFile())
+			if err != nil {
+				return fmt.Errorf("failed to load or gen node key %s: %w", config.NodeKeyFile(), err)
+			}
 
-		node.Start()
+			InitLogger(config)
+			node := node.NewNode(config,
+				privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
+				nodeKey,
+				proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
+				types.DefaultGenesisDocProviderFunc(config),
+				cmtcfg.DefaultDBProvider,
+			)
 
-		// Run forever.
-		select {}
-	},
+			node.Start()
+
+			// Stop upon receiving SIGTERM or CTRL-C.
+			cmn.TrapSignal(func() {
+				if node.IsRunning() {
+					slog.Info("Node Stopping ... ")
+					if err := node.Stop(); err != nil {
+						slog.Error("unable to stop the node", "error", err)
+					}
+				}
+			})
+
+			// Run forever.
+			select {}
+		},
+	}
+	AddNodeFlags(cmd)
+	return cmd
 }
 
 func checkGenesisHash(config *cmtcfg.Config) error {

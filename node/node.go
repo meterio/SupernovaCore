@@ -17,8 +17,6 @@ import (
 
 	"github.com/beevik/ntp"
 	cmtcfg "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/p2p"
-	cmtp2p "github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -27,6 +25,8 @@ import (
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/meterio/supernova/api"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
@@ -36,6 +36,7 @@ import (
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/libs/lvldb"
+	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -89,13 +90,12 @@ type Node struct {
 	apiServer *api.APIServer
 
 	// network
-	nodeKey *p2p.NodeKey // our node privkey
+	nodeKey *types.NodeKey // our node privkey
 	reactor *consensus.Reactor
 
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
 	txStashPath string
-	p2pComm     *p2pComm
 	comm        *comm.Communicator
 	logger      *slog.Logger
 
@@ -105,7 +105,7 @@ type Node struct {
 func NewNode(
 	config *cmtcfg.Config,
 	privValidator *privval.FilePV,
-	nodeKey *cmtp2p.NodeKey,
+	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
 	genesisDocProvider types.GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider,
@@ -146,14 +146,23 @@ func NewNode(
 		panic(err)
 	}
 
-	p2pComm := NewP2PComm(ctx, config, nodeKey, chain, txPool, p2pMagic)
+	var BootstrapNodes []*enode.Node
+	p2pOpts := &p2psrv.Options{
+		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
+		PrivateKey:     nodeKey.PrivateKey(),
+		MaxPeers:       config.P2P.MaxNumInboundPeers,
+		ListenAddr:     "0.0.0.0:11235", // config.P2P.ListenAddress,
+		BootstrapNodes: BootstrapNodes,
+		NAT:            nat.Any(),
+	}
+	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pOpts)
 
-	reactor := consensus.NewConsensusReactor(config, chain, p2pComm.comm, txPool, blsMaster, proxyApp)
+	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
 
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8669"
-	apiServer := api.NewAPIServer(apiAddr, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pComm.comm, p2pComm.p2pSrv)
+	apiServer := api.NewAPIServer(apiAddr, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), comm)
 
 	bestBlock := chain.BestBlock()
 
@@ -180,11 +189,10 @@ func NewNode(
 		privValidator: privValidator,
 		nodeKey:       nodeKey,
 		apiServer:     apiServer,
-		p2pComm:       p2pComm,
 		reactor:       reactor,
 		chain:         chain,
 		txPool:        txPool,
-		comm:          p2pComm.comm,
+		comm:          comm,
 		logger:        slog.With("pkg", "node"),
 		proxyApp:      proxyApp,
 	}
@@ -201,7 +209,8 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 }
 
 func (n *Node) Start() error {
-	n.p2pComm.Start()
+	n.logger.Info("Node Start")
+	n.comm.Start()
 	n.apiServer.Start(n.ctx)
 	n.comm.Sync(n.handleBlockStream)
 
@@ -215,7 +224,7 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) Stop() error {
-	n.p2pComm.Stop()
+	n.comm.Stop()
 	return nil
 }
 

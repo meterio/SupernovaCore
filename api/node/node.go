@@ -13,20 +13,21 @@ import (
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
+	"github.com/meterio/supernova/libs/comm"
 )
 
 type Node struct {
 	version string
-	nw      Network
+	comm    *comm.Communicator
 	Cons    *consensus.Reactor
 	Chain   *chain.Chain
 	pubkey  string
 }
 
-func New(version string, nw Network, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
+func New(version string, comm *comm.Communicator, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
 	return &Node{
 		version,
-		nw,
+		comm,
 		cons,
 		c,
 		hex.EncodeToString(pubkey),
@@ -34,11 +35,21 @@ func New(version string, nw Network, cons *consensus.Reactor, c *chain.Chain, pu
 }
 
 func (n *Node) PeersStats() []*PeerStats {
-	return ConvertPeersStats(n.nw.PeersStats())
+	return ConvertPeersStats(n.comm.PeersStats())
 }
 
-func (n *Node) handlePeers(w http.ResponseWriter, req *http.Request) error {
+func (n *Node) handlePeerStat(w http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(w, n.PeersStats())
+}
+
+func (n *Node) handleDiscoveredPeers(w http.ResponseWriter, req *http.Request) error {
+	nodes := n.comm.GetDiscoveredNodes()
+	result := make([]*Peer, 0)
+	for _, n := range nodes {
+		peer := convertNode(n)
+		result = append(result, peer)
+	}
+	return utils.WriteJSON(w, result)
 }
 
 func (n *Node) handleChainId(w http.ResponseWriter, req *http.Request) error {
@@ -83,7 +94,8 @@ func (n *Node) handleProbe(w http.ResponseWriter, r *http.Request) error {
 func (n *Node) Mount(root *mux.Router, pathPrefix string) {
 	sub := root.PathPrefix(pathPrefix).Subrouter()
 
-	sub.Path("/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeers))
+	sub.Path("/peerstat").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeerStat))
+	sub.Path("/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleDiscoveredPeers))
 	sub.Path("/chainid").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleChainId))
 	sub.Path("/version").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleVersion))
 	sub.Path("/probe").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleProbe))

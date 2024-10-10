@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/lmittmann/tint"
@@ -16,8 +17,16 @@ import (
 
 var (
 	verbose bool
-	config  = cmtcfg.DefaultConfig()
+	config  = DefaultConfig()
 )
+
+func DefaultConfig() *cmtcfg.Config {
+	config := cmtcfg.DefaultConfig()
+	config.P2P.ListenAddress = "0.0.0.0:11235"
+	config.BaseConfig.RootDir = os.ExpandEnv(filepath.Join("$HOME", ".supernova"))
+	config.ProxyApp = "noop"
+	return config
+}
 
 func init() {
 	registerFlagsRootCmd(RootCmd)
@@ -30,7 +39,7 @@ func registerFlagsRootCmd(cmd *cobra.Command) {
 // ParseConfig retrieves the default environment configuration,
 // sets up the CometBFT root and ensures that the root exists.
 func ParseConfig(cmd *cobra.Command) (*cmtcfg.Config, error) {
-	conf := cmtcfg.DefaultConfig()
+	conf := DefaultConfig()
 	err := viper.Unmarshal(conf)
 	if err != nil {
 		return nil, err
@@ -63,6 +72,7 @@ func ParseConfig(cmd *cobra.Command) (*cmtcfg.Config, error) {
 			slog.Info("deprecated usage found in configuration file", "usage", warning)
 		}
 	}
+	fmt.Println("P2P Listen Address: ", conf.P2P.ListenAddress)
 	return conf, nil
 }
 
