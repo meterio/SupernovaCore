@@ -18,15 +18,17 @@ import (
 
 type Node struct {
 	version string
+	chainId uint64
 	comm    *comm.Communicator
 	Cons    *consensus.Reactor
 	Chain   *chain.Chain
 	pubkey  string
 }
 
-func New(version string, comm *comm.Communicator, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
+func New(version string, chainId uint64, comm *comm.Communicator, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
 	return &Node{
 		version,
+		chainId,
 		comm,
 		cons,
 		c,
@@ -53,9 +55,7 @@ func (n *Node) handleDiscoveredPeers(w http.ResponseWriter, req *http.Request) e
 }
 
 func (n *Node) handleChainId(w http.ResponseWriter, req *http.Request) error {
-
-	// FIXME: get the correct chainId
-	return utils.WriteJSON(w, 82) // mainnet
+	return utils.WriteJSON(w, n.chainId) // mainnet
 
 }
 

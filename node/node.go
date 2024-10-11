@@ -161,7 +161,7 @@ func NewNode(
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8670"
-	apiServer := api.NewAPIServer(apiAddr, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), comm)
+	apiServer := api.NewAPIServer(apiAddr, gene.ChainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), comm)
 
 	bestBlock := chain.BestBlock()
 

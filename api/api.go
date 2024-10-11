@@ -31,7 +31,7 @@ type APIServer struct {
 }
 
 // New return api router
-func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, comm *comm.Communicator) *APIServer {
+func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, comm *comm.Communicator) *APIServer {
 	router := mux.NewRouter()
 
 	// to serve api doc and swagger-ui
@@ -50,7 +50,7 @@ func NewAPIServer(listenAddr string, version string, chain *chain.Chain, txPool 
 
 	blocks.New(chain).
 		Mount(router, "/blocks")
-	node.New(version, comm, cons, chain, pubkey).
+	node.New(version, chainId, comm, cons, chain, pubkey).
 		Mount(router, "/node")
 
 	return &APIServer{
