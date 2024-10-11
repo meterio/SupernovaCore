@@ -245,38 +245,6 @@ func (r *Reactor) PrepareEnvForPacemaker() error {
 	return nil
 }
 
-// FIXME: remove this
-func (r *Reactor) verifyInCommittee() bool {
-	// best := r.chain.BestBlock()
-	// if r.delegateSource == fromDelegatesFile {
-	// 	return true
-	// }
-
-	// if !best.IsKBlock() && best.Number() != 0 {
-	// 	consentBlock, err := r.chain.GetTrunkBlock(best.LastKBlockHeight() + 1)
-	// 	if err != nil {
-	// 		r.logger.Error("could not get committee info", "err", err)
-	// 		return false
-	// 	}
-	// 	r.logger.Info("got committee info", "len", len(consentBlock.CommitteeInfos.CommitteeInfo))
-	// 	// recover actual committee from consent block
-	// 	committeeInfo := consentBlock.CommitteeInfos
-
-	// 	myself := r.committee[r.committeeIndex]
-	// 	myEcdsaPKBytes := crypto.FromECDSAPub(&myself.PubKey)
-	// 	inCommitteeVerified := false
-	// 	for _, v := range committeeInfo.CommitteeInfo {
-	// 		r.logger.Debug("committee info pubkey", "str", base64.StdEncoding.EncodeToString(v.PubKey), "mine", base64.StdEncoding.EncodeToString(myEcdsaPKBytes))
-	// 		if bytes.Equal(v.PubKey, myEcdsaPKBytes) {
-	// 			inCommitteeVerified = true
-	// 			break
-	// 		}
-	// 	}
-	// 	return inCommitteeVerified
-	// }
-	return true
-}
-
 func (r *Reactor) combinePubKey(ecdsaPub *ecdsa.PublicKey, blsPub *bls.PublicKey) string {
 	ecdsaPubBytes := crypto.FromECDSAPub(ecdsaPub)
 	ecdsaPubB64 := b64.StdEncoding.EncodeToString(ecdsaPubBytes)
@@ -352,12 +320,6 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 
 			r.logger.Info("I'm IN committee !!!", "myName", myName, "myIP", myAddr.String())
 			inCommitteeGauge.Set(1)
-			verified := r.verifyInCommittee()
-			if !verified {
-				//FIXME: fix this
-				r.logger.Error("committee info in consent block doesn't contain myself as a member, stop right now")
-				return false, errors.New("in committee but not verified")
-			}
 		} else {
 			r.logger.Info("I'm NOT in committee")
 			inCommitteeGauge.Set(0)
