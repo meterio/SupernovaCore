@@ -9,6 +9,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/types"
 )
 
 const (
@@ -20,7 +21,7 @@ type IncomingMsg struct {
 	Msg          block.ConsensusMessage
 	Peer         ConsensusPeer
 	RawData      []byte
-	Hash         []byte
+	Hash         types.Bytes32
 	ShortHashStr string
 
 	// Signer *types.Validator

@@ -16,7 +16,7 @@ import (
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/types"
 )
@@ -36,6 +36,7 @@ type Header struct {
 	Timestamp        uint64
 	BlockType        BlockType
 	Proposer         common.Address
+	ProposerIndex    uint32
 	TxsRoot          cmtbytes.HexBytes
 	EvidenceDataRoot types.Bytes32 // deprecated, saved just for compatibility
 
@@ -81,11 +82,7 @@ func (h *Header) ID() (id types.Bytes32) {
 		return
 	}
 
-	hw := types.NewBlake2b()
-	hw.Write(h.SigningHash().Bytes())
-	hw.Write(signer.Bytes())
-	hw.Sum(id[:0])
-
+	id = blake2b.Sum256(append(h.SigningHash().Bytes(), signer.Bytes()...))
 	return
 }
 
@@ -96,8 +93,7 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 	}
 	defer func() { h.cache.signingHash.Store(hash) }()
 
-	hw := types.NewBlake2b()
-	err := rlp.Encode(hw, []interface{}{
+	bs, err := rlp.EncodeToBytes([]interface{}{
 		h.ParentID,
 		h.Timestamp,
 		h.BlockType,
@@ -115,33 +111,14 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 	if err != nil {
 		slog.Error("could not calculate signing hash", "err", err)
 	}
-	hw.Sum(hash[:0])
-	return
+	return blake2b.Sum256(bs)
 }
 
 // Signer extract signer of the block from signature.
 func (h *Header) Signer() (signer common.Address, err error) {
-	if h.Number() == 0 {
-		// special case for genesis block
-		return common.Address{}, nil
-	}
 
-	if cached := h.cache.signer.Load(); cached != nil {
-		return cached.(common.Address), nil
-	}
-	defer func() {
-		if err == nil {
-			h.cache.signer.Store(signer)
-		}
-	}()
-
-	pub, err := crypto.SigToPub(h.SigningHash().Bytes(), h.Signature)
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	signer = common.Address(crypto.PubkeyToAddress(*pub))
-	return
+	// FIXME: check signature
+	return h.Proposer, nil
 }
 
 func (h *Header) WithSignature(sig []byte) *Header {

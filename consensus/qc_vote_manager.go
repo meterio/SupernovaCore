@@ -102,6 +102,7 @@ func (m *QCVoteManager) Aggregate(round uint32, blockID types.Bytes32, epoch uin
 		QCRound:  round,
 		EpochID:  epoch,
 		MsgHash:  msgHash,
+		BitArray: bitArray,
 		AggSig:   aggrSig.Marshal(),
 	}
 }

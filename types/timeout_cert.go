@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/supernova/libs/common"
 )
@@ -18,8 +19,7 @@ type TimeoutCert struct {
 }
 
 func (tc *TimeoutCert) SigningHash() (hash Bytes32) {
-	hw := NewBlake2b()
-	err := rlp.Encode(hw, []interface{}{
+	bs, err := rlp.EncodeToBytes([]interface{}{
 		tc.Epoch,
 		tc.Round,
 		tc.BitArray.String(),
@@ -29,7 +29,7 @@ func (tc *TimeoutCert) SigningHash() (hash Bytes32) {
 	if err != nil {
 		fmt.Println("could not get signing hash, error:", err)
 	}
-	hw.Sum(hash[:0])
+	hash = blake2b.Sum256(bs)
 	return
 }
 

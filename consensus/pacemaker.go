@@ -471,7 +471,6 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 	bnew.Msg = msg
 	p.curProposal = bnew
 	return bnew
-
 }
 
 func (p *Pacemaker) UpdateQCHigh(qc *block.DraftQC) bool {

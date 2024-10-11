@@ -15,7 +15,6 @@ import (
 	"io"
 	"log/slog"
 	"math"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -44,42 +43,13 @@ type Violation struct {
 	Signature2 []byte
 }
 
-type CommitteeInfo struct {
-	Name    string
-	Index   uint32 // Index, corresponding to the bitarray
-	NetAddr types.NetAddress
-	PubKey  []byte // bls pubkey
-}
-
-func (ci CommitteeInfo) String() string {
-	blsPK := hex.EncodeToString(ci.PubKey)
-	return fmt.Sprintf("%v: %v{IP:%v, PubKey: %v }", ci.Index, ci.Name, ci.NetAddr.IP.String(), blsPK)
-}
-
-type CommitteeInfos struct {
-	Epoch         uint64
-	CommitteeInfo []CommitteeInfo
-}
-
-func (cis CommitteeInfos) String() string {
-	s := make([]string, 0)
-	for _, ci := range cis.CommitteeInfo {
-		s = append(s, ci.String())
-	}
-	if len(s) == 0 {
-		return "CommitteeInfos(nil)"
-	}
-	return "CommitteeInfos(\n  " + strings.Join(s, ",\n  ") + "\n)"
-}
-
 // Block is an immutable block type.
 type Block struct {
-	BlockHeader    *Header
-	Txs            types.Transactions
-	QC             *QuorumCert
-	CommitteeInfos CommitteeInfos
-	Magic          [4]byte
-	cache          struct {
+	BlockHeader *Header
+	Txs         types.Transactions
+	QC          *QuorumCert
+	Magic       [4]byte
+	cache       struct {
 		size atomic.Uint64
 	}
 }
@@ -90,15 +60,6 @@ type Body struct {
 }
 
 // Create new committee Info
-func NewCommitteeInfo(name string, pubKey bls.PublicKey, netAddr types.NetAddress, index uint32) *CommitteeInfo {
-	return &CommitteeInfo{
-		Name:    name,
-		PubKey:  pubKey.Marshal(),
-		NetAddr: netAddr,
-		Index:   index,
-	}
-}
-
 // Compose compose a block with all needed components
 // Note: This method is usually to recover a block by its portions, and the TxsRoot is not verified.
 // To build up a block, use a Builder.
@@ -260,7 +221,6 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		b.BlockHeader,
 		b.Txs,
-		b.CommitteeInfos,
 		b.QC,
 		b.Magic,
 	})
@@ -274,11 +234,10 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	payload := struct {
-		Header         Header
-		Txs            types.Transactions
-		CommitteeInfos CommitteeInfos
-		QC             *QuorumCert
-		Magic          [4]byte
+		Header Header
+		Txs    types.Transactions
+		QC     *QuorumCert
+		Magic  [4]byte
 	}{}
 
 	if err := s.Decode(&payload); err != nil {
@@ -286,11 +245,10 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	*b = Block{
-		BlockHeader:    &payload.Header,
-		Txs:            payload.Txs,
-		CommitteeInfos: payload.CommitteeInfos,
-		QC:             payload.QC,
-		Magic:          payload.Magic,
+		BlockHeader: &payload.Header,
+		Txs:         payload.Txs,
+		QC:          payload.QC,
+		Magic:       payload.Magic,
 	}
 	b.cache.size.Store(rlp.ListSize(size))
 	return nil
@@ -323,10 +281,6 @@ func (b *Block) String() string {
   QuorumCert:  %v
   Transactions: %v`, canonicalName, b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
 
-	if len(b.CommitteeInfos.CommitteeInfo) > 0 {
-		s += fmt.Sprintf(`
-  CommitteeInfo: %v`, b.CommitteeInfos)
-	}
 	s += "\n}"
 	return s
 }
@@ -364,11 +318,7 @@ func (b *Block) GetCanonicalName() string {
 }
 func (b *Block) Oneliner() string {
 	header := b.BlockHeader
-	hasCommittee := len(b.CommitteeInfos.CommitteeInfo) > 0
 	ci := ""
-	if hasCommittee {
-		ci = ",committee"
-	}
 	canonicalName := b.GetCanonicalName()
 	return fmt.Sprintf("%v[%v,%v,txs:%v%v] -> %v", canonicalName,
 		b.ShortID(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
@@ -391,18 +341,6 @@ func (b *Block) GetQC() *QuorumCert {
 	return b.QC
 }
 
-func (b *Block) GetCommitteeEpoch() uint64 {
-	return b.CommitteeInfos.Epoch
-}
-
-func (b *Block) SetCommitteeEpoch(epoch uint64) {
-	b.CommitteeInfos.Epoch = epoch
-}
-
-func (b *Block) GetCommitteeInfo() ([]CommitteeInfo, error) {
-	return b.CommitteeInfos.CommitteeInfo, nil
-}
-
 // if the block is the first mblock, get epochID from committee
 // otherwise get epochID from QC
 func (b *Block) GetBlockEpoch() (epoch uint64) {
@@ -410,6 +348,10 @@ func (b *Block) GetBlockEpoch() (epoch uint64) {
 	lastKBlockHeight := b.LastKBlockHeight()
 	if height == 0 {
 		epoch = 0
+		return
+	}
+	if height == 1 {
+		epoch = 1
 		return
 	}
 
@@ -420,16 +362,12 @@ func (b *Block) GetBlockEpoch() (epoch uint64) {
 			// handling cases where two KBlock are back-to-back
 			epoch = b.QC.EpochID + 1
 		} else {
-			epoch = b.GetCommitteeEpoch()
+			epoch = b.QC.EpochID
 		}
 	} else {
 		panic("Block error: lastKBlockHeight great than height")
 	}
 	return
-}
-
-func (b *Block) SetCommitteeInfo(info []CommitteeInfo) {
-	b.CommitteeInfos.CommitteeInfo = info
 }
 
 func (b *Block) ToBytes() []byte {

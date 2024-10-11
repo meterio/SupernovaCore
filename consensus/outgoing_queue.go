@@ -98,9 +98,9 @@ func (w *outgoingWorker) Run(ctx context.Context, queue chan OutgoingParcel, wg 
 		url := "http://" + parcel.to.IP + ":8670/node/msg"
 
 		if parcel.relay {
-			w.logger.Debug(fmt.Sprintf(`relay %s`, parcel.msgType), "to", parcel.to)
+			w.logger.Debug(fmt.Sprintf(`relay %s`, parcel.msgType), "to", parcel.to.String())
 		} else {
-			w.logger.Info(fmt.Sprintf(`send %s`, parcel.msgSummary), "to", parcel.to)
+			w.logger.Info(fmt.Sprintf(`send %s`, parcel.msgSummary), "to", parcel.to.String())
 
 		}
 		res, err := client.Post(url, "application/json", bytes.NewBuffer(parcel.rawMsg))

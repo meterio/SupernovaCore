@@ -171,30 +171,30 @@ func (c *Communicator) Start() {
 	if err := c.p2pSrv.Start(c.Protocols()); err != nil {
 		panic(err)
 	}
-	slog.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
+	c.logger.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
 	start = time.Now()
-	c.goes.Go(c.txsLoop)
+	// c.goes.Go(c.txsLoop)
 	c.goes.Go(c.announcementLoop)
-	slog.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
+	c.logger.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
 	//c.goes.Go(c.powsLoop)
 }
 
 // Stop stop the communicator.
 func (c *Communicator) Stop() {
 
-	slog.Info("stopping P2P server...")
+	c.logger.Info("stopping P2P server...")
 	c.p2pSrv.Stop()
 
 	// FIXME: store peers into cache file
 	// nodes := c.p2pSrv.KnownNodes()
-	// slog.Info("saving peers cache...", "#peers", len(nodes))
+	// c.logger.Info("saving peers cache...", "#peers", len(nodes))
 	// strs := make([]string, 0)
 	// for _, n := range nodes {
 	// 	strs = append(strs, n.String())
 	// }
 	// data := strings.Join(strs, "\n")
 	// if err := os.WriteFile(p.peersCachePath, []byte(data), 0600); err != nil {
-	// 	slog.Warn("failed to write peers cache", "err", err)
+	// 	c.logger.Warn("failed to write peers cache", "err", err)
 	// }
 	// c.cancel()
 	c.feedScope.Close()

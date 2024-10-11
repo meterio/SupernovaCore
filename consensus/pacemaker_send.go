@@ -55,7 +55,7 @@ func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
 }
 
 func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.DraftBlock, tc *types.TimeoutCert) (*block.PMProposalMessage, error) {
-	raw, err := rlp.EncodeToBytes(bnew)
+	raw, err := rlp.EncodeToBytes(bnew.ProposedBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +71,7 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 	}
 
 	// sign message
-	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
-	msg.SetMsgSignature(msgSig.Marshal())
+	p.reactor.SignMessage(msg)
 	p.logger.Debug("Built Proposal Message", "blk", bnew.ProposedBlock.ID().ToBlockShortID(), "msg", msg.String(), "timestamp", msg.Timestamp)
 
 	return msg, nil
@@ -99,8 +98,7 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 	}
 
 	// sign message
-	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
-	msg.SetMsgSignature(msgSig.Marshal())
+	p.reactor.SignMessage(msg)
 	p.logger.Debug("Built Vote Message", "msg", msg.String())
 	return msg, nil
 }
@@ -151,8 +149,7 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 	// 	msg.TimeoutCounter = ti.counter
 	// }
 	// sign message
-	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
-	msg.SetMsgSignature(msgSig.Marshal())
+	p.reactor.SignMessage(msg)
 	p.logger.Debug("Built New View Message", "msg", msg.String())
 	return msg, nil
 }
@@ -168,8 +165,7 @@ func (p *Pacemaker) BuildQueryMessage() (*block.PMQueryMessage, error) {
 	}
 
 	// sign message
-	msgSig := p.reactor.SignMessage(msg.GetMsgHash())
-	msg.SetMsgSignature(msgSig.Marshal())
+	p.reactor.SignMessage(msg)
 	p.logger.Debug("Built Query Message", "msg", msg.String())
 	return msg, nil
 }

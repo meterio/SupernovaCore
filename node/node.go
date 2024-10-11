@@ -35,7 +35,6 @@ import (
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
@@ -111,7 +110,7 @@ func NewNode(
 	dbProvider cmtcfg.DBProvider,
 ) *Node {
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	InitLogger(config)
 
 	slog.Info("Meter Start ...")
@@ -161,7 +160,7 @@ func NewNode(
 
 	pubkey, err := privValidator.GetPubKey()
 
-	apiAddr := ":8669"
+	apiAddr := ":8670"
 	apiServer := api.NewAPIServer(apiAddr, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), comm)
 
 	bestBlock := chain.BestBlock()
@@ -211,12 +210,11 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 func (n *Node) Start() error {
 	n.logger.Info("Node Start")
 	n.comm.Start()
-	n.apiServer.Start(n.ctx)
 	n.comm.Sync(n.handleBlockStream)
 
+	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
-	n.goes.Go(func() { n.txStashLoop(n.ctx) })
-
+	// n.goes.Go(func() { n.txStashLoop(n.ctx) })
 	n.goes.Go(func() { n.reactor.OnStart(n.ctx) })
 
 	n.goes.Wait()
@@ -357,55 +355,55 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	}
 }
 
-func (n *Node) txStashLoop(ctx context.Context) {
-	n.logger.Debug("enter tx stash loop")
-	defer n.logger.Debug("leave tx stash loop")
+// func (n *Node) txStashLoop(ctx context.Context) {
+// 	n.logger.Debug("enter tx stash loop")
+// 	defer n.logger.Debug("leave tx stash loop")
 
-	db, err := lvldb.New(n.txStashPath, lvldb.Options{})
-	if err != nil {
-		n.logger.Error("create tx stash", "err", err)
-		return
-	}
-	defer db.Close()
+// 	db, err := lvldb.New(n.txStashPath, lvldb.Options{})
+// 	if err != nil {
+// 		n.logger.Error("create tx stash", "err", err)
+// 		return
+// 	}
+// 	defer db.Close()
 
-	stash := newTxStash(db, 1000)
+// 	stash := newTxStash(db, 1000)
 
-	{
-		txs := stash.LoadAll()
-		bestBlock := n.chain.BestBlock()
-		n.txPool.Fill(txs, func(txID []byte) bool {
-			if _, err := n.chain.GetTransactionMeta(txID, bestBlock.ID()); err != nil {
-				return false
-			} else {
-				return true
-			}
-		})
-		n.logger.Debug("loaded txs from stash", "count", len(txs))
-	}
+// 	{
+// 		txs := stash.LoadAll()
+// 		bestBlock := n.chain.BestBlock()
+// 		n.txPool.Fill(txs, func(txID []byte) bool {
+// 			if _, err := n.chain.GetTransactionMeta(txID, bestBlock.ID()); err != nil {
+// 				return false
+// 			} else {
+// 				return true
+// 			}
+// 		})
+// 		n.logger.Debug("loaded txs from stash", "count", len(txs))
+// 	}
 
-	var scope event.SubscriptionScope
-	defer scope.Close()
+// 	var scope event.SubscriptionScope
+// 	defer scope.Close()
 
-	txCh := make(chan *txpool.TxEvent)
-	scope.Track(n.txPool.SubscribeTxEvent(txCh))
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case txEv := <-txCh:
-			// skip executables
-			if txEv.Executable != nil && *txEv.Executable {
-				continue
-			}
-			// only stash non-executable txs
-			if err := stash.Save(txEv.Tx); err != nil {
-				n.logger.Warn("stash tx", "id", txEv.Tx.Hash(), "err", err)
-			} else {
-				n.logger.Debug("stashed tx", "id", txEv.Tx.Hash())
-			}
-		}
-	}
-}
+// 	txCh := make(chan *txpool.TxEvent)
+// 	scope.Track(n.txPool.SubscribeTxEvent(txCh))
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			return
+// 		case txEv := <-txCh:
+// 			// skip executables
+// 			if txEv.Executable != nil && *txEv.Executable {
+// 				continue
+// 			}
+// 			// only stash non-executable txs
+// 			if err := stash.Save(txEv.Tx); err != nil {
+// 				n.logger.Warn("stash tx", "id", txEv.Tx.Hash(), "err", err)
+// 			} else {
+// 				n.logger.Debug("stashed tx", "id", txEv.Tx.Hash())
+// 			}
+// 		}
+// 	}
+// }
 
 func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats *blockStats) (bool, error) {
 	now := uint64(time.Now().Unix())

@@ -165,6 +165,9 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 		if err != nil {
 			return nil, err
 		}
+		if raw == nil {
+			return nil, ErrNotFound
+		}
 		return &rawBlock{raw: raw}, nil
 	})
 
@@ -530,6 +533,12 @@ func (c *Chain) NewSeeker(headBlockID types.Bytes32) *Seeker {
 func (c *Chain) isTrunk(header *block.Header) bool {
 	bestHeader := c.bestBlock.Header()
 	// fmt.Println(fmt.Sprintf("IsTrunk: header: %s, bestHeader: %s", header.ID().String(), bestHeader.ID().String()))
+	if header.Number() < bestHeader.Number() {
+		return false
+	}
+	if header.Number() > bestHeader.Number() {
+		return true
+	}
 
 	// total scores are equal
 	if bytes.Compare(header.ID().Bytes(), bestHeader.ID().Bytes()) < 0 {
@@ -636,6 +645,9 @@ func (c *Chain) getTransactionMeta(txID []byte, headBlockID types.Bytes32) (*TxM
 	meta, err := loadTxMeta(c.kv, txID)
 	if err != nil {
 		return nil, err
+	}
+	if meta == nil {
+		return nil, ErrNotFound
 	}
 	for _, m := range meta {
 		ancestorID, err := loadBlockHash(c.kv, block.Number(m.BlockID))

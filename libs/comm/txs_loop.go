@@ -13,15 +13,14 @@ import (
 )
 
 func (c *Communicator) txsLoop() {
-
 	txEvCh := make(chan *txpool.TxEvent, 10)
 	sub := c.txPool.SubscribeTxEvent(txEvCh)
+	defer func() { fmt.Println("tx loop is DONW!!") }()
 	defer sub.Unsubscribe()
 
 	for {
 		select {
 		case <-c.ctx.Done():
-			fmt.Println("communicator ctx is done")
 			return
 		case txEv := <-txEvCh:
 			if txEv.Executable != nil && *txEv.Executable {

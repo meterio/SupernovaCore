@@ -128,8 +128,9 @@ func (vals *ValidatorSet) GetByPubkey(pubkey bls.PublicKey) (val *Validator) {
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
 func (vals *ValidatorSet) GetByIndex(index uint32) (val *Validator) {
-	if index < 0 || int(index) >= len(vals.Validators) {
-		return nil
+	N := uint32(len(vals.Validators))
+	if index >= N {
+		index = index % N
 	}
 	val = vals.Validators[index]
 	return val.Copy()

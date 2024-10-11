@@ -38,6 +38,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		Timestamp(timestamp).
 		Nonce(nonce).
 		BlockType(blockType).
+		ValidatorHash(parent.ProposedBlock.ValidatorHash()).
 		LastKBlockHeight(lastKBlock).QC(qc)
 
 	for _, tx := range txs {

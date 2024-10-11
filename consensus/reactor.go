@@ -125,17 +125,22 @@ func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.C
 // broadcasted to other peers and starting state if we're not in fast sync.
 func (r *Reactor) OnStart(ctx context.Context) error {
 
-	r.logger.Info("Reactor Start")
 	go r.outQueue.Start(ctx)
 
-	select {
-	case <-ctx.Done():
-		r.logger.Warn("stop reactor due to context end")
-		return nil
-	case <-r.comm.Synced():
-		r.SyncDone = true
-		r.logger.Info("sync is done, start pacemaker ...")
+	vset := r.chain.GetBestValidatorSet()
+	if vset.Size() <= 1 {
 		r.pacemaker.Regulate()
+	} else {
+
+		select {
+		case <-ctx.Done():
+			r.logger.Warn("stop reactor due to context end")
+			return nil
+		case <-r.comm.Synced():
+			r.SyncDone = true
+			r.logger.Info("syncing is done")
+			r.pacemaker.Regulate()
+		}
 	}
 
 	return nil
@@ -309,6 +314,9 @@ func (r *Reactor) UpdateCurEpoch() (bool, error) {
 		r.logger.Info("---------------------------------------------------------")
 
 		vset := r.chain.GetValidatorSet(best.Number())
+
+		fmt.Println("validator set: ", vset)
+		r.logger.Info("validator set", "len", vset.Size())
 		if r.committee != nil && r.committee.Size() > 0 {
 			r.logger.Info("committee", "size", r.committee.Size())
 			r.lastCommittee = r.committee
@@ -535,6 +543,8 @@ func (r *Reactor) OutgoingQueueLen() int {
 	return r.outQueue.Len()
 }
 
-func (r *Reactor) SignMessage(msg []byte) (sig bls.Signature) {
-	return r.PrivKey().Sign(msg)
+func (r *Reactor) SignMessage(msg block.ConsensusMessage) {
+	msgHash := msg.GetMsgHash()
+	sig := r.PrivKey().Sign(msgHash[:])
+	msg.SetMsgSignature(sig.Marshal())
 }

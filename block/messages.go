@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -33,10 +34,15 @@ type ConsensusMessage interface {
 	GetRound() uint32
 
 	String() string
-	GetMsgHash() []byte
+	GetMsgHash() types.Bytes32
 	SetMsgSignature(signature []byte)
 	VerifyMsgSignature(pubkey bls.PublicKey) bool
 }
+
+var _ ConsensusMessage = &PMProposalMessage{}
+var _ ConsensusMessage = &PMVoteMessage{}
+var _ ConsensusMessage = &PMTimeoutMessage{}
+var _ ConsensusMessage = &PMQueryMessage{}
 
 func RegisterConsensusMessages(cdc *amino.Codec) {
 	cdc.RegisterInterface((*ConsensusMessage)(nil), nil)
@@ -122,18 +128,16 @@ func (m *PMProposalMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMProposalMessage) GetMsgHash() (hash []byte) {
-	hw := types.NewBlake2b()
+func (m *PMProposalMessage) GetMsgHash() types.Bytes32 {
 	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.Round, m.RawBlock}
 	if m.TimeoutCert != nil {
 		data = append(data, m.TimeoutCert)
 	}
-	err := rlp.Encode(hw, data)
+	bs, err := rlp.EncodeToBytes(data)
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
 	}
-	hw.Sum(hash[:0])
-	return
+	return blake2b.Sum256(bs)
 }
 
 func (m *PMProposalMessage) DecodeBlock() *Block {
@@ -165,7 +169,7 @@ func (m *PMProposalMessage) SetMsgSignature(msgSignature []byte) {
 }
 
 func (m *PMProposalMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
+	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 // PMVoteMessage is sent when voting for a proposal (or lack thereof).
@@ -201,18 +205,20 @@ func (m *PMVoteMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMVoteMessage) GetMsgHash() (hash []byte) {
-	hw := types.NewBlake2b()
-	data := []interface{}{
-		m.Timestamp, m.Epoch, m.SignerIndex,
-		m.VoteRound, m.VoteBlockID, m.VoteSignature, m.VoteHash,
-	}
-	err := rlp.Encode(hw, data)
+func (m *PMVoteMessage) GetMsgHash() types.Bytes32 {
+	bs, err := rlp.EncodeToBytes([]interface{}{
+		m.Timestamp,
+		m.Epoch,
+		m.SignerIndex,
+		m.VoteRound,
+		m.VoteBlockID,
+		m.VoteSignature,
+		m.VoteHash,
+	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
 	}
-	hw.Sum(hash[:0])
-	return
+	return blake2b.Sum256(bs)
 }
 
 // String returns a string representation.
@@ -226,7 +232,7 @@ func (m *PMVoteMessage) SetMsgSignature(msgSignature []byte) {
 }
 
 func (m *PMVoteMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
+	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 // PMTimeoutMessage is sent to the next leader in these two senarios
@@ -273,19 +279,24 @@ func (m *PMTimeoutMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMTimeoutMessage) GetMsgHash() (hash []byte) {
-	hw := types.NewBlake2b()
-	data := []interface{}{
-		m.Timestamp, m.Epoch, m.SignerIndex,
-		m.WishRound, m.QCHigh, m.WishVoteHash, m.WishVoteSig,
-		m.LastVoteRound, m.LastVoteBlockID, m.LastVoteHash, m.LastVoteSignature,
-	}
-	err := rlp.Encode(hw, data)
+func (m *PMTimeoutMessage) GetMsgHash() types.Bytes32 {
+	bs, err := rlp.EncodeToBytes([]interface{}{
+		m.Timestamp,
+		m.Epoch,
+		m.SignerIndex,
+		m.WishRound,
+		m.QCHigh,
+		m.WishVoteHash,
+		m.WishVoteSig,
+		m.LastVoteRound,
+		m.LastVoteBlockID,
+		m.LastVoteHash,
+		m.LastVoteSignature,
+	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
 	}
-	hw.Sum(hash[:0])
-	return
+	return blake2b.Sum256(bs)
 }
 
 func (m *PMTimeoutMessage) DecodeQCHigh() *QuorumCert {
@@ -319,7 +330,7 @@ func (m *PMTimeoutMessage) SetMsgSignature(msgSignature []byte) {
 }
 
 func (m *PMTimeoutMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
+	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 type PMQueryMessage struct {
@@ -349,15 +360,17 @@ func (m *PMQueryMessage) GetRound() uint32 {
 }
 
 // GetMsgHash computes hash of all header fields excluding signature.
-func (m *PMQueryMessage) GetMsgHash() (hash []byte) {
-	hw := types.NewBlake2b()
-	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.LastCommitted}
-	err := rlp.Encode(hw, data)
+func (m *PMQueryMessage) GetMsgHash() types.Bytes32 {
+	bs, err := rlp.EncodeToBytes([]interface{}{
+		m.Timestamp,
+		m.Epoch,
+		m.SignerIndex,
+		m.LastCommitted,
+	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
 	}
-	hw.Sum(hash[:0])
-	return
+	return blake2b.Sum256(bs)
 }
 
 // String returns a string representation.
@@ -370,5 +383,5 @@ func (m *PMQueryMessage) SetMsgSignature(msgSignature []byte) {
 }
 
 func (m *PMQueryMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash(), m.MsgSignature)
+	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
