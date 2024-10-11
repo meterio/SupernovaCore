@@ -677,12 +677,7 @@ func (c *Chain) getTransaction(blockID types.Bytes32, index uint64) (cmttypes.Tx
 
 // IsNotFound returns if an error means not found.
 func (c *Chain) IsNotFound(err error) bool {
-	// return err == ErrNotFound || c.kv.IsNotFound(err)
 	return err == ErrNotFound
-	// FIXME: used to have kv to return an NotFound error, now that we're using cometbft-db
-	// so we don't have a specific error to check
-	// instead we need to remove this function and replace everywhere to check returned bytes instead of err
-	// if returned bytes is nil, then that's a not found
 }
 
 // IsBlockExist returns if the error means block was already in the chain.

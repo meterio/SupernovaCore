@@ -241,7 +241,6 @@ func (r *Reactor) PrepareEnvForPacemaker() error {
 	}
 	r.logger.Info("prepare env for pacemaker", "nonce", r.curNonce, "bestK", bestKBlock.Number(), "bestIsKBlock", bestIsKBlock, "epoch", r.curEpoch)
 
-	// FIXME: init kblock info
 	return nil
 }
 

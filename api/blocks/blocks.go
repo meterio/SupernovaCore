@@ -8,7 +8,6 @@ package blocks
 import (
 	"encoding/hex"
 	"log/slog"
-	"math/big"
 	"net/http"
 	"strconv"
 
@@ -55,7 +54,7 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 		return err
 	}
 
-	jSummary := buildJSONBlockSummary(block, isTrunk, big.NewInt(0) /* FIXME: get the correct value */)
+	jSummary := buildJSONBlockSummary(block, isTrunk)
 	if expanded == "true" {
 		var err error
 		var txs types.Transactions
@@ -71,7 +70,7 @@ func (b *Blocks) handleGetBlock(w http.ResponseWriter, req *http.Request) error 
 
 		return utils.WriteJSON(w, &JSONExpandedBlock{
 			jSummary,
-			buildJSONEmbeddedTxs(txs /*FIXME: get the correct baseGasFee*/),
+			buildJSONEmbeddedTxs(txs),
 		})
 	}
 	txIds := make([]string, 0)

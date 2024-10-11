@@ -438,10 +438,16 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		}
 		return false, err
 	}
+	fork, err := n.commitBlock(blk, escortQC)
+	if err != nil {
+		if !n.chain.IsBlockExist(err) {
+			n.logger.Error("failed to commit block", "err", err)
+		}
+		return false, err
+	}
 
 	stats.UpdateProcessed(1, len(blk.Txs))
-	// FIXME: process fork
-	// n.processFork(fork)
+	n.processFork(fork)
 
 	// shortcut to refresh epoch
 	updated, _ := n.reactor.UpdateCurEpoch()
@@ -451,9 +457,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		n.reactor.SchedulePacemakerRegulate()
 	}
 	// end of shortcut
-	// return len(fork.Trunk) > 0, nil
-	//  FIXME: help
-	return true, nil
+	return len(fork.Trunk) > 0, nil
 }
 
 func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*chain.Fork, error) {

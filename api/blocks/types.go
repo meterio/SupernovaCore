@@ -7,7 +7,6 @@ package blocks
 
 import (
 	"encoding/hex"
-	"math/big"
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/ethereum/go-ethereum/common"
@@ -90,7 +89,7 @@ type JSONExpandedBlock struct {
 	Transactions []*JSONEmbeddedTx `json:"transactions"`
 }
 
-func buildJSONBlockSummary(blk *block.Block, isTrunk bool, baseFeePerGas *big.Int) *JSONBlockSummary {
+func buildJSONBlockSummary(blk *block.Block, isTrunk bool) *JSONBlockSummary {
 	header := blk.Header()
 	signer, _ := header.Signer()
 
