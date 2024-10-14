@@ -85,6 +85,6 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 		Timestamp(b.timestamp).
 		ValidatorHash(b.vset.Hash()).BlockType(block.KBlockType).
 		Nonce(GenesisNonce).
-		QC(&block.QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: types.Bytes32{}, AggSig: make([]byte, 0), BitArray: cmn.NewBitArray(1)}).
+		QC(&block.QuorumCert{Height: 0, Round: 0, Epoch: 0, MsgHash: types.Bytes32{}, AggSig: make([]byte, 0), BitArray: cmn.NewBitArray(1)}).
 		Build(), nil
 }

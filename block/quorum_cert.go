@@ -16,9 +16,9 @@ import (
 )
 
 type QuorumCert struct {
-	QCHeight uint32
-	QCRound  uint32
-	EpochID  uint64
+	Height uint32
+	Round  uint32
+	Epoch  uint64
 
 	MsgHash  [32]byte // [][32]byte
 	AggSig   []byte
@@ -31,7 +31,7 @@ func (qc *QuorumCert) String() string {
 		voted := qc.BitArray.CountYes()
 		unvoted := qc.BitArray.CountNo()
 		return fmt.Sprintf("QC(#%v, R:%v, E:%v, BitArray:(%v/%v), AggSig:len(%v))",
-			qc.QCHeight, qc.QCRound, qc.EpochID, voted, (voted + unvoted), len(qc.AggSig))
+			qc.Height, qc.Round, qc.Epoch, voted, (voted + unvoted), len(qc.AggSig))
 	}
 	return "QC(nil)"
 }
@@ -39,7 +39,7 @@ func (qc *QuorumCert) String() string {
 func (qc *QuorumCert) CompactString() string {
 	if qc != nil {
 		return fmt.Sprintf("QC(#%v,R:%v,E:%v)",
-			qc.QCHeight, qc.QCRound, qc.EpochID)
+			qc.Height, qc.Round, qc.Epoch)
 	}
 	return "QC(nil)"
 }
@@ -59,9 +59,9 @@ func (qc *QuorumCert) EncodeRLP(w io.Writer) error {
 		return nil
 	}
 	return rlp.Encode(w, []interface{}{
-		qc.QCHeight,
-		qc.QCRound,
-		qc.EpochID,
+		qc.Height,
+		qc.Round,
+		qc.Epoch,
 		qc.MsgHash,
 		qc.AggSig,
 		qc.BitArray,
@@ -77,9 +77,9 @@ func (qc *QuorumCert) Hash() []byte {
 // DecodeRLP implements rlp.Decoder.
 func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	payload := struct {
-		QCHeight uint32
-		QCRound  uint32
-		EpochID  uint64
+		Height   uint32
+		Round    uint32
+		Epoch    uint64
 		MsgHash  [32]byte
 		AggSig   []byte
 		BitArray *cmn.BitArray
@@ -90,9 +90,9 @@ func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	*qc = QuorumCert{
-		QCHeight: payload.QCHeight,
-		QCRound:  payload.QCRound,
-		EpochID:  payload.EpochID,
+		Height:   payload.Height,
+		Round:    payload.Round,
+		Epoch:    payload.Epoch,
 		MsgHash:  payload.MsgHash,
 		AggSig:   payload.AggSig,
 		BitArray: payload.BitArray,
@@ -101,7 +101,7 @@ func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 }
 
 func GenesisEscortQC(b *Block) *QuorumCert {
-	return &QuorumCert{QCHeight: 0, QCRound: 0, EpochID: 0, MsgHash: b.VotingHash(), BitArray: cmn.NewBitArray(1)}
+	return &QuorumCert{Height: 0, Round: 0, Epoch: 0, MsgHash: b.VotingHash(), BitArray: cmn.NewBitArray(1)}
 }
 
 // --------------

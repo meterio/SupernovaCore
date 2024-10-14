@@ -90,7 +90,7 @@ type BlockInfo struct {
 }
 
 type QCInfo struct {
-	QcHeight int64  `json:"qcHeight"`
+	QcHeight int64  `json:"height"`
 	Raw      string `json:"raw"`
 }
 

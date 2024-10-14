@@ -175,12 +175,12 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 	if err != nil {
 		logger.Debug("BestQC is empty, set it to use genesisEscortQC")
 		bestQC = block.GenesisEscortQC(genesisBlock)
-		bestQCHeightGauge.Set(float64(bestQC.QCHeight))
+		bestQCHeightGauge.Set(float64(bestQC.Height))
 	}
 
-	if bestBlock.Number() > bestQC.QCHeight {
-		logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.QCHeight)
-		matchBestBlockID, err := loadBlockHash(kv, bestQC.QCHeight)
+	if bestBlock.Number() > bestQC.Height {
+		logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.Height)
+		matchBestBlockID, err := loadBlockHash(kv, bestQC.Height)
 		if err != nil {
 			logger.Error("could not load match best block", "err", err)
 		} else {
@@ -195,7 +195,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 	}
 
 	bestHeightGauge.Set(float64(bestBlock.Number()))
-	bestQCHeightGauge.Set(float64(bestQC.QCHeight))
+	bestQCHeightGauge.Set(float64(bestQC.Height))
 
 	if verbose {
 		slog.Info("METER CHAIN INITIALIZED", "genesis: ", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String())
@@ -763,7 +763,7 @@ func (c *Chain) nextBlock(descendantID types.Bytes32, num uint32) (*block.Block,
 
 func (c *Chain) FindEpochOnBlock(num uint32) (uint64, error) {
 	bestBlock := c.BestBlock()
-	curEpoch := bestBlock.QC.EpochID
+	curEpoch := bestBlock.QC.Epoch
 	curNum := bestBlock.Number()
 
 	if num >= curNum {

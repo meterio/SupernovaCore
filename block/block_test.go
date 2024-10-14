@@ -50,7 +50,7 @@ func TestSerialize(t *testing.T) {
 
 	// block = block.WithSignature(sig)
 
-	qc := QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 1, AggSig: []byte{1, 2, 3}, MsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
+	qc := QuorumCert{Height: 1, Round: 1, Epoch: 1, AggSig: []byte{1, 2, 3}, MsgHash: [32]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, VoterViolation: []*Violation{}}
 	block.SetQC(&qc)
 
 	addr := types.NetAddress{IP: []byte{}, Port: 4444}
@@ -88,5 +88,5 @@ func TestSerialize(t *testing.T) {
 	assert.Equal(t, committeeInfo[0].Name, ci[0].Name)
 
 	dqc := b.GetQC()
-	assert.Equal(t, qc.QCHeight, dqc.QCHeight)
+	assert.Equal(t, qc.Height, dqc.Height)
 }

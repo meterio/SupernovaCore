@@ -94,7 +94,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	}
 
 	// genesis/first block does not have qc
-	if b.Number() == escortQC.QCHeight && (b.Number() == 0 || b.Number() == 1) {
+	if b.Number() == escortQC.Height && (b.Number() == 0 || b.Number() == 1) {
 		return true, nil
 	}
 
@@ -349,8 +349,8 @@ func (b *Block) GetQC() *QuorumCert {
 	return b.QC
 }
 
-// if the block is the first mblock, get epochID from committee
-// otherwise get epochID from QC
+// if the block is the first mblock, get epoch from committee
+// otherwise get epoch from QC
 func (b *Block) GetBlockEpoch() (epoch uint64) {
 	height := b.Number()
 	lastKBlockHeight := b.LastKBlockHeight()
@@ -364,13 +364,13 @@ func (b *Block) GetBlockEpoch() (epoch uint64) {
 	}
 
 	if height > lastKBlockHeight+1 {
-		epoch = b.QC.EpochID
+		epoch = b.QC.Epoch
 	} else if height == lastKBlockHeight+1 {
 		if b.IsKBlock() {
 			// handling cases where two KBlock are back-to-back
-			epoch = b.QC.EpochID + 1
+			epoch = b.QC.Epoch + 1
 		} else {
-			epoch = b.QC.EpochID
+			epoch = b.QC.Epoch
 		}
 	} else {
 		panic("Block error: lastKBlockHeight great than height")

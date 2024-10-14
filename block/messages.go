@@ -100,7 +100,7 @@ type PMProposalMessage struct {
 	// Height       uint32 // inherit from decodedID
 	Round uint32
 	// ParentHeight uint32 // inherit from decodedParentID
-	// ParentRound uint32 // inherit from decodedQC.QCRound
+	// ParentRound uint32 // inherit from decodedQC.Round
 	RawBlock []byte
 
 	TimeoutCert *types.TimeoutCert
@@ -317,7 +317,7 @@ func (m *PMTimeoutMessage) String() string {
 	qcHigh := m.DecodeQCHigh()
 	s := fmt.Sprintf("Timeout(E:%v,WR:%d)", m.Epoch, m.WishRound)
 	if qcHigh != nil {
-		s = s + " " + fmt.Sprintf("QCHigh(#%d,R:%d)", qcHigh.QCHeight, qcHigh.QCRound)
+		s = s + " " + fmt.Sprintf("QCHigh(#%d,R:%d)", qcHigh.Height, qcHigh.Round)
 	}
 	if len(m.LastVoteSignature) > 0 {
 		s = s + " " + fmt.Sprintf("LastVote(R:%d, %v)", m.LastVoteRound, m.LastVoteBlockID.ToBlockShortID())

@@ -92,7 +92,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 		syncCount := 0
 
 		shouldSynced := func() bool {
-			bestQCHeight := c.chain.BestQC().QCHeight
+			bestQCHeight := c.chain.BestQC().Height
 			bestBlockHeight := c.chain.BestBlock().Number()
 			bestBlockTime := c.chain.BestBlock().Timestamp()
 			now := uint64(time.Now().Unix())

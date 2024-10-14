@@ -19,7 +19,8 @@ import (
 )
 
 func newChain(kv kv.GetPutter) *chain.Chain {
-	gene := genesis.NewDevnet()
+
+	gene := genesis.NewGenesis()
 	b0, _ := gene.Build()
 	chain, _ := chain.New(kv, b0, gene.ValidatorSet(), false)
 	return chain
@@ -59,9 +60,9 @@ func TestExecutable(t *testing.T) {
 	chain := newChain(kv)
 	b0 := chain.GenesisBlock()
 	b1 := new(block.Builder).ParentID(b0.Header().ID()).Build()
-	qc1 := block.QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 0}
+	qc1 := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
 	b1.SetQC(&qc1)
-	escortQC := &block.QuorumCert{QCHeight: b1.Number(), QCRound: b1.QC.QCRound + 1, EpochID: b1.QC.EpochID, VoterMsgHash: b1.VotingHash()}
+	escortQC := &block.QuorumCert{Height: b1.Number(), Round: b1.QC.Round + 1, Epoch: b1.QC.Epoch, VoterMsgHash: b1.VotingHash()}
 	chain.AddBlock(b1, escortQC)
 
 	tests := []struct {

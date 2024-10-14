@@ -98,9 +98,9 @@ func (m *QCVoteManager) Aggregate(round uint32, blockID types.Bytes32, epoch uin
 	aggrSig := bls.AggregateSignatures(sigs)
 
 	return &block.QuorumCert{
-		QCHeight: block.Number(blockID),
-		QCRound:  round,
-		EpochID:  epoch,
+		Height:   block.Number(blockID),
+		Round:    round,
+		Epoch:    epoch,
 		MsgHash:  msgHash,
 		BitArray: bitArray,
 		AggSig:   aggrSig.Marshal(),

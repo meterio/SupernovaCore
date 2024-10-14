@@ -67,7 +67,7 @@ func (p *ProposalMap) Get(blkID types.Bytes32) *block.DraftBlock {
 		p.logger.Info("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
 		return &block.DraftBlock{
 			Height:        blkInDB.Number(),
-			Round:         blkInDB.QC.QCRound + 1, // FIXME: might be wrong for the block after kblock
+			Round:         blkInDB.QC.Round + 1, // FIXME: might be wrong for the block after kblock
 			Parent:        nil,
 			Justify:       nil,
 			Committed:     true,
@@ -88,7 +88,7 @@ func BlockMatchDraftQC(b *block.DraftBlock, escortQC *block.QuorumCert) bool {
 	}
 
 	// genesis does not have qc
-	if b.Height == 0 && escortQC.QCHeight == 0 {
+	if b.Height == 0 && escortQC.Height == 0 {
 		return true
 	}
 
@@ -101,7 +101,7 @@ func BlockMatchDraftQC(b *block.DraftBlock, escortQC *block.QuorumCert) bool {
 func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {
 	for key := range p.proposals {
 		draftBlk := p.proposals[key]
-		if draftBlk.Height == qc.QCHeight && draftBlk.Round == qc.QCRound {
+		if draftBlk.Height == qc.Height && draftBlk.Round == qc.Round {
 			if match := BlockMatchDraftQC(draftBlk, qc); match {
 				return draftBlk
 			}
@@ -109,15 +109,15 @@ func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {
 	}
 
 	// load from database
-	blkID, err := p.chain.GetAncestorBlockID(p.chain.BestBlock().ID(), qc.QCHeight)
+	blkID, err := p.chain.GetAncestorBlockID(p.chain.BestBlock().ID(), qc.Height)
 	if err == nil {
 		blkInDB, err := p.chain.GetBlock(blkID)
 		if err == nil {
 			p.logger.Debug("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
-			if blkInDB.Number() == qc.QCHeight {
+			if blkInDB.Number() == qc.Height {
 				return &block.DraftBlock{
-					Height:        qc.QCHeight,
-					Round:         qc.QCRound,
+					Height:        qc.Height,
+					Round:         qc.Round,
 					Parent:        nil,
 					Justify:       nil,
 					Committed:     true,

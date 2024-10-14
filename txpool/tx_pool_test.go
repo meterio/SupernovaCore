@@ -41,7 +41,7 @@ func TestSubscribeNewTx(t *testing.T) {
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).Build()
-	qc := block.QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 0}
+	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
 
@@ -75,7 +75,7 @@ func TestWashTxs(t *testing.T) {
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).
 		Build()
-	qc := block.QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 0}
+	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
 
@@ -91,7 +91,7 @@ func TestAdd(t *testing.T) {
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).
 		Build()
-	qc := block.QuorumCert{QCHeight: 1, QCRound: 1, EpochID: 0}
+	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
 	acc := genesis.DevAccounts()[0]

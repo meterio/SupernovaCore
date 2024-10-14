@@ -124,8 +124,8 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 	}
 
 	if !parent.ProposedBlock.IsKBlock() { // only check round if parent is not KBlock
-		if p.reactor.curEpoch != 0 && round != 0 && round <= justify.QC.QCRound {
-			p.logger.Warn("Invalid round to propose", "round", round, "qcRound", justify.QC.QCRound)
+		if p.reactor.curEpoch != 0 && round != 0 && round <= justify.QC.Round {
+			p.logger.Warn("Invalid round to propose", "round", round, "round", justify.QC.Round)
 			return ErrInvalidRound, nil
 		}
 		if p.reactor.curEpoch != 0 && round != 0 && round <= parent.Round {
@@ -133,7 +133,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 			return ErrInvalidRound, nil
 		}
 	}
-	p.logger.Info(fmt.Sprintf("proposing MBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
+	p.logger.Info(fmt.Sprintf("proposing MBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.Height, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
 	err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs, block.MBlockType)
 	if time.Now().Before(targetTime) {
 		d := time.Until(targetTime)
@@ -234,7 +234,7 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) {
 
 		if err != chain.ErrBlockExist && err != errKnownBlock {
 			if blk.ProposedBlock.IsKBlock() {
-				if blk.ProposedBlock.QC.EpochID >= p.reactor.curEpoch && blk.ProposedBlock.Nonce() != p.reactor.curNonce {
+				if blk.ProposedBlock.QC.Epoch >= p.reactor.curEpoch && blk.ProposedBlock.Nonce() != p.reactor.curNonce {
 					p.logger.Info("committed a kblock, schedule regulate", "height", blk.Height, "round", blk.Round)
 					p.scheduleRegulate()
 				} else {
@@ -271,7 +271,7 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 	// load parent
 	parent := p.chain.GetDraft(blk.ParentID())
 	if parent == nil {
-		if blk.Number() > p.QCHigh.QC.QCHeight {
+		if blk.Number() > p.QCHigh.QC.Height {
 			// future propsal, throw it back in queue with extended expire
 			// if mi.ExpireAt.Add(time.Second * (-2)).After(time.Now()) {
 			// 	mi.ExpireAt = mi.ExpireAt.Add(time.Second + 5)
@@ -446,8 +446,8 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 	}
 	// proposedBlk := bnew.ProposedBlockInfo.ProposedBlock
 
-	if bnew.Height <= qc.QC.QCHeight {
-		p.logger.Error("proposed block refers to an invalid qc", "proposedQC", qc.QC.QCHeight, "proposedHeight", bnew.Height)
+	if bnew.Height <= qc.QC.Height {
+		p.logger.Error("proposed block refers to an invalid qc", "proposedQC", qc.QC.Height, "proposedHeight", bnew.Height)
 		return nil
 	}
 
@@ -468,7 +468,7 @@ func (p *Pacemaker) UpdateQCHigh(qc *block.DraftQC) bool {
 	// update local qcHigh if
 	// newQC.height > qcHigh.height
 	// or newQC.height = qcHigh.height && newQC.round > qcHigh.round
-	if qc.QCNode != nil && qc.QC.QCHeight > p.QCHigh.QC.QCHeight || (qc.QC.QCHeight == p.QCHigh.QCNode.Height && qc.QC.QCRound > p.QCHigh.QCNode.Round) {
+	if qc.QCNode != nil && qc.QC.Height > p.QCHigh.QC.Height || (qc.QC.Height == p.QCHigh.QCNode.Height && qc.QC.Round > p.QCHigh.QCNode.Round) {
 		p.QCHigh = qc
 		updated = true
 		p.logger.Info(fmt.Sprintf("QCHigh update to %s", p.QCHigh.ToString()), "from", oqc.ToString())
@@ -575,7 +575,7 @@ func (p *Pacemaker) Regulate() {
 	if p.qcVoteManager == nil || p.qcVoteManager.Size() != p.reactor.committeeSize {
 		p.qcVoteManager = NewQCVoteManager(p.reactor.committeeSize)
 	} else {
-		p.qcVoteManager.CleanUpTo(p.reactor.chain.BestQC().QCHeight)
+		p.qcVoteManager.CleanUpTo(p.reactor.chain.BestQC().Height)
 	}
 	if p.tcVoteManager == nil || p.tcVoteManager.Size() != p.reactor.committeeSize {
 		p.tcVoteManager = NewTCVoteManager(p.reactor.committeeSize)
@@ -584,13 +584,13 @@ func (p *Pacemaker) Regulate() {
 	}
 
 	bestQC := p.reactor.chain.BestQC()
-	bestBlk, err := p.reactor.chain.GetTrunkBlock(bestQC.QCHeight)
+	bestBlk, err := p.reactor.chain.GetTrunkBlock(bestQC.Height)
 	if err != nil {
 		p.logger.Error("could not get bestBlock with bestQC")
 		panic("could not get bestBlock with bestQC")
 	}
 
-	round := bestQC.QCRound
+	round := bestQC.Round
 	actualRound := round + 1
 	if bestBlk.IsKBlock() || bestBlk.Number() == 0 {
 		// started with KBlock or Genesis
@@ -725,12 +725,12 @@ func (p *Pacemaker) mainLoop() {
 
 	for {
 		bestBlock := p.chain.BestBlock()
-		if bestBlock.Number() > p.QCHigh.QC.QCHeight && p.reactor.inCommittee {
-			p.logger.Info("bestBlock > QCHigh, schedule regulate", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.QCHeight)
+		if bestBlock.Number() > p.QCHigh.QC.Height && p.reactor.inCommittee {
+			p.logger.Info("bestBlock > QCHigh, schedule regulate", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.Height)
 			p.scheduleRegulate()
 		}
-		// else if bestBlock.Number() > p.QCHigh.QC.QCHeight && !p.reactor.inCommittee {
-		// p.logger.Info("bestBlock > QCHigh, but I'm not in committee, continue ...", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.QCHeight)
+		// else if bestBlock.Number() > p.QCHigh.QC.Height && !p.reactor.inCommittee {
+		// p.logger.Info("bestBlock > QCHigh, but I'm not in committee, continue ...", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.Height)
 		// }
 		select {
 

@@ -80,9 +80,9 @@ type Block struct {
 }
 
 type QC struct {
-	Height  uint32 `json:"qcHeight"`
-	Round   uint32 `json:"qcRound"`
-	EpochID uint64 `json:"epochID"`
+	Height uint32 `json:"height"`
+	Round  uint32 `json:"round"`
+	Epoch  uint64 `json:"epoch"`
 }
 
 type BlockProbe struct {
@@ -120,9 +120,9 @@ func convertQC(qc *block.QuorumCert) (*QC, error) {
 		return nil, errors.New("empty qc")
 	}
 	return &QC{
-		Height:  qc.QCHeight,
-		Round:   qc.QCRound,
-		EpochID: qc.EpochID,
+		Height: qc.Height,
+		Round:  qc.Round,
+		Epoch:  qc.Epoch,
 	}, nil
 }
 

@@ -32,11 +32,11 @@ var blsMaster = types.NewBlsMasterWithRandKey()
 
 func newBlock(parent *block.Block, score uint64) (*block.Block, *block.QuorumCert) {
 	b := new(block.Builder).ParentID(parent.Header().ID()).Build()
-	qc := block.QuorumCert{QCHeight: uint32(score), QCRound: uint32(score), EpochID: 0}
+	qc := block.QuorumCert{Height: uint32(score), Round: uint32(score), Epoch: 0}
 	b.SetQC(&qc)
 	sig := blsMaster.SignMessage(b.Header().SigningHash().Bytes())
 	b.WithSignature(sig)
-	escortQC := &block.QuorumCert{QCHeight: b.Number(), QCRound: b.QC.QCRound + 1, EpochID: b.QC.EpochID, MsgHash: b.VotingHash()}
+	escortQC := &block.QuorumCert{Height: b.Number(), Round: b.QC.Round + 1, Epoch: b.QC.Epoch, MsgHash: b.VotingHash()}
 
 	return b, escortQC
 }
