@@ -175,6 +175,10 @@ func (b *Block) NextValidatorHash() cmtbytes.HexBytes {
 	return b.BlockHeader.NextValidatorHash
 }
 
+func (b *Block) ValidatorHashChanged() bool {
+	return bytes.Equal(b.ValidatorHash(), b.NextValidatorHash())
+}
+
 // Timestamp returns timestamp of this block.
 func (b *Block) Timestamp() uint64 {
 	return b.BlockHeader.Timestamp

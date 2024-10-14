@@ -32,6 +32,13 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 	} else {
 		lastKBlock = parent.ProposedBlock.LastKBlockHeight()
 	}
+
+	nextValidatorHash := parent.ProposedBlock.NextValidatorHash()
+	num := parent.ProposedBlock.Number() + 1
+	newVSet := p.validatorSetRegistry.Get(num)
+	if newVSet != nil {
+		nextValidatorHash = newVSet.Hash()
+	}
 	builder := new(block.Builder).
 		Magic(block.BlockMagicVersion1).
 		ParentID(parentBlock.ID()).
@@ -39,6 +46,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		Nonce(nonce).
 		BlockType(blockType).
 		ValidatorHash(parent.ProposedBlock.NextValidatorHash()).
+		NextValidatorHash(nextValidatorHash).
 		LastKBlockHeight(lastKBlock).QC(qc)
 
 	for _, tx := range txs {

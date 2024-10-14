@@ -47,7 +47,8 @@ func (c *Reactor) ProcessSyncedBlock(blk *block.Block, nowTimestamp uint64) erro
 		}
 		return errParentMissing
 	}
-	return nil
+
+	return c.pacemaker.FinalizeBlockViaABCI(blk)
 }
 
 func (c *Reactor) ProcessProposedBlock(parent *block.Block, blk *block.Block, nowTimestamp uint64) error {

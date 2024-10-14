@@ -6,9 +6,6 @@
 package types
 
 import (
-	"math/big"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -18,115 +15,25 @@ const (
 	MTR  = byte(0)
 	MTRG = byte(1)
 	// minimum height for committee relay.
-	NPowBlockPerEpoch    = 60   // epoch time (normaly 1 pow block takes 1 minutes)
-	MaxNPowBlockPerEpoch = 3000 // if too many pow blocks need to be packed in kblock, truncate to the last 3000 pow blocks
-	NEpochPerDay         = 24 * 60 / NPowBlockPerEpoch
-	KBlockEpoch          = 14603 // wrong LastKBlockHeight
-
-	// ------------------- Miner Reward ---------------------
-	MaxNClausePerRewardTx = 200 // pack reward tx with maxinum 200 clauses
-
-	// --------------- Validator Reward ---------------------
-	NDays   = 10 // smooth with n days, the (last n days's total received MTR) * 1/n will be used as the validator reward for current day
-	NDaysV2 = 1  // hard fork from 10 to 1
-
-	// ------------------ Auction ---------------------------
-	NEpochPerAuction       = 24 // every n Epoch move to next auction
-	NAuctionPerDay         = 24 * 60 / NPowBlockPerEpoch / NEpochPerAuction
-	MaxNClausePerAutobidTx = 1000
-
-	// auction release mtrg (new version)
-	AuctionReleaseBase      = 40000000 // total base of 400M MTRG
-	AuctionReleaseInflation = 5e16     // yoy 5%, in unit of wei (aka. 1e18)
+	KBlockEpoch = 14603 // wrong LastKBlockHeight
 
 	//  ------------------ Basics ----------------------------
-	BlockInterval             uint64 = 10          // time interval between two consecutive blocks.
-	BaseTxGas                 uint64 = ParamsTxGas // 21000
-	TxGas                     uint64 = 5000
-	ClauseGas                 uint64 = ParamsTxGas - TxGas
-	ClauseGasContractCreation uint64 = ParamsTxGasContractCreation - TxGas
+	BlockInterval uint64 = 10          // time interval between two consecutive blocks.
+	BaseTxGas     uint64 = ParamsTxGas // 21000
+	TxGas         uint64 = 5000
 
 	// InitialGasLimit was 10 *1000 *100, only accommodates 476 Txs, block size 61k, so change to 200M
-	GetBalanceGas  uint64 = 400 //EIP158 gas table
 	SloadGas       uint64 = 200 // EIP158 gas table
 	SstoreSetGas   uint64 = ParamsSstoreSetGas
 	SstoreResetGas uint64 = ParamsSstoreResetGas
 
-	MaxTxWorkDelay uint32 = 30 // (unit: block) if tx delay exceeds this value, no energy can be exchanged.
-
-	MaxBlockProposers uint64 = 101
-
-	TolerableBlockPackingTime = 100 * time.Millisecond // the indicator to adjust target block gas limit
-
-	MaxBackTrackingBlockNumber = 65535
+	NBlockDelayToEnableValidatorSet = 4
 )
 
 // Keys of governance params.
 var (
 	// Keys
-	KeyExecutorAddress        = BytesToBytes32([]byte("executor"))
-	KeyBaseGasPrice           = BytesToBytes32([]byte("base-gas-price"))
-	KeyProposerEndorsement    = BytesToBytes32([]byte("proposer-endorsement"))
-	KeyValidatorBaseReward    = BytesToBytes32([]byte("validator-base-reward"))
-	KeyConsensusCommitteeSize = BytesToBytes32([]byte("consensus-committee-size"))
-
-	//  mtr-erc20, 0x00000000000000006e61746976652d6d74722d65726332302d61646472657373
-	KeyNativeMtrERC20Address = BytesToBytes32([]byte("native-mtr-erc20-address"))
-	// mtrg-erc20, 0x000000000000006e61746976652d6d7472672d65726332302d61646472657373
-	KeyNativeMtrgERC20Address = BytesToBytes32([]byte("native-mtrg-erc20-address"))
-
-	// 0x00000000000000312d73797374656d2d636f6e74726163742d61646472657373
-	KeySystemContractAddress1 = BytesToBytes32([]byte("1-system-contract-address"))
-	// 0x00000000000000322d73797374656d2d636f6e74726163742d61646472657373
-	KeySystemContractAddress2 = BytesToBytes32([]byte("2-system-contract-address"))
-	// 0x00000000000000332d73797374656d2d636f6e74726163742d61646472657373
-	KeySystemContractAddress3 = BytesToBytes32([]byte("3-system-contract-address"))
-	// 0x00000000000000342d73797374656d2d636f6e74726163742d61646472657373
-	KeySystemContractAddress4 = BytesToBytes32([]byte("4-system-contract-address"))
-
-	KeyEnforceTesla1_Correction = BytesToBytes32([]byte("Tesla1_1Correction-Flag")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla5_Correction = BytesToBytes32([]byte("Tesla5_Correction-Flag")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla_Fork6_Correction = BytesToBytes32([]byte("Tesla_Fork6_Correction-Flag")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla_Fork8_Correction = BytesToBytes32([]byte("Tesla_Fork8_Correction_Flag")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla_Fork9_Correction = BytesToBytes32([]byte("Tesla_Fork9_Correction")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla_Fork10_Correction = BytesToBytes32([]byte("Tesla_Fork10_Correction")) // unset or 0 is not do yet, 1 is done
-
-	KeyEnforceTesla_Fork11_Correction = BytesToBytes32([]byte("Tesla_Fork11_Correction")) // unset or 0 is not do yet, 1 is done
-
-	// Initial values
-	InitialRewardRatio         = big.NewInt(3e17) // 30%
-	InitialBaseGasPrice        = big.NewInt(5e11) // each tx gas is about 0.01
-	InitialProposerEndorsement = new(big.Int).Mul(big.NewInt(1e18), big.NewInt(25000000))
-
-	InitialValidatorBenefitRatio = big.NewInt(4e17)                                                   //40% percent of total auciton gain
-	InitialValidatorBaseReward   = new(big.Int).Mul(big.NewInt(25), big.NewInt(1e16))                 // base reward for each validator 0.25
-	InitialAuctionReservedPrice  = big.NewInt(5e17)                                                   // 1 MTRG settle with 0.5 MTR
-	InitialMinRequiredByDelegate = new(big.Int).Mul(big.NewInt(int64(300)), big.NewInt(int64(1e18)))  // minimium require for delegate is 300 mtrg
-	InitialAuctionInitRelease    = new(big.Int).Mul(big.NewInt(int64(1000)), big.NewInt(int64(1e18))) // auction reward initial release, is 1000
-
-	// TBA
-	InitialBorrowInterestRate     = big.NewInt(1e17)                                                 // bowrrower interest rate, initial set as 10%
-	InitialConsensusCommitteeSize = new(big.Int).Mul(big.NewInt(int64(50)), big.NewInt(int64(1e18))) // consensus committee size, is set to 50
+	KeyExecutorAddress = BytesToBytes32([]byte("executor"))
 
 	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
-	//////////////////////////////
-	// The Following Accounts are defined for DFL Community
-	InitialExecutorAccount = common.HexToAddress("0xdbb11b66f1d62bdeb5f47018d85e2401d7e3dc2e")
-	InitialDFLTeamAccount1 = common.HexToAddress("0x2fa2d56e312c47709537acb198446205736022aa")
-	InitialDFLTeamAccount2 = common.HexToAddress("0x08ebea6584b3d9bf6fbcacf1a1507d00a61d95b7")
-	InitialDFLTeamAccount3 = common.HexToAddress("0x045df1ef32d6db371f1857bb60551ef2e43abb1e")
-	InitialDFLTeamAccount4 = common.HexToAddress("0xde4f71f45ae821614e9dd1256fef06780b775216")
-	InitialDFLTeamAccount5 = common.HexToAddress("0xab22ab75f8c42b6969c5d226f39aeb7be35bf24b")
-	InitialDFLTeamAccount6 = common.HexToAddress("0x63723217e860bc409e29b46eec70101cd03d8242")
-	InitialDFLTeamAccount7 = common.HexToAddress("0x0374f5867ab2effd2277c895e7d1088b10ec9452")
-	InitialDFLTeamAccount8 = common.HexToAddress("0x5308b6f26f21238963d0ea0b391eafa9be53c78e")
-
-	TeslaValidatorBenefitRatio = big.NewInt(1e18)
-
-	NewViewPeersLimit = 8
 )

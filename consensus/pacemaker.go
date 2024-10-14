@@ -7,7 +7,6 @@ package consensus
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -17,7 +16,6 @@ import (
 
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
-	crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/types"
@@ -77,6 +75,8 @@ type Pacemaker struct {
 	newTxCh              chan []byte
 	curProposal          *block.DraftBlock
 	txsAddedAfterPropose int
+
+	validatorSetRegistry *ValidatorSetRegistry
 }
 
 func NewPacemaker(r *Reactor) *Pacemaker {
@@ -93,8 +93,9 @@ func NewPacemaker(r *Reactor) *Pacemaker {
 		broadcastCh:    make(chan *block.PMProposalMessage, 4),
 		newTxCh:        r.txpool.GetNewTxFeed(),
 
-		timeoutCounter:  0,
-		lastOnBeatRound: -1,
+		timeoutCounter:       0,
+		lastOnBeatRound:      -1,
+		validatorSetRegistry: NewValidatorSetRegistry(r.chain),
 	}
 	return p
 }
@@ -117,41 +118,29 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		return err, nil
 	}
 
-	// FIXME: handle epoch chagne
-	proposeKBlock := false
-
 	var txs types.Transactions
 	for _, txBytes := range res.Txs {
 		txs = append(txs, cmttypes.Tx(txBytes))
 	}
-	// propose appropriate block info
-	if proposeKBlock {
-		// TODO: check if this nonce is correct
-		codeHash := crypto.Keccak256(parent.ProposedBlock.ID().Bytes())
-		nonce := binary.LittleEndian.Uint64(codeHash[:8])
-		parent.ProposedBlock.ID()
-		p.logger.Info(fmt.Sprintf("proposing KBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
-		return p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, nonce, txs, block.KBlockType)
-	} else {
-		if !parent.ProposedBlock.IsKBlock() { // only check round if parent is not KBlock
-			if p.reactor.curEpoch != 0 && round != 0 && round <= justify.QC.QCRound {
-				p.logger.Warn("Invalid round to propose", "round", round, "qcRound", justify.QC.QCRound)
-				return ErrInvalidRound, nil
-			}
-			if p.reactor.curEpoch != 0 && round != 0 && round <= parent.Round {
-				p.logger.Warn("Invalid round to propose", "round", round, "parentRound", parent.Round)
-				return ErrInvalidRound, nil
-			}
+
+	if !parent.ProposedBlock.IsKBlock() { // only check round if parent is not KBlock
+		if p.reactor.curEpoch != 0 && round != 0 && round <= justify.QC.QCRound {
+			p.logger.Warn("Invalid round to propose", "round", round, "qcRound", justify.QC.QCRound)
+			return ErrInvalidRound, nil
 		}
-		p.logger.Info(fmt.Sprintf("proposing MBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
-		err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs, block.MBlockType)
-		if time.Now().Before(targetTime) {
-			d := time.Until(targetTime)
-			p.logger.Info("sleep until", "targetTime", targetTime, "for", types.PrettyDuration(d))
-			time.Sleep(time.Until(targetTime))
+		if p.reactor.curEpoch != 0 && round != 0 && round <= parent.Round {
+			p.logger.Warn("Invalid round to propose", "round", round, "parentRound", parent.Round)
+			return ErrInvalidRound, nil
 		}
-		return err, draftBlock
 	}
+	p.logger.Info(fmt.Sprintf("proposing MBlock on R:%v with QCHigh(#%v,R:%v), Parent(%v,R:%v)", round, justify.QC.QCHeight, justify.QC.QCRound, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
+	err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs, block.MBlockType)
+	if time.Now().Before(targetTime) {
+		d := time.Until(targetTime)
+		p.logger.Info("sleep until", "targetTime", targetTime, "for", types.PrettyDuration(d))
+		time.Sleep(time.Until(targetTime))
+	}
+	return err, draftBlock
 }
 
 // b_exec <- b_lock <- b <- b' <- bnew*

@@ -74,6 +74,10 @@ func (b *Builder) Magic(magic [4]byte) *Builder {
 
 func (b *Builder) ValidatorHash(hash []byte) *Builder {
 	b.header.ValidatorHash = hash
+	return b
+}
+
+func (b *Builder) NextValidatorHash(hash []byte) *Builder {
 	b.header.NextValidatorHash = hash
 	return b
 }

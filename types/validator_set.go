@@ -123,6 +123,15 @@ func (vals *ValidatorSet) GetByPubkey(pubkey bls.PublicKey) (val *Validator) {
 	return nil
 }
 
+func (vals *ValidatorSet) DeleteByPubkey(pubkey bls.PublicKey) {
+	for index, v := range vals.Validators {
+		if bytes.Equal(v.PubKey.Marshal(), pubkey.Marshal()) {
+			vals.Validators = append(vals.Validators[:index], vals.Validators[index+1:]...)
+			return
+		}
+	}
+}
+
 // GetByIndex returns the validator's address and validator itself (copy) by
 // index.
 // It returns nil values if index is less than 0 or greater or equal to
