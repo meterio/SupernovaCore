@@ -7,7 +7,6 @@ package block
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,6 @@ import (
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -29,25 +27,11 @@ const (
 	DoubleSign = int(1)
 )
 
-var (
-	BlockMagicVersion1 [4]byte = [4]byte{0x76, 0x01, 0x00, 0x00} // version v.1.0.0
-)
-
-type Violation struct {
-	Type       int
-	Index      int
-	Address    common.Address
-	MsgHash    [32]byte
-	Signature1 []byte
-	Signature2 []byte
-}
-
 // Block is an immutable block type.
 type Block struct {
 	BlockHeader *Header
 	Txs         types.Transactions
 	QC          *QuorumCert
-	Magic       [4]byte
 	cache       struct {
 		size atomic.Uint64
 	}
@@ -198,7 +182,6 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 		b.BlockHeader,
 		b.Txs,
 		b.QC,
-		b.Magic,
 	})
 }
 
@@ -213,7 +196,6 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 		Header Header
 		Txs    types.Transactions
 		QC     *QuorumCert
-		Magic  [4]byte
 	}{}
 
 	if err := s.Decode(&payload); err != nil {
@@ -224,7 +206,6 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 		BlockHeader: &payload.Header,
 		Txs:         payload.Txs,
 		QC:          payload.QC,
-		Magic:       payload.Magic,
 	}
 	b.cache.size.Store(rlp.ListSize(size))
 	return nil
@@ -251,10 +232,9 @@ func (b *Block) Size() uint64 {
 
 func (b *Block) String() string {
 	s := fmt.Sprintf(`%v(%v) %v {
-  Magic:       %v
   BlockHeader: %v
   QuorumCert:  %v
-  Transactions: %v`, "Block", b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
+  Txs:         %v`, "Block", b.BlockHeader.Number(), b.ID(), b.BlockHeader, b.QC, b.Txs)
 
 	s += "\n}"
 	return s
@@ -268,14 +248,6 @@ func (b *Block) Oneliner() string {
 }
 
 // -----------------
-func (b *Block) SetMagic(m [4]byte) *Block {
-	b.Magic = m
-	return b
-}
-func (b *Block) GetMagic() [4]byte {
-	return b.Magic
-}
-
 func (b *Block) SetQC(qc *QuorumCert) *Block {
 	b.QC = qc
 	return b

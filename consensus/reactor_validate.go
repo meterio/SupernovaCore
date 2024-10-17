@@ -120,9 +120,6 @@ func (r *Reactor) validateBlockBody(blk *block.Block, parent *block.Block, force
 	if !bytes.Equal(header.TxsRoot, proposedTxs.RootHash()) {
 		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot, proposedTxs.RootHash()))
 	}
-	if blk.GetMagic() != block.BlockMagicVersion1 {
-		return consensusError(fmt.Sprintf("block magic mismatch, has %v, expect %v", blk.GetMagic(), block.BlockMagicVersion1))
-	}
 
 	txUniteHashs := make(map[types.Bytes32]int)
 	clauseUniteHashs := make(map[types.Bytes32]int)

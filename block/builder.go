@@ -60,11 +60,6 @@ func (b *Builder) QC(qc *QuorumCert) *Builder {
 	return b
 }
 
-func (b *Builder) Magic(magic [4]byte) *Builder {
-	b.magic = magic
-	return b
-}
-
 func (b *Builder) ValidatorHash(hash []byte) *Builder {
 	b.header.ValidatorHash = hash
 	return b
@@ -89,6 +84,5 @@ func (b *Builder) Build() *Block {
 		BlockHeader: &header,
 		Txs:         b.txs,
 		QC:          b.qc,
-		Magic:       b.magic,
 	}
 }

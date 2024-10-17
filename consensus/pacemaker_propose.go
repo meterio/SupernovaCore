@@ -42,7 +42,6 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		nextValidatorHash = newVSet.Hash()
 	}
 	builder := new(block.Builder).
-		Magic(block.BlockMagicVersion1).
 		ParentID(parentBlock.ID()).
 		Timestamp(timestamp).
 		Nonce(nonce).
