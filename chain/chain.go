@@ -251,7 +251,6 @@ func (c *Chain) AddBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*Fo
 		newHeader := newBlock.Header()
 		if header.Number() == newHeader.Number() &&
 			header.ParentID == newHeader.ParentID &&
-			string(header.Signature) == string(newHeader.Signature) &&
 			header.Timestamp == newHeader.Timestamp &&
 			parentFinalized {
 			// if the current block is the finalized version of saved block, update it accordingly

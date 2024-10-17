@@ -120,14 +120,6 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	return valid, err
 }
 
-// WithSignature create a new block object with signature set.
-func (b *Block) WithSignature(sig bls.Signature) *Block {
-	return &Block{
-		BlockHeader: b.BlockHeader.WithSignature(sig.Marshal()),
-		Txs:         b.Txs,
-	}
-}
-
 // Header returns the block header.
 func (b *Block) Header() *Header {
 	return b.BlockHeader
@@ -184,10 +176,6 @@ func (b *Block) Timestamp() uint64 {
 // TxsRoot returns merkle root of txs contained in this block.
 func (b *Block) TxsRoot() cmtbytes.HexBytes {
 	return b.BlockHeader.TxsRoot
-}
-
-func (b *Block) Signer() (signer common.Address, err error) {
-	return b.BlockHeader.Signer()
 }
 
 // Transactions returns a copy of transactions.
@@ -311,14 +299,12 @@ func (b *Block) ToBytes() []byte {
 	return bytes
 }
 
-func (b *Block) SetBlockSignature(sig []byte) error {
-	cpy := append([]byte(nil), sig...)
-	b.BlockHeader.Signature = cpy
-	return nil
-}
-
 func (b *Block) Nonce() uint64 {
 	return b.BlockHeader.Nonce
+}
+
+func (b *Block) ProposerIndex() uint32 {
+	return b.BlockHeader.ProposerIndex
 }
 
 // --------------

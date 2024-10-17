@@ -75,6 +75,11 @@ func (b *Builder) NextValidatorHash(hash []byte) *Builder {
 	return b
 }
 
+func (b *Builder) ProposerIndex(index uint32) *Builder {
+	b.header.ProposerIndex = index
+	return b
+}
+
 // Build build a block object.
 func (b *Builder) Build() *Block {
 	header := b.header

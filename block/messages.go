@@ -96,7 +96,6 @@ type PMProposalMessage struct {
 	Timestamp   time.Time
 	Epoch       uint64
 	Round       uint32
-	SignerIndex uint32
 	RawBlock    []byte
 	TimeoutCert *types.TimeoutCert
 
@@ -111,7 +110,7 @@ func (m *PMProposalMessage) GetEpoch() uint64 {
 }
 
 func (m *PMProposalMessage) GetSignerIndex() uint32 {
-	return m.SignerIndex
+	return m.DecodeBlock().ProposerIndex()
 }
 
 func (m *PMProposalMessage) GetType() string {
@@ -124,7 +123,7 @@ func (m *PMProposalMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMProposalMessage) GetMsgHash() types.Bytes32 {
-	data := []interface{}{m.Timestamp, m.Epoch, m.SignerIndex, m.Round, m.RawBlock}
+	data := []interface{}{m.Timestamp, m.Epoch, m.Round, m.RawBlock}
 	if m.TimeoutCert != nil {
 		data = append(data, m.TimeoutCert)
 	}

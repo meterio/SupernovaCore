@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/types"
@@ -24,21 +23,16 @@ import (
 // Header contains almost all information about a block, except block body.
 // It's immutable.
 type Header struct {
-	ParentID         types.Bytes32
-	Timestamp        uint64
-	Proposer         common.Address
-	ProposerIndex    uint32
-	TxsRoot          cmtbytes.HexBytes
-	EvidenceDataRoot types.Bytes32 // deprecated, saved just for compatibility
-
-	LastKBlock uint32
-	Nonce      uint64 //
+	ParentID      types.Bytes32
+	Timestamp     uint64
+	ProposerIndex uint32
+	TxsRoot       cmtbytes.HexBytes
+	LastKBlock    uint32
+	Nonce         uint64 //
 
 	QCHash            cmtbytes.HexBytes // hash of QC
 	ValidatorHash     cmtbytes.HexBytes // hash of validator set
 	NextValidatorHash cmtbytes.HexBytes // hash of next validator set
-
-	Signature []byte
 
 	cache struct {
 		signingHash atomic.Value
@@ -57,7 +51,7 @@ func (h *Header) Number() uint32 {
 }
 
 // ID computes id of block.
-// The block ID is defined as: blockNumber + hash(signingHash, signer)[4:].
+// The block ID is defined as: blockNumber + hash(signingHash, proposerIndex)[4:].
 func (h *Header) ID() (id types.Bytes32) {
 	if cached := h.cache.id.Load(); cached != nil {
 		return cached.(types.Bytes32)
@@ -67,13 +61,10 @@ func (h *Header) ID() (id types.Bytes32) {
 		binary.BigEndian.PutUint32(id[:], h.Number())
 		h.cache.id.Store(id)
 	}()
+	var proposerIndex [4]byte
+	binary.BigEndian.PutUint32(proposerIndex[:], h.ProposerIndex)
 
-	signer, err := h.Signer()
-	if err != nil {
-		return
-	}
-
-	id = blake2b.Sum256(append(h.SigningHash().Bytes(), signer.Bytes()...))
+	id = blake2b.Sum256(append(h.SigningHash().Bytes(), proposerIndex[:]...))
 	return
 }
 
@@ -89,7 +80,6 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 		h.Timestamp,
 
 		h.TxsRoot,
-		h.EvidenceDataRoot,
 
 		h.LastKBlock,
 		h.Nonce,
@@ -104,34 +94,16 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 	return blake2b.Sum256(bs)
 }
 
-// Signer extract signer of the block from signature.
-func (h *Header) Signer() (signer common.Address, err error) {
-	// FIXME: check signature
-	return h.Proposer, nil
-}
-
-func (h *Header) WithSignature(sig []byte) *Header {
-	h.Signature = sig
-	return h
-}
-
 func (h *Header) String() string {
-	var signerStr string
-	if signer, err := h.Signer(); err != nil {
-		signerStr = "N/A"
-	} else {
-		signerStr = signer.String()
-	}
-
 	return fmt.Sprintf(`
     ParentID:                 %v
     Timestamp:                %v
-    LastValidatorUpdateNum:   %v
+	ProposerIndex:            %v
+    LastKBlock:               %v
     TxsRoot:                  %v
-    Signer:                   %v
-    Nonce:                    %v
-    Signature:                0x%x`, h.ParentID, h.Timestamp, h.LastKBlock, h.TxsRoot, signerStr, h.Nonce,
-		h.Signature)
+	ValidatorHash             %v
+	NextValidatorHash         %v
+    Nonce:                    %v`, h.ParentID, h.Timestamp, h.ProposerIndex, h.LastKBlock, h.TxsRoot, h.ValidatorHash.String(), h.NextValidatorHash.String(), h.Nonce)
 }
 
 // Number extract block number from block id.

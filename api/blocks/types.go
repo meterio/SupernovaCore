@@ -16,21 +16,16 @@ import (
 )
 
 type JSONBlockSummary struct {
-	Number      uint32            `json:"number"`
-	ID          types.Bytes32     `json:"id"`
-	Size        uint32            `json:"size"`
-	ParentID    types.Bytes32     `json:"parentID"`
-	Timestamp   uint64            `json:"timestamp"`
-	GasUsed     uint64            `json:"gasUsed"`
-	TotalScore  uint64            `json:"totalScore"`
-	TxsRoot     cmtbytes.HexBytes `json:"txsRoot"`
-	TxsFeatures uint32            `json:"txsFeatures"`
-	Signer      common.Address    `json:"signer"`
-	IsTrunk     bool              `json:"isTrunk"`
-	LastKBlock  uint32            `json:"lastKBlock"`
-	QC          *QC               `json:"qc"`
-	Nonce       uint64            `json:"nonce"`
-	Epoch       uint64            `json:"epoch"`
+	Number     uint32            `json:"number"`
+	ID         types.Bytes32     `json:"id"`
+	Size       uint32            `json:"size"`
+	ParentID   types.Bytes32     `json:"parentID"`
+	Timestamp  uint64            `json:"timestamp"`
+	TxsRoot    cmtbytes.HexBytes `json:"txsRoot"`
+	LastKBlock uint32            `json:"lastKBlock"`
+	QC         *QC               `json:"qc"`
+	Nonce      uint64            `json:"nonce"`
+	Epoch      uint64            `json:"epoch"`
 }
 
 type JSONCollapsedBlock struct {
@@ -90,7 +85,6 @@ type JSONExpandedBlock struct {
 
 func buildJSONBlockSummary(blk *block.Block, isTrunk bool) *JSONBlockSummary {
 	header := blk.Header()
-	signer, _ := header.Signer()
 
 	result := &JSONBlockSummary{
 		Number:    header.Number(),
@@ -98,10 +92,8 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool) *JSONBlockSummary {
 		ParentID:  header.ParentID,
 		Timestamp: header.Timestamp,
 
-		Signer:     signer,
 		Size:       uint32(blk.Size()),
 		TxsRoot:    header.TxsRoot,
-		IsTrunk:    isTrunk,
 		LastKBlock: header.LastKBlock,
 		Epoch:      blk.Epoch(),
 		Nonce:      blk.Nonce(),

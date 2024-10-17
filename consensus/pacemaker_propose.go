@@ -48,6 +48,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		Nonce(nonce).
 		ValidatorHash(parent.ProposedBlock.NextValidatorHash()).
 		NextValidatorHash(nextValidatorHash).
+		ProposerIndex(p.epochState.CommitteeIndex()).
 		LastKBlock(lastKBlock).QC(qc)
 
 	for _, tx := range txs {

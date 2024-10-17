@@ -63,8 +63,6 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 	msg := &block.PMProposalMessage{
 		Timestamp:   time.Now(),
 		Epoch:       p.epochState.epoch,
-		SignerIndex: uint32(p.epochState.CommitteeIndex()),
-
 		Round:       round,
 		RawBlock:    raw,
 		TimeoutCert: tc,
