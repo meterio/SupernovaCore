@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -96,10 +97,33 @@ func NewEpochState(c *chain.Chain, myPubKey bls.PublicKey) (*EpochState, error) 
 }
 
 func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.Bytes32, sig []byte) *block.QuorumCert {
+	v := es.committee.Validators[signerIndex]
+	signature, err := bls.SignatureFromBytes(sig)
+	if err != nil {
+		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
+		return nil
+	}
+	verified := signature.Verify(v.PubKey, blockID[:])
+	if !verified {
+		es.logger.Warn("invalid vote", "sig", hex.EncodeToString(sig), "signerIndex", signerIndex)
+		return nil
+	}
+
 	return es.qcVoteManager.AddVote(signerIndex, es.epoch, round, blockID, sig)
 }
 
 func (es *EpochState) AddTCVote(signerIndex uint32, round uint32, sig []byte, hash [32]byte) *types.TimeoutCert {
+	v := es.committee.Validators[signerIndex]
+	signature, err := bls.SignatureFromBytes(sig)
+	if err != nil {
+		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
+		return nil
+	}
+	verified := signature.Verify(v.PubKey, hash[:])
+	if !verified {
+		es.logger.Warn("invalid vote", "sig", hex.EncodeToString(sig), "signerIndex", signerIndex)
+		return nil
+	}
 	return es.tcVoteManager.AddVote(signerIndex, es.epoch, round, sig, hash)
 }
 

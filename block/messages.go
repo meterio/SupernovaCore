@@ -230,8 +230,7 @@ type PMTimeoutMessage struct {
 	Timestamp   time.Time
 	Epoch       uint64
 	SignerIndex uint32
-
-	WishRound uint32
+	WishRound   uint32
 
 	// local QCHigh
 	QCHigh []byte
