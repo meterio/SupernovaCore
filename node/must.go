@@ -23,8 +23,7 @@ import (
 )
 
 var (
-	p2pMagic       [4]byte
-	consensusMagic [4]byte
+	p2pMagic [4]byte
 )
 
 func InitLogger(config *cmtcfg.Config) {

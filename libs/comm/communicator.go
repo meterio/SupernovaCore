@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -50,13 +52,14 @@ type Communicator struct {
 	feedScope      event.SubscriptionScope
 	goes           co.Goes
 	onceSynced     sync.Once
+	peersCachePath string
 
 	magic  [4]byte
 	logger *slog.Logger
 }
 
 // New create a new Communicator instance.
-func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte, p2pOptions *p2psrv.Options) *Communicator {
+func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte, p2pOptions *p2psrv.Options, rootDir string) *Communicator {
 	return &Communicator{
 		p2pSrv: p2psrv.New(p2pOptions),
 		chain:  chain,
@@ -68,6 +71,7 @@ func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxP
 		announcementCh: make(chan *announcement),
 		magic:          magic,
 		logger:         slog.With("pkg", "comm"),
+		peersCachePath: filepath.Join("peers.cache", rootDir),
 	}
 }
 
@@ -184,17 +188,16 @@ func (c *Communicator) Stop() {
 	c.p2pSrv.Stop()
 
 	// FIXME: store peers into cache file
-	// nodes := c.p2pSrv.KnownNodes()
-	// c.logger.Info("saving peers cache...", "#peers", len(nodes))
-	// strs := make([]string, 0)
-	// for _, n := range nodes {
-	// 	strs = append(strs, n.String())
-	// }
-	// data := strings.Join(strs, "\n")
-	// if err := os.WriteFile(p.peersCachePath, []byte(data), 0600); err != nil {
-	// 	c.logger.Warn("failed to write peers cache", "err", err)
-	// }
-	// c.cancel()
+	nodes := c.p2pSrv.KnownNodes()
+	c.logger.Info("saving peers cache...", "#peers", len(nodes))
+	strs := make([]string, 0)
+	for _, n := range nodes {
+		strs = append(strs, n.String())
+	}
+	data := strings.Join(strs, "\n")
+	if err := os.WriteFile(c.peersCachePath, []byte(data), 0600); err != nil {
+		c.logger.Warn("failed to write peers cache", "err", err)
+	}
 	c.feedScope.Close()
 	c.goes.Wait()
 }

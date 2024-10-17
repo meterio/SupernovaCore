@@ -134,7 +134,6 @@ func NewNode(
 
 	// Split magic to p2p_magic and consensus_magic
 	copy(p2pMagic[:], sum[:4])
-	copy(consensusMagic[:], sum[:4])
 
 	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
@@ -154,7 +153,7 @@ func NewNode(
 		BootstrapNodes: BootstrapNodes,
 		NAT:            nat.Any(),
 	}
-	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pOpts)
+	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pOpts, config.RootDir)
 
 	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
 
