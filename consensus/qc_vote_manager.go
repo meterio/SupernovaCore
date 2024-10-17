@@ -40,7 +40,7 @@ func (m *QCVoteManager) Size() uint32 {
 	return m.committeeSize
 }
 
-func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockID types.Bytes32, sig []byte, hash [32]byte) *block.QuorumCert {
+func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockID types.Bytes32, sig []byte) *block.QuorumCert {
 	key := voteKey{Round: round, BlockID: blockID}
 	if _, existed := m.votes[key]; !existed {
 		m.votes[key] = make(map[uint32]*vote)
@@ -58,7 +58,7 @@ func (m *QCVoteManager) AddVote(index uint32, epoch uint64, round uint32, blockI
 		m.logger.Error("load qc signature failed", "err", err)
 		return nil
 	}
-	m.votes[key][index] = &vote{Signature: blsSig, Hash: hash}
+	m.votes[key][index] = &vote{Signature: blsSig, Hash: blockID}
 
 	voteCount := uint32(len(m.votes[key]))
 	if block.MajorityTwoThird(voteCount, m.committeeSize) {

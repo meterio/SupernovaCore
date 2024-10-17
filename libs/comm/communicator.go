@@ -314,9 +314,9 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
-			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
+			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.CompactString(), types.Addr2IP(peer.RemoteAddr())))
 			if err := proto.NotifyNewBlock(c.ctx, peer, blk); err != nil {
-				peer.logger.Error(fmt.Sprintf("Failed to propagate %s", blk.Block.ShortID()), "err", err)
+				peer.logger.Error(fmt.Sprintf("Failed to propagate %s", blk.Block.CompactString()), "err", err)
 			}
 		})
 	}
@@ -325,9 +325,9 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
-			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
+			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.CompactString(), types.Addr2IP(peer.RemoteAddr())))
 			if err := proto.NotifyNewBlockID(c.ctx, peer, blk.Block.ID()); err != nil {
-				peer.logger.Error(fmt.Sprintf("Failed to announce %s", blk.Block.ShortID()), "err", err)
+				peer.logger.Error(fmt.Sprintf("Failed to announce %s", blk.Block.CompactString()), "err", err)
 			}
 		})
 	}

@@ -36,14 +36,13 @@ func (p *Pacemaker) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool 
 	}
 
 	// validate with current committee
-	start := time.Now()
 	if p.epochState.CommitteeSize() <= 0 {
 		fmt.Println("verify QC with empty p.committee")
 		return false
 	}
 	valid, err = b.VerifyQC(escortQC, p.blsMaster, p.epochState.committee)
 	if valid && err == nil {
-		p.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()), "elapsed", types.PrettyDuration(time.Since(start)))
+		p.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()))
 		validQCs.Add(qcID, true)
 		return true
 	}

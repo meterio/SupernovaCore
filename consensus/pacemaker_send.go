@@ -94,7 +94,6 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 		VoteRound:     proposalMsg.Round,
 		VoteBlockID:   proposedBlock.ID(),
 		VoteSignature: voteSig,
-		VoteHash:      voteHash,
 	}
 
 	// sign message
@@ -139,7 +138,6 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 		p.logger.Info(fmt.Sprintf("attached last vote on R:%d", lastVoteMsg.VoteRound), "blk", lastVoteMsg.VoteBlockID.ToBlockShortID())
 		msg.LastVoteRound = lastVoteMsg.VoteRound
 		msg.LastVoteBlockID = lastVoteMsg.VoteBlockID
-		msg.LastVoteHash = lastVoteMsg.VoteHash
 		msg.LastVoteSignature = lastVoteMsg.VoteSignature
 	}
 

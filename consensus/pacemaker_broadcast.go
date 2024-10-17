@@ -26,10 +26,10 @@ func (p *Pacemaker) scheduleBroadcast(proposalMsg *block.PMProposalMessage, d ti
 	// p.lastVoteMsg = voteMsg
 	blk := proposalMsg.DecodeBlock()
 	if d <= 0 || d >= BroadcastTimeLimit {
-		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) with no delay", blk.ShortID(), proposalMsg.GetEpoch()))
+		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) with no delay", blk.CompactString(), proposalMsg.GetEpoch()))
 		scheduleFunc()
 	} else {
-		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) after %s", blk.ShortID(), proposalMsg.GetEpoch(), types.PrettyDuration(d)))
+		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) after %s", blk.CompactString(), proposalMsg.GetEpoch(), types.PrettyDuration(d)))
 		p.broadcastTimer = time.AfterFunc(d, scheduleFunc)
 	}
 }

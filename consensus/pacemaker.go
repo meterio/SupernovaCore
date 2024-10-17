@@ -24,11 +24,10 @@ import (
 )
 
 const (
-	RoundInterval            = 2 * time.Second
-	RoundTimeoutInterval     = 16 * time.Second // move the timeout from 20 to 16 secs.
-	RoundTimeoutLongInterval = 40 * time.Second
-	ProposeTimeLimit         = 1300 * time.Millisecond
-	BroadcastTimeLimit       = 1400 * time.Millisecond
+	RoundInterval        = 2 * time.Second
+	RoundTimeoutInterval = RoundInterval * 4 // round timeout 8 secs.
+	ProposeTimeLimit     = 1300 * time.Millisecond
+	BroadcastTimeLimit   = 1400 * time.Millisecond
 )
 
 type Pacemaker struct {
@@ -137,7 +136,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		return ErrInvalidRound, nil
 	}
 	err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs)
-	p.logger.Info(fmt.Sprintf("proposing %v on R:%v with QCHigh(E:%v,R:%v), Parent(%v,R:%v)", draftBlock.ProposedBlock.ShortID(), round, justify.QC.Epoch, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
+	// p.logger.Info(fmt.Sprintf("proposing %v on R:%v with QCHigh(E:%v,R:%v), Parent(%v,R:%v)", draftBlock.ProposedBlock.CompactString(), round, justify.QC.Epoch, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
 	if time.Now().Before(targetTime) {
 		d := time.Until(targetTime)
 		p.logger.Info("sleep until", "targetTime", targetTime, "for", types.PrettyDuration(d))
@@ -157,12 +156,12 @@ func (p *Pacemaker) Update(qc *block.QuorumCert) {
 		return
 	}
 	if bPrime.Committed {
-		p.logger.Warn("b' is commited", "b'", bPrime.ProposedBlock.ShortID())
+		p.logger.Debug("b' is commited", "b'", bPrime.ProposedBlock.CompactString())
 		return
 	}
 	b = bPrime.Justify.QCNode
 	if b.Committed {
-		p.logger.Warn("b is committed", "b", b.ProposedBlock.ShortID())
+		p.logger.Debug("b is committed", "b", b.ProposedBlock.CompactString())
 	}
 	if b == nil {
 		//bnew Justify is already higher than current QCHigh
@@ -225,7 +224,7 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) {
 				}
 			} else {
 				if blk != nil && blk.ProposedBlock != nil {
-					p.logger.Debug(fmt.Sprintf("block %d already in chain", blk.ProposedBlock.Number()), "id", blk.ProposedBlock.ShortID())
+					p.logger.Debug(fmt.Sprintf("block %d already in chain", blk.ProposedBlock.Number()), "id", blk.ProposedBlock.CompactString())
 				} else {
 					p.logger.Info("block alreday in chain")
 				}
@@ -404,7 +403,7 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 		return
 	}
 
-	qc := p.epochState.AddQCVote(msg.GetSignerIndex(), round, msg.VoteBlockID, msg.VoteSignature, msg.VoteHash)
+	qc := p.epochState.AddQCVote(msg.GetSignerIndex(), round, msg.VoteBlockID, msg.VoteSignature)
 	if qc == nil {
 		p.logger.Debug("no qc formed")
 		return
@@ -477,7 +476,7 @@ func (p *Pacemaker) OnBeat(epoch uint64, round uint32) {
 		return
 	}
 	p.lastOnBeatRound = int32(round)
-	p.logger.Info(fmt.Sprintf("== OnBeat Epoch:%v, Round:%v ==", epoch, round))
+	p.logger.Info(fmt.Sprintf("==> OnBeat Epoch:%v, Round:%v", epoch, round))
 	// parent already got QC, pre-commit it
 
 	//b := p.QCHigh.QCNode
@@ -521,7 +520,7 @@ func (p *Pacemaker) OnReceiveTimeout(mi IncomingMsg) {
 	}
 
 	// collect vote and see if QC is formed
-	newQC := p.epochState.AddQCVote(msg.SignerIndex, msg.LastVoteRound, msg.LastVoteBlockID, msg.LastVoteSignature, msg.LastVoteHash)
+	newQC := p.epochState.AddQCVote(msg.SignerIndex, msg.LastVoteRound, msg.LastVoteBlockID, msg.LastVoteSignature)
 	if newQC != nil {
 		escortQCNode := p.chain.GetDraftByEscortQC(newQC)
 		p.UpdateQCHigh(&block.DraftQC{QCNode: escortQCNode, QC: newQC})
@@ -551,7 +550,7 @@ func (p *Pacemaker) OnReceiveQuery(mi IncomingMsg) {
 	}
 }
 
-func (p *Pacemaker) UpdateEpoch() {
+func (p *Pacemaker) updateEpochState() {
 	best := p.chain.BestBlock()
 	if p.epochState != nil && best.Number() != 0 && best.Epoch() == p.epochState.epoch {
 		return
@@ -583,7 +582,6 @@ func (p *Pacemaker) UpdateEpoch() {
 	p.logger.Info("---------------------------------------------------------")
 
 	p.epochState = epochState
-	// p.scheduleRegulate()
 }
 
 func (p *Pacemaker) Start() {
@@ -593,9 +591,7 @@ func (p *Pacemaker) Start() {
 
 // Committee Leader triggers
 func (p *Pacemaker) Regulate() {
-	p.logger.Info("!!! Pacemaker Regulate")
-
-	p.UpdateEpoch()
+	p.updateEpochState()
 
 	bestQC := p.chain.BestQC()
 	bestBlk, err := p.chain.GetTrunkBlock(bestQC.Number())
@@ -612,7 +608,7 @@ func (p *Pacemaker) Regulate() {
 		actualRound = 0
 	}
 
-	p.logger.Info(fmt.Sprintf("*** Pacemaker start with bestQC %v", bestQC.CompactString()))
+	p.logger.Info(fmt.Sprintf("*** Pacemaker regulate with bestQC %v", bestQC.CompactString()))
 	p.lastOnBeatRound = int32(actualRound) - 1
 	pmRoleGauge.Set(1) // validator
 
@@ -649,7 +645,7 @@ CleanBeatCh:
 	p.beatCh <- PMBeatInfo{epoch, round}
 }
 
-func (p *Pacemaker) scheduleRegulate() {
+func (p *Pacemaker) ScheduleRegulate() {
 	// schedule Regulate
 	// make sure this Regulate cmd is the very next cmd
 CleanCMDCh:
@@ -673,7 +669,7 @@ func (p *Pacemaker) mainLoop() {
 		bestBlock := p.chain.BestBlock()
 		if bestBlock.Number() > p.QCHigh.QC.Number() && p.epochState.InCommittee() {
 			p.logger.Info("bestBlock > QCHigh, schedule regulate", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.Number())
-			p.scheduleRegulate()
+			p.ScheduleRegulate()
 		}
 		select {
 
@@ -776,11 +772,10 @@ func (p *Pacemaker) enterRound(round uint32, rtype roundType) bool {
 	proposer := p.epochState.getRoundProposer(round)
 
 	if restart {
-		p.logger.Info("---------------------------------------------------------")
-		p.logger.Info(fmt.Sprintf("R:%d restart", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("E:%d, Round:%d restart", p.epochState.epoch, p.currentRound), oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
 	} else {
 		p.logger.Info("---------------------------------------------------------")
-		p.logger.Info(fmt.Sprintf("R:%d start", p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("E:%d, Round:%d start", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
 	}
 	pmRoundGauge.Set(float64(p.currentRound))
 	return true

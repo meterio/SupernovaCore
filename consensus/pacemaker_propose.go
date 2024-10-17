@@ -76,7 +76,7 @@ func (p *Pacemaker) AddTxToCurProposal(newTxID []byte) error {
 	// if p.curProposal == nil {
 	// 	return ErrProposalEmpty
 	// }
-	// p.logger.Info("add tx to cur proposal", "tx", newTxID, "proposed", p.curProposal.ProposedBlock.ShortID())
+	// p.logger.Info("add tx to cur proposal", "tx", newTxID, "proposed", p.curProposal.ProposedBlock.CompactString())
 	// parentBlock := p.curProposal.Parent.ProposedBlock
 	// //create checkPoint before build block
 

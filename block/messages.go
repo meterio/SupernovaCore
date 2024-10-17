@@ -95,14 +95,9 @@ func verifyMsgSignature(pubkey bls.PublicKey, msg []byte, signature []byte) bool
 type PMProposalMessage struct {
 	Timestamp   time.Time
 	Epoch       uint64
+	Round       uint32
 	SignerIndex uint32
-
-	// Height       uint32 // inherit from decodedID
-	Round uint32
-	// ParentHeight uint32 // inherit from decodedParentID
-	// ParentRound uint32 // inherit from decodedQC.Round
-	RawBlock []byte
-
+	RawBlock    []byte
 	TimeoutCert *types.TimeoutCert
 
 	MsgSignature []byte
@@ -174,16 +169,12 @@ func (m *PMProposalMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
 
 // PMVoteMessage is sent when voting for a proposal (or lack thereof).
 type PMVoteMessage struct {
-	Timestamp   time.Time
-	Epoch       uint64
-	SignerIndex uint32
-
-	// VoterID           []byte //ecdsa.PublicKey
-	// VoterBlsPK        []byte //bls.PublicKey
+	Timestamp     time.Time
+	Epoch         uint64
+	SignerIndex   uint32
 	VoteRound     uint32
 	VoteBlockID   types.Bytes32
 	VoteSignature []byte //bls.Signature
-	VoteHash      [32]byte
 
 	MsgSignature []byte
 }
@@ -213,7 +204,6 @@ func (m *PMVoteMessage) GetMsgHash() types.Bytes32 {
 		m.VoteRound,
 		m.VoteBlockID,
 		m.VoteSignature,
-		m.VoteHash,
 	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
@@ -253,7 +243,6 @@ type PMTimeoutMessage struct {
 	// last vote for proposal
 	LastVoteRound     uint32
 	LastVoteBlockID   types.Bytes32
-	LastVoteHash      [32]byte
 	LastVoteSignature []byte
 
 	MsgSignature []byte
@@ -290,7 +279,6 @@ func (m *PMTimeoutMessage) GetMsgHash() types.Bytes32 {
 		m.WishVoteSig,
 		m.LastVoteRound,
 		m.LastVoteBlockID,
-		m.LastVoteHash,
 		m.LastVoteSignature,
 	})
 	if err != nil {

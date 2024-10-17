@@ -18,7 +18,7 @@ func (p *Pacemaker) FinalizeBlockViaABCI(blk *block.Block) error {
 	res, err := p.executor.FinalizeBlock(&v1.FinalizeBlockRequest{Txs: txs, Height: int64(blk.Number()), Hash: blk.ID().Bytes()})
 	// res.AppHash
 	// res.TxResults
-	err = p.validatorSetRegistry.Update(p.epochState.committee, res.ValidatorUpdates)
+	err = p.validatorSetRegistry.Update(blk.Number(), p.epochState.committee, res.ValidatorUpdates)
 	if err != nil {
 		p.logger.Warn("could not update vset registry", "err", err)
 		return err
@@ -68,15 +68,15 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 		}
 	}
 
-	p.logger.Info(fmt.Sprintf("* committed %v", blk.ShortID()), "txs", len(blk.Txs), "epoch", blk.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
+	p.logger.Info(fmt.Sprintf("* committed %v", blk.CompactString()), "txs", len(blk.Txs), "epoch", blk.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 
 	// broadcast the new block to all peers
 	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus
 
 	if draftBlk.ProposedBlock.IsKBlock() {
-		fmt.Println("parent is KBLOCK!!!", draftBlk.ProposedBlock.ValidatorHash(), draftBlk.ProposedBlock.NextValidatorHash())
-		p.scheduleRegulate()
+		p.logger.Info("committed a KBlock, schedule regulate now", "blk", draftBlk.ProposedBlock.ID().ToBlockShortID())
+		p.ScheduleRegulate()
 	}
 	return nil
 }

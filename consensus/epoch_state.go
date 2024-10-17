@@ -95,8 +95,8 @@ func NewEpochState(c *chain.Chain, myPubKey bls.PublicKey) (*EpochState, error) 
 	}, nil
 }
 
-func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.Bytes32, sig []byte, hash [32]byte) *block.QuorumCert {
-	return es.qcVoteManager.AddVote(signerIndex, es.epoch, round, blockID, sig, hash)
+func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.Bytes32, sig []byte) *block.QuorumCert {
+	return es.qcVoteManager.AddVote(signerIndex, es.epoch, round, blockID, sig)
 }
 
 func (es *EpochState) AddTCVote(signerIndex uint32, round uint32, sig []byte, hash [32]byte) *types.TimeoutCert {

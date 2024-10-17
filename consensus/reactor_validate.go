@@ -79,7 +79,7 @@ func (r *Reactor) Validate(
 	}
 	vBodyElapsed := time.Since(vBodyStart)
 
-	r.logger.Debug("validated!", "id", block.ShortID(), "validateHeadElapsed", types.PrettyDuration(vHeaderElapsed), "validateProposerElapsed", types.PrettyDuration(vProposerElapsed), "validateBodyElapsed", types.PrettyDuration(vBodyElapsed))
+	r.logger.Debug("validated!", "id", block.CompactString(), "validateHeadElapsed", types.PrettyDuration(vHeaderElapsed), "validateProposerElapsed", types.PrettyDuration(vProposerElapsed), "validateBodyElapsed", types.PrettyDuration(vBodyElapsed))
 
 	return nil
 }

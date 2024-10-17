@@ -442,8 +442,11 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	stats.UpdateProcessed(1, len(blk.Txs))
 	n.processFork(fork)
 
-	// shortcut to refresh epoch
-	n.reactor.Pacemaker.UpdateEpoch()
+	// regulate if a kblock is committed
+	if blk.IsKBlock() {
+		n.logger.Info("synced a KBlock, schedule regulate now", "blk", blk.ID().ToBlockShortID())
+		n.reactor.Pacemaker.ScheduleRegulate()
+	}
 
 	// end of shortcut
 	return len(fork.Trunk) > 0, nil
@@ -467,10 +470,10 @@ func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*
 	}
 
 	if n.reactor.SyncDone {
-		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
+		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.CompactString()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 	} else {
 		if time.Since(start) > time.Millisecond*500 {
-			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
+			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.CompactString()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 		}
 	}
 	return fork, nil

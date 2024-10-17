@@ -106,7 +106,7 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	b.SuccessProcessed = true
 	b.ProcessError = err
 
-	p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
+	p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
 	return nil
 }
 

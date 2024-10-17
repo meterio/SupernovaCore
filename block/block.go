@@ -137,7 +137,7 @@ func (b *Block) ID() types.Bytes32 {
 	return b.BlockHeader.ID()
 }
 
-func (b *Block) ShortID() string {
+func (b *Block) CompactString() string {
 	if b != nil {
 		prefix := ""
 		if b.IsKBlock() {
@@ -272,16 +272,11 @@ func (b *Block) String() string {
 	return s
 }
 
-func (b *Block) CompactString() string {
-	return fmt.Sprintf("Block[%v]", b.ShortID())
-}
-
 func (b *Block) Oneliner() string {
 	header := b.BlockHeader
 	ci := ""
-	canonicalName := "Block"
-	return fmt.Sprintf("%v[%v,%v,txs:%v%v] -> %v", canonicalName,
-		b.ShortID(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
+	return fmt.Sprintf("%v,%v,txs:%v%v -> %v",
+		b.CompactString(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
 }
 
 // -----------------

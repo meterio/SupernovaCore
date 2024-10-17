@@ -63,7 +63,7 @@ func (p *ProposalMap) Get(blkID types.Bytes32) *block.DraftBlock {
 	// load from database
 	blkInDB, err := p.chain.GetBlock(blkID)
 	if err == nil {
-		p.logger.Info("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
+		p.logger.Info("load block from DB", "num", blkInDB.Number(), "id", blkInDB.CompactString())
 		return &block.DraftBlock{
 			Height:        blkInDB.Number(),
 			Round:         blkInDB.QC.Round + 1, // FIXME: might be wrong for the block after kblock
@@ -105,7 +105,7 @@ func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {
 
 	blkInDB, err := p.chain.GetBlock(qc.BlockID)
 	if err == nil {
-		p.logger.Debug("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
+		p.logger.Debug("load block from DB", "num", blkInDB.Number(), "id", blkInDB.CompactString())
 		return &block.DraftBlock{
 			Height:        qc.Number(),
 			Round:         qc.Round,

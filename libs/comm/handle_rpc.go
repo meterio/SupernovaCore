@@ -49,7 +49,7 @@ func (c *Communicator) handleRPC(peer *Peer, msg *p2p.Msg, write func(interface{
 			return errors.WithMessage(err, "decode msg")
 		}
 
-		c.logger.Debug(fmt.Sprintf(`notify in: NewBlock(%s) from %s`, newBlock.Block.ShortID(), types.Addr2IP(peer.RemoteAddr())))
+		c.logger.Debug(fmt.Sprintf(`notify in: NewBlock(%s) from %s`, newBlock.Block.CompactString(), types.Addr2IP(peer.RemoteAddr())))
 		peer.MarkBlock(newBlock.Block.ID())
 		peer.UpdateHead(newBlock.Block.ID(), newBlock.Block.Number())
 		c.newBlockFeed.Send(&NewBlockEvent{EscortedBlock: newBlock})
