@@ -70,12 +70,8 @@ func (c *Communicator) download(peer *Peer, fromNum uint32, handler HandleBlockS
 					return
 				}
 				fromNum++
-				// only append non-sblock
-				if !blk.Block.IsSBlock() {
-					blocks = append(blocks, &blk)
-				} else {
-					c.logger.Warn("got sblock", "num", blk.Block.Number(), "id", blk.Block.ID())
-				}
+				blocks = append(blocks, &blk)
+
 			}
 
 			<-co.Parallel(func(queue chan<- func()) {

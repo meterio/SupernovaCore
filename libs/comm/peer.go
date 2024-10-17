@@ -81,7 +81,6 @@ func newPeer(peer *p2p.Peer, rw p2p.MsgReadWriter, magic [4]byte) (*Peer, string
 
 	// knownPowBlocks, err := lru.New(maxKnownPowBlocks)
 	// if err != nil {
-	// 	fmt.Println("known pow blocks init error:", err)
 	// }
 
 	return &Peer{

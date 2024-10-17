@@ -68,7 +68,7 @@ func (n *Node) handleProbe(w http.ResponseWriter, r *http.Request) error {
 
 	bestBlock, _ := convertBlock(n.Chain.BestBlock())
 	bestQC, _ := convertQC(n.Chain.BestQC())
-	pmProbe := n.Cons.PacemakerProbe()
+	pmProbe := n.Cons.Pacemaker.Probe()
 	pacemaker, _ := convertPacemakerProbe(pmProbe)
 	chainProbe := &ChainProbe{
 		BestBlock: bestBlock,
@@ -82,7 +82,7 @@ func (n *Node) handleProbe(w http.ResponseWriter, r *http.Request) error {
 		CommitteeSize:  uint32(pmProbe.CommitteeSize),
 		CommitteeIndex: uint32(pmProbe.CommitteeIndex),
 
-		BestQC:    bestQC.Height,
+		BestQC:    n.Chain.BestBlock().Number(),
 		BestBlock: bestBlock.Number,
 		Pacemaker: pacemaker,
 		Chain:     chainProbe,

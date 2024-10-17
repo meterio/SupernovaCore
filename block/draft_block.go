@@ -26,14 +26,14 @@ func (pb *DraftBlock) ToString() string {
 		return "DraftBlock(nil)"
 	}
 	if pb.Committed {
-		return fmt.Sprintf("Block{(H:%v,R:%v), QC:(H:%v, R:%v), Parent:%v}",
-			pb.Height, pb.Round, pb.ProposedBlock.QC.Height, pb.ProposedBlock.QC.Round, pb.ProposedBlock.ParentID().ToBlockShortID())
+		return fmt.Sprintf("Block{(H:%v,R:%v), QC:(E:%v,R:%v), Parent:%v}",
+			pb.Height, pb.Round, pb.ProposedBlock.QC.Epoch, pb.ProposedBlock.QC.Round, pb.ProposedBlock.ParentID().ToBlockShortID())
 	}
 	if pb.Parent != nil {
-		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(H:%v, R:%v), Parent:(H:%v, H:%v)}",
-			pb.Height, pb.Round, pb.Justify.QC.Height, pb.Justify.QC.Round, pb.Parent.Height, pb.Parent.Round)
+		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E:%v,R:%v), Parent:(H:%v, H:%v)}",
+			pb.Height, pb.Round, pb.Justify.QC.Epoch, pb.Justify.QC.Round, pb.Parent.Height, pb.Parent.Round)
 	} else {
-		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(H:%v, R:%v)}",
-			pb.Height, pb.Round, pb.Justify.QC.Height, pb.Justify.QC.Round)
+		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E:%v,R:%v)}",
+			pb.Height, pb.Round, pb.Justify.QC.Epoch, pb.Justify.QC.Round)
 	}
 }

@@ -19,7 +19,7 @@ var (
 	errRestartPaceMakerRequired = errors.New("restart pacemaker required")
 
 	ErrUnrecognizedPayload = errors.New("unrecognized payload")
-	ErrMagicMismatch       = errors.New("magic mismatch")
+	ErrVersionMismatch     = errors.New("version mismatch")
 	ErrMalformattedMsg     = errors.New("malformatted msg")
 	ErrKnownMsg            = errors.New("known msg")
 	ErrProposalRejected    = errors.New("proposal rejected")

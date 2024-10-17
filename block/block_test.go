@@ -64,9 +64,6 @@ func TestSerialize(t *testing.T) {
 	_, err = rlp.EncodeToBytes(committeeInfo)
 	assert.Equal(t, err, nil)
 
-	block.SetCommitteeInfo(committeeInfo)
-
-	// fmt.Println("BEFORE KBlockData data:", kBlockData)
 	// fmt.Println("BEFORE block.KBlockData:", block.KBlockData)
 	// fmt.Println("BEFORE block.CommitteeInfo: ", committeeInfo)
 	// fmt.Println("BEFORE block.CommitteeInfo: ", block.CommitteeInfos)
@@ -82,7 +79,6 @@ func TestSerialize(t *testing.T) {
 	// fmt.Println("AFTER BLOCK:", b)
 	assert.Equal(t, err, nil)
 
-	ci, err := b.GetCommitteeInfo()
 	assert.Equal(t, err, nil)
 	assert.Equal(t, len(committeeInfo), len(ci))
 	assert.Equal(t, committeeInfo[0].Name, ci[0].Name)

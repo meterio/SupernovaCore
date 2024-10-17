@@ -10,44 +10,59 @@ import (
 )
 
 type ValidatorSetRegistry struct {
-	ValidatorMap map[uint32]*types.ValidatorSet
-	Chain        *chain.Chain
-	current      *types.ValidatorSet
+	CurrentVSet map[uint32]*types.ValidatorSet
+	NextVSet    map[uint32]*types.ValidatorSet
+	Chain       *chain.Chain
 }
 
 func NewValidatorSetRegistry(c *chain.Chain) *ValidatorSetRegistry {
 	vset := c.GetBestValidatorSet()
-	blk := c.BestBlock()
-	vmap := make(map[uint32]*types.ValidatorSet)
-	vmap[blk.Number()] = vset
-	return &ValidatorSetRegistry{
-		ValidatorMap: vmap,
-		Chain:        c,
+	nxtVSet := c.GetBestNextValidatorSet()
+	bestNum := c.BestBlock().Number()
+
+	registry := &ValidatorSetRegistry{
+		CurrentVSet: make(map[uint32]*types.ValidatorSet),
+		NextVSet:    make(map[uint32]*types.ValidatorSet),
+		Chain:       c,
 	}
+
+	registry.registerReelect(bestNum, vset, nxtVSet)
+	return registry
 }
 
-func (vr *ValidatorSetRegistry) register(enableNum uint32, vset *types.ValidatorSet) error {
+func (vr *ValidatorSetRegistry) registerReelect(curNum uint32, vset *types.ValidatorSet, nxtVSet *types.ValidatorSet) error {
 	bestNum := vr.Chain.BestBlock().Number()
+	enableNum := curNum + types.NBlockDelayToEnableValidatorSet - 1
 	if enableNum <= bestNum {
 		return errors.New("could not enable validator set before best block")
 	}
-	if vset == nil {
-		return errors.New("empty validator set")
+	if vset != nil {
+		vr.CurrentVSet[enableNum-1] = vset
 	}
-	vr.ValidatorMap[enableNum] = vset
+	if nxtVSet == nil {
+		panic("next validator set could not be empty")
+	}
+	vr.NextVSet[enableNum-1] = nxtVSet
 	vr.Prune()
 	return nil
 }
 
 func (vr *ValidatorSetRegistry) Get(num uint32) *types.ValidatorSet {
-	if vset, exist := vr.ValidatorMap[num]; exist {
+	if vset, exist := vr.CurrentVSet[num]; exist {
+		return vset
+	}
+	return nil
+}
+
+func (vr *ValidatorSetRegistry) GetNext(num uint32) *types.ValidatorSet {
+	if vset, exist := vr.CurrentVSet[num]; exist {
 		return vset
 	}
 	return nil
 }
 
 func (vr *ValidatorSetRegistry) Update(vset *types.ValidatorSet, updates abcitypes.ValidatorUpdates) error {
-	newVSet := vset.Copy()
+	nxtVSet := vset.Copy()
 	bestNum := vr.Chain.BestBlock().Number()
 	for _, update := range updates {
 		pubkey, err := bls.PublicKeyFromBytes(update.PubKeyBytes)
@@ -55,20 +70,20 @@ func (vr *ValidatorSetRegistry) Update(vset *types.ValidatorSet, updates abcityp
 			panic(err)
 		}
 		if update.Power == 0 {
-			newVSet.DeleteByPubkey(pubkey)
+			nxtVSet.DeleteByPubkey(pubkey)
 		} else {
-			v := newVSet.GetByPubkey(pubkey)
+			v := nxtVSet.GetByPubkey(pubkey)
 			v.VotingPower = uint64(update.Power)
 		}
 	}
-	return vr.register(bestNum+types.NBlockDelayToEnableValidatorSet, newVSet)
+	return vr.registerReelect(bestNum+types.NBlockDelayToEnableValidatorSet, vset, nxtVSet)
 }
 
 func (vr *ValidatorSetRegistry) Prune() {
 	bestNum := vr.Chain.BestBlock().Number()
-	for num, _ := range vr.ValidatorMap {
+	for num, _ := range vr.CurrentVSet {
 		if num < bestNum {
-			delete(vr.ValidatorMap, num)
+			delete(vr.CurrentVSet, num)
 		}
 	}
 }

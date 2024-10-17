@@ -12,6 +12,7 @@ package consensus
 import (
 	sha256 "crypto/sha256"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -20,8 +21,8 @@ import (
 )
 
 func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
-	myNetAddr := p.reactor.GetMyNetAddr()
-	myName := p.reactor.GetMyName()
+	myNetAddr := p.getMyNetAddr()
+	myName := p.getMyName()
 	myself := NewConsensusPeer(myName, myNetAddr.IP.String())
 
 	round := msg.GetRound()
@@ -29,7 +30,7 @@ func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
 	peers := make([]*ConsensusPeer, 0)
 	switch msg.(type) {
 	case *block.PMProposalMessage:
-		peers = p.reactor.GetRelayPeers(round)
+		peers = p.epochState.GetRelayPeers(round)
 	case *block.PMVoteMessage:
 		nxtProposer := p.getProposerByRound(round + 1)
 		peers = append(peers, nxtProposer)
@@ -47,10 +48,10 @@ func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
 	}
 	// send consensus message to myself first (except for PMNewViewMessage)
 	if copyMyself && !myselfInPeers {
-		p.reactor.Send(msg, myself)
+		p.Send(msg, myself)
 	}
 
-	p.reactor.Send(msg, peers...)
+	p.Send(msg, peers...)
 	return true
 }
 
@@ -60,10 +61,9 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 		return nil, err
 	}
 	msg := &block.PMProposalMessage{
-		// Sender:    crypto.FromECDSAPub(&p.reactor.myPubKey),
 		Timestamp:   time.Now(),
-		Epoch:       p.reactor.curEpoch,
-		SignerIndex: uint32(p.reactor.committeeIndex),
+		Epoch:       p.epochState.epoch,
+		SignerIndex: uint32(p.epochState.CommitteeIndex()),
 
 		Round:       round,
 		RawBlock:    raw,
@@ -71,7 +71,7 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 	}
 
 	// sign message
-	p.reactor.SignMessage(msg)
+	p.SignMessage(msg)
 	p.logger.Debug("Built Proposal Message", "blk", bnew.ProposedBlock.ID().ToBlockShortID(), "msg", msg.String(), "timestamp", msg.Timestamp)
 
 	return msg, nil
@@ -82,14 +82,14 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*block.PMVoteMessage, error) {
 
 	proposedBlock := proposalMsg.DecodeBlock()
-	voteHash := proposedBlock.VotingHash()
-	voteSig := p.reactor.blsMaster.SignHash(voteHash)
+	voteHash := proposedBlock.ID()
+	voteSig := p.blsMaster.SignHash(voteHash)
 	// p.logger.Debug("Built PMVoteMessage", "signMsg", signMsg)
 
 	msg := &block.PMVoteMessage{
 		Timestamp:   time.Now(),
-		Epoch:       p.reactor.curEpoch,
-		SignerIndex: uint32(p.reactor.committeeIndex),
+		Epoch:       p.epochState.epoch,
+		SignerIndex: uint32(p.epochState.CommitteeIndex()),
 
 		VoteRound:     proposalMsg.Round,
 		VoteBlockID:   proposedBlock.ID(),
@@ -98,7 +98,7 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 	}
 
 	// sign message
-	p.reactor.SignMessage(msg)
+	p.SignMessage(msg)
 	p.logger.Debug("Built Vote Message", "msg", msg.String())
 	return msg, nil
 }
@@ -115,7 +115,7 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 
 	// TODO: changed from nextHeight/nextRound to ti.height/ti.round, not sure if this is correct
 	wishVoteHash := BuildTimeoutVotingHash(ti.epoch, ti.round)
-	wishVoteSig := p.reactor.blsMaster.SignHash(wishVoteHash)
+	wishVoteSig := p.blsMaster.SignHash(wishVoteHash)
 
 	rawQC, err := rlp.EncodeToBytes(qcHigh.QC)
 	if err != nil {
@@ -124,7 +124,7 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 	msg := &block.PMTimeoutMessage{
 		Timestamp:   time.Now(),
 		Epoch:       ti.epoch,
-		SignerIndex: uint32(p.reactor.committeeIndex),
+		SignerIndex: uint32(p.epochState.CommitteeIndex()),
 
 		WishRound: ti.round,
 
@@ -149,7 +149,7 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 	// 	msg.TimeoutCounter = ti.counter
 	// }
 	// sign message
-	p.reactor.SignMessage(msg)
+	p.SignMessage(msg)
 	p.logger.Debug("Built New View Message", "msg", msg.String())
 	return msg, nil
 }
@@ -158,14 +158,49 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 func (p *Pacemaker) BuildQueryMessage() (*block.PMQueryMessage, error) {
 	msg := &block.PMQueryMessage{
 		Timestamp:   time.Now(),
-		Epoch:       p.reactor.curEpoch,
-		SignerIndex: uint32(p.reactor.committeeIndex),
+		Epoch:       p.epochState.epoch,
+		SignerIndex: uint32(p.epochState.CommitteeIndex()),
 
 		LastCommitted: p.lastCommitted.ProposedBlock.ID(),
 	}
 
 	// sign message
-	p.reactor.SignMessage(msg)
+	p.SignMessage(msg)
 	p.logger.Debug("Built Query Message", "msg", msg.String())
 	return msg, nil
+}
+
+func (p *Pacemaker) getMyNetAddr() *types.NetAddress {
+	me := p.epochState.GetMyself()
+	if me == nil {
+		return &types.NetAddress{IP: net.IP{}, Port: 0}
+	}
+	return types.NewNetAddressFromNetIP(me.IP, me.Port)
+}
+
+func (p *Pacemaker) getMyName() string {
+	me := p.epochState.GetMyself()
+	if me == nil {
+		return "unknown"
+	}
+	return me.Name
+}
+
+func (p *Pacemaker) isMe(peer *ConsensusPeer) bool {
+	me := p.epochState.GetMyself()
+	return me != nil && me.IP.String() == peer.IP
+}
+
+func (p *Pacemaker) Send(msg block.ConsensusMessage, peers ...*ConsensusPeer) {
+	rawMsg, err := p.MarshalMsg(msg)
+	if err != nil {
+		p.logger.Warn("could not marshal msg", "err", err)
+		return
+	}
+
+	if len(peers) > 0 {
+		for _, peer := range peers {
+			outQueue.Add(*peer, msg, rawMsg, false)
+		}
+	}
 }

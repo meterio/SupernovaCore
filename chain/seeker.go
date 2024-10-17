@@ -37,14 +37,6 @@ func (s *Seeker) Err() error {
 	return s.err
 }
 
-func (s *Seeker) LastPowNonce() (uint64, error) {
-	if s == nil || s.chain == nil {
-		return uint64(1001) /*Genesis Nonce*/, nil
-	}
-
-	return s.chain.BestPowNonce(), nil
-}
-
 // GetID returns block ID by the given number.
 func (s *Seeker) GetID(num uint32) types.Bytes32 {
 	if num > block.Number(s.headBlockID) {

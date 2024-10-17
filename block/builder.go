@@ -27,9 +27,8 @@ func (b *Builder) ParentID(id types.Bytes32) *Builder {
 	return b
 }
 
-// LastKBlockID set last KBlock id.
-func (b *Builder) LastKBlockHeight(height uint32) *Builder {
-	b.header.LastKBlockHeight = height
+func (b *Builder) LastKBlock(height uint32) *Builder {
+	b.header.LastKBlock = height
 	return b
 }
 
@@ -41,12 +40,6 @@ func (b *Builder) Tx(tx cmttypes.Tx) *Builder {
 // Timestamp set timestamp.
 func (b *Builder) Timestamp(ts uint64) *Builder {
 	b.header.Timestamp = ts
-	return b
-}
-
-// BlockType set block type KBlockType/MBlockType.
-func (b *Builder) BlockType(t BlockType) *Builder {
-	b.header.BlockType = t
 	return b
 }
 

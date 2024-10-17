@@ -21,27 +21,18 @@ import (
 	"github.com/meterio/supernova/types"
 )
 
-type BlockType uint32
-
-const (
-	KBlockType BlockType = 1
-	MBlockType BlockType = 2
-	SBlockType BlockType = 255 //special message to stop pacemake, not a block
-)
-
 // Header contains almost all information about a block, except block body.
 // It's immutable.
 type Header struct {
 	ParentID         types.Bytes32
 	Timestamp        uint64
-	BlockType        BlockType
 	Proposer         common.Address
 	ProposerIndex    uint32
 	TxsRoot          cmtbytes.HexBytes
 	EvidenceDataRoot types.Bytes32 // deprecated, saved just for compatibility
 
-	LastKBlockHeight uint32
-	Nonce            uint64 // the last of the pow block
+	LastKBlock uint32
+	Nonce      uint64 //
 
 	QCHash            cmtbytes.HexBytes // hash of QC
 	ValidatorHash     cmtbytes.HexBytes // hash of validator set
@@ -96,12 +87,11 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 	bs, err := rlp.EncodeToBytes([]interface{}{
 		h.ParentID,
 		h.Timestamp,
-		h.BlockType,
 
 		h.TxsRoot,
 		h.EvidenceDataRoot,
 
-		h.LastKBlockHeight,
+		h.LastKBlock,
 		h.Nonce,
 
 		h.QCHash,
@@ -116,7 +106,6 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 
 // Signer extract signer of the block from signature.
 func (h *Header) Signer() (signer common.Address, err error) {
-
 	// FIXME: check signature
 	return h.Proposer, nil
 }
@@ -135,13 +124,13 @@ func (h *Header) String() string {
 	}
 
 	return fmt.Sprintf(`
-    ParentID:     %v
-    Timestamp:    %v
-    LastKBlock:   %v
-    TxsRoot:      %v
-    Signer:       %v
-    Nonce:        %v
-    Signature:    0x%x`, h.ParentID, h.Timestamp, h.LastKBlockHeight, h.TxsRoot, signerStr, h.Nonce,
+    ParentID:                 %v
+    Timestamp:                %v
+    LastValidatorUpdateNum:   %v
+    TxsRoot:                  %v
+    Signer:                   %v
+    Nonce:                    %v
+    Signature:                0x%x`, h.ParentID, h.Timestamp, h.LastKBlock, h.TxsRoot, signerStr, h.Nonce,
 		h.Signature)
 }
 

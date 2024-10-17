@@ -15,7 +15,6 @@ const (
 	MTR  = byte(0)
 	MTRG = byte(1)
 	// minimum height for committee relay.
-	KBlockEpoch = 14603 // wrong LastKBlockHeight
 
 	//  ------------------ Basics ----------------------------
 	BlockInterval uint64 = 10          // time interval between two consecutive blocks.

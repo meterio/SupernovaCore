@@ -92,11 +92,9 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 		syncCount := 0
 
 		shouldSynced := func() bool {
-			bestQCHeight := c.chain.BestQC().Height
-			bestBlockHeight := c.chain.BestBlock().Number()
 			bestBlockTime := c.chain.BestBlock().Timestamp()
 			now := uint64(time.Now().Unix())
-			if bestBlockTime+types.BlockInterval >= now && bestQCHeight == bestBlockHeight {
+			if bestBlockTime+types.BlockInterval >= now && c.chain.BestQC().BlockID == c.chain.BestBlock().ID() {
 				return true
 			}
 			if syncCount > 2 {
@@ -301,7 +299,7 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 	c.logger.Debug("Broadcast block and qc",
 		"height", h.Number(),
 		"id", h.ID(),
-		"lastKblock", h.LastKBlockHeight,
+		"lastKblock", h.LastKBlock,
 		"escortQC", qc.String())
 
 	peers := c.peerSet.Slice().Filter(func(p *Peer) bool {

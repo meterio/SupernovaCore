@@ -12,7 +12,6 @@ import (
 type BlockProbe struct {
 	Height uint32
 	Round  uint32
-	Type   block.BlockType
 	ID     types.Bytes32
 }
 type PMProbeResult struct {
@@ -32,9 +31,9 @@ type PMProbeResult struct {
 func (p *Pacemaker) Probe() *PMProbeResult {
 	result := &PMProbeResult{
 		CurRound:       p.currentRound,
-		InCommittee:    p.reactor.inCommittee,
-		CommitteeIndex: int(p.reactor.committeeIndex),
-		CommitteeSize:  int(p.reactor.committeeSize),
+		InCommittee:    p.epochState.inCommittee,
+		CommitteeIndex: int(p.epochState.CommitteeIndex()),
+		CommitteeSize:  int(p.epochState.CommitteeSize()),
 
 		LastVotingHeight: p.lastVotingHeight,
 		LastOnBeatRound:  uint32(p.lastOnBeatRound),
@@ -44,7 +43,7 @@ func (p *Pacemaker) Probe() *PMProbeResult {
 	}
 	if p.lastCommitted != nil {
 		rlp.EncodeToBytes(p.lastCommitted)
-		result.LastCommitted = &BlockProbe{Height: p.lastCommitted.Height, Round: p.lastCommitted.Round, Type: p.lastCommitted.ProposedBlock.BlockType(), ID: p.lastCommitted.ProposedBlock.ID()}
+		result.LastCommitted = &BlockProbe{Height: p.lastCommitted.Height, Round: p.lastCommitted.Round, ID: p.lastCommitted.ProposedBlock.ID()}
 	}
 	result.ProposalCount = p.chain.DraftLen()
 

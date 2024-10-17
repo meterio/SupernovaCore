@@ -22,20 +22,22 @@ var (
 )
 
 // Build MBlock
-func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs types.Transactions, blockType block.BlockType) (error, *block.DraftBlock) {
+func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs types.Transactions) (error, *block.DraftBlock) {
 	parentBlock := parent.ProposedBlock
 	qc := justify.QC
 
+	qc.Epoch = p.epochState.epoch
+
 	lastKBlock := uint32(0)
-	if parent.ProposedBlock.BlockType() == block.KBlockType {
+	if parent.ProposedBlock.IsKBlock() {
 		lastKBlock = parent.ProposedBlock.Number()
 	} else {
-		lastKBlock = parent.ProposedBlock.LastKBlockHeight()
+		lastKBlock = parent.ProposedBlock.LastKBlock()
 	}
 
 	nextValidatorHash := parent.ProposedBlock.NextValidatorHash()
 	num := parent.ProposedBlock.Number() + 1
-	newVSet := p.validatorSetRegistry.Get(num)
+	newVSet := p.validatorSetRegistry.GetNext(num)
 	if newVSet != nil {
 		nextValidatorHash = newVSet.Hash()
 	}
@@ -44,10 +46,9 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		ParentID(parentBlock.ID()).
 		Timestamp(timestamp).
 		Nonce(nonce).
-		BlockType(blockType).
 		ValidatorHash(parent.ProposedBlock.NextValidatorHash()).
 		NextValidatorHash(nextValidatorHash).
-		LastKBlockHeight(lastKBlock).QC(qc)
+		LastKBlock(lastKBlock).QC(qc)
 
 	for _, tx := range txs {
 		builder.Tx(tx)

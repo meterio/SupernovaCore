@@ -13,14 +13,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/types"
 )
 
 type QuorumCert struct {
-	Height uint32
-	Round  uint32
-	Epoch  uint64
+	Epoch   uint64
+	Round   uint32
+	BlockID types.Bytes32
 
-	MsgHash  [32]byte // [][32]byte
 	AggSig   []byte
 	BitArray *cmn.BitArray
 }
@@ -30,16 +30,16 @@ func (qc *QuorumCert) String() string {
 		// bitArray := strings.ReplaceAll(qc.VoterBitArrayStr, "\"", "")
 		voted := qc.BitArray.CountYes()
 		unvoted := qc.BitArray.CountNo()
-		return fmt.Sprintf("QC(#%v, R:%v, E:%v, BitArray:(%v/%v), AggSig:len(%v))",
-			qc.Height, qc.Round, qc.Epoch, voted, (voted + unvoted), len(qc.AggSig))
+		return fmt.Sprintf("QC(E:%v,R:%v, %v, BitArray:(%v/%v), AggSig:len(%v))",
+			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID(), voted, (voted + unvoted), len(qc.AggSig))
 	}
 	return "QC(nil)"
 }
 
 func (qc *QuorumCert) CompactString() string {
 	if qc != nil {
-		return fmt.Sprintf("QC(#%v,R:%v,E:%v)",
-			qc.Height, qc.Round, qc.Epoch)
+		return fmt.Sprintf("QC(E:%v,R:%v, %v)",
+			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID())
 	}
 	return "QC(nil)"
 }
@@ -59,10 +59,9 @@ func (qc *QuorumCert) EncodeRLP(w io.Writer) error {
 		return nil
 	}
 	return rlp.Encode(w, []interface{}{
-		qc.Height,
-		qc.Round,
 		qc.Epoch,
-		qc.MsgHash,
+		qc.Round,
+		qc.BlockID,
 		qc.AggSig,
 		qc.BitArray,
 	})
@@ -77,10 +76,9 @@ func (qc *QuorumCert) Hash() []byte {
 // DecodeRLP implements rlp.Decoder.
 func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	payload := struct {
-		Height   uint32
-		Round    uint32
 		Epoch    uint64
-		MsgHash  [32]byte
+		Round    uint32
+		BlockID  [32]byte
 		AggSig   []byte
 		BitArray *cmn.BitArray
 	}{}
@@ -90,18 +88,21 @@ func (qc *QuorumCert) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	*qc = QuorumCert{
-		Height:   payload.Height,
-		Round:    payload.Round,
 		Epoch:    payload.Epoch,
-		MsgHash:  payload.MsgHash,
+		Round:    payload.Round,
+		BlockID:  payload.BlockID,
 		AggSig:   payload.AggSig,
 		BitArray: payload.BitArray,
 	}
 	return nil
 }
 
+func (qc *QuorumCert) Number() uint32 {
+	return Number(qc.BlockID)
+}
+
 func GenesisEscortQC(b *Block) *QuorumCert {
-	return &QuorumCert{Height: 0, Round: 0, Epoch: 0, MsgHash: b.VotingHash(), BitArray: cmn.NewBitArray(1)}
+	return &QuorumCert{Epoch: 0, Round: 0, BlockID: b.ID(), BitArray: cmn.NewBitArray(1)}
 }
 
 // --------------

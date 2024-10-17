@@ -7,14 +7,13 @@ package block
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -94,14 +93,8 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	}
 
 	// genesis/first block does not have qc
-	if b.Number() == escortQC.Height && (b.Number() == 0 || b.Number() == 1) {
+	if strings.EqualFold(b.ID().String(), escortQC.BlockID.String()) && (b.Number() == 0 || b.Number() == 1) {
 		return true, nil
-	}
-
-	// check voting hash
-	voteHash := b.VotingHash()
-	if !bytes.Equal(escortQC.MsgHash[:], voteHash[:]) {
-		return false, errors.New("voting hash mismatch")
 	}
 
 	// check vote count
@@ -121,7 +114,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 		return false, errors.New("invalid aggregate signature:" + err.Error())
 	}
 	start := time.Now()
-	valid := sig.FastAggregateVerify(pubkeys, escortQC.MsgHash)
+	valid := sig.FastAggregateVerify(pubkeys, escortQC.BlockID)
 	slog.Debug("verified QC", "elapsed", types.PrettyDuration(time.Since(start)))
 
 	return valid, err
@@ -146,7 +139,11 @@ func (b *Block) ID() types.Bytes32 {
 
 func (b *Block) ShortID() string {
 	if b != nil {
-		return fmt.Sprintf("#%v..%x", b.Number(), b.ID().Bytes()[28:])
+		prefix := ""
+		if b.IsKBlock() {
+			prefix = "K"
+		}
+		return fmt.Sprintf("%v#%v..%x", prefix, b.Number(), b.ID().Bytes()[28:])
 	}
 	return ""
 }
@@ -157,8 +154,8 @@ func (b *Block) ParentID() types.Bytes32 {
 }
 
 // LastBlocID returns id of parent block.
-func (b *Block) LastKBlockHeight() uint32 {
-	return b.BlockHeader.LastKBlockHeight
+func (b *Block) LastKBlock() uint32 {
+	return b.BlockHeader.LastKBlock
 }
 
 // Number returns sequential number of this block.
@@ -175,30 +172,13 @@ func (b *Block) NextValidatorHash() cmtbytes.HexBytes {
 	return b.BlockHeader.NextValidatorHash
 }
 
-func (b *Block) ValidatorHashChanged() bool {
-	return bytes.Equal(b.ValidatorHash(), b.NextValidatorHash())
+func (b *Block) IsKBlock() bool {
+	return !bytes.Equal(b.ValidatorHash(), b.NextValidatorHash())
 }
 
 // Timestamp returns timestamp of this block.
 func (b *Block) Timestamp() uint64 {
 	return b.BlockHeader.Timestamp
-}
-
-// BlockType returns block type of this block.
-func (b *Block) BlockType() BlockType {
-	return b.BlockHeader.BlockType
-}
-
-func (b *Block) IsKBlock() bool {
-	return b.BlockHeader.BlockType == KBlockType
-}
-
-func (b *Block) IsSBlock() bool {
-	return b.BlockHeader.BlockType == SBlockType
-}
-
-func (b *Block) IsMBlock() bool {
-	return b.BlockHeader.BlockType == MBlockType
 }
 
 // TxsRoot returns merkle root of txs contained in this block.
@@ -282,52 +262,24 @@ func (b *Block) Size() uint64 {
 }
 
 func (b *Block) String() string {
-	canonicalName := b.GetCanonicalName()
 	s := fmt.Sprintf(`%v(%v) %v {
   Magic:       %v
   BlockHeader: %v
   QuorumCert:  %v
-  Transactions: %v`, canonicalName, b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
+  Transactions: %v`, "Block", b.BlockHeader.Number(), b.ID(), "0x"+hex.EncodeToString(b.Magic[:]), b.BlockHeader, b.QC, b.Txs)
 
 	s += "\n}"
 	return s
 }
 
 func (b *Block) CompactString() string {
-	// hasCommittee := len(b.CommitteeInfos.CommitteeInfo) > 0
-	// ci := "no"
-	// if hasCommittee {
-	// 	ci = "YES"
-	// }
-	return fmt.Sprintf("%v[%v]", b.GetCanonicalName(), b.ShortID())
-	//		return fmt.Sprintf(`%v(%v) %v
-	//	  Parent: %v,
-	//	  QC: %v,
-	//	  LastKBHeight: %v, Magic: %v, #Txs: %v, CommitteeInfo: %v`, b.GetCanonicalName(), header.Number(), header.ID().String(),
-	//			header.ParentID().String(),
-	//			b.QC.CompactString(),
-	//			header.LastKBlockHeight(), b.Magic, len(b.Txs), ci)
+	return fmt.Sprintf("Block[%v]", b.ShortID())
 }
 
-func (b *Block) GetCanonicalName() string {
-	if b == nil {
-		return ""
-	}
-	switch b.BlockHeader.BlockType {
-	case KBlockType:
-		return "KBlock"
-	case MBlockType:
-		return "MBlock"
-	case SBlockType:
-		return "SBlock"
-	default:
-		return "Block"
-	}
-}
 func (b *Block) Oneliner() string {
 	header := b.BlockHeader
 	ci := ""
-	canonicalName := b.GetCanonicalName()
+	canonicalName := "Block"
 	return fmt.Sprintf("%v[%v,%v,txs:%v%v] -> %v", canonicalName,
 		b.ShortID(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
 }
@@ -351,31 +303,8 @@ func (b *Block) GetQC() *QuorumCert {
 
 // if the block is the first mblock, get epoch from committee
 // otherwise get epoch from QC
-func (b *Block) GetBlockEpoch() (epoch uint64) {
-	height := b.Number()
-	lastKBlockHeight := b.LastKBlockHeight()
-	if height == 0 {
-		epoch = 0
-		return
-	}
-	if height == 1 {
-		epoch = 1
-		return
-	}
-
-	if height > lastKBlockHeight+1 {
-		epoch = b.QC.Epoch
-	} else if height == lastKBlockHeight+1 {
-		if b.IsKBlock() {
-			// handling cases where two KBlock are back-to-back
-			epoch = b.QC.Epoch + 1
-		} else {
-			epoch = b.QC.Epoch
-		}
-	} else {
-		panic("Block error: lastKBlockHeight great than height")
-	}
-	return
+func (b *Block) Epoch() uint64 {
+	return b.QC.Epoch
 }
 
 func (b *Block) ToBytes() []byte {
@@ -398,37 +327,10 @@ func (b *Block) Nonce() uint64 {
 }
 
 // --------------
-func BlockEncodeBytes(blk *Block) []byte {
-	blockBytes, err := rlp.EncodeToBytes(blk)
-	if err != nil {
-		slog.Error("block encode error", "err", err)
-		return make([]byte, 0)
-	}
-
-	return blockBytes
-}
 
 func BlockDecodeFromBytes(bytes []byte) (*Block, error) {
 	blk := Block{}
 	err := rlp.DecodeBytes(bytes, &blk)
 	//slog.Error("decode failed", err)
 	return &blk, err
-}
-
-// Vote Message Hash
-// "Proposal Block Message: BlockType <8 bytes> Height <16 (8x2) bytes> Round <8 (4x2) bytes>
-func (b *Block) VotingHash() [32]byte {
-	c := make([]byte, binary.MaxVarintLen32)
-	binary.BigEndian.PutUint32(c, uint32(b.BlockType()))
-
-	h := make([]byte, binary.MaxVarintLen64)
-	binary.BigEndian.PutUint64(h, uint64(b.Number()))
-
-	msg := fmt.Sprintf("%s %s %s %s %s %s %s %s %s %s",
-		"BlockType", hex.EncodeToString(c),
-		"Height", hex.EncodeToString(h),
-		"BlockID", b.ID().String(),
-		"TxRoot", b.TxsRoot().String(),
-	)
-	return sha256.Sum256([]byte(msg))
 }

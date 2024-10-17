@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"time"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
@@ -43,16 +44,6 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	start := time.Now()
 	blk := b.ProposedBlock
 
-	// special valiadte StopCommitteeType
-	// possible 2 rounds of stop messagB
-	if blk.IsSBlock() {
-		parent := p.chain.GetDraft(b.ProposedBlock.ParentID())
-		if !parent.ProposedBlock.IsKBlock() && !parent.ProposedBlock.IsSBlock() {
-			p.logger.Info(fmt.Sprintf("proposal [%d] is the first stop committee block", b.Height))
-			return errors.New("sBlock should have kBlock/sBlock parent")
-		}
-	}
-
 	// avoid duplicate validation
 	if b.SuccessProcessed && b.ProcessError == nil {
 		return nil
@@ -65,13 +56,6 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	parentBlock := parent.ProposedBlock
 	if parentBlock == nil {
 		return errDecodeParentFailed
-	}
-
-	pool := p.reactor.txpool
-	if pool == nil {
-		p.logger.Error("get tx pool failed ...")
-		panic("get tx pool failed ...")
-		return nil
 	}
 
 	var txsInBlk []cmttypes.Tx
@@ -99,8 +83,16 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	}
 
 	processStart := time.Now()
-	now := uint64(time.Now().Unix())
-	err := p.reactor.ProcessProposedBlock(parentBlock, blk, now)
+	res, err := p.executor.ProcessProposal(&v1.ProcessProposalRequest{Txs: blk.Txs.Convert(), Hash: blk.ID().Bytes(), Height: int64(blk.Number())})
+
+	if res.Status == v1.PROCESS_PROPOSAL_STATUS_ACCEPT {
+		return nil
+	} else if res.Status == v1.PROCESS_PROPOSAL_STATUS_REJECT {
+		err = ErrProposalRejected
+	} else {
+		err = ErrProposalUnknown
+	}
+
 	if err != nil && err != errKnownBlock {
 		p.logger.Error("process proposed failed", "proposed", blk.Oneliner(), "err", err)
 		b.SuccessProcessed = false
@@ -114,12 +106,12 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	b.SuccessProcessed = true
 	b.ProcessError = err
 
-	p.logger.Info(fmt.Sprintf("validated proposal %s R:%v, %v, txs:%d", b.ProposedBlock.GetCanonicalName(), b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
+	p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.ShortID(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
 	return nil
 }
 
 func (p *Pacemaker) getProposerByRound(round uint32) *ConsensusPeer {
-	proposer := p.reactor.getRoundProposer(round)
+	proposer := p.epochState.getRoundProposer(round)
 	return NewConsensusPeer(proposer.Name, proposer.IP.String())
 }
 
@@ -129,7 +121,7 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		pubkeys := make([]bls.PublicKey, 0)
 
 		// check epoch and round
-		if tc.Epoch != p.reactor.curEpoch || tc.Round != round {
+		if tc.Epoch != p.epochState.epoch || tc.Round != round {
 			return false
 
 		}
@@ -139,12 +131,12 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		}
 		// check vote count
 		voteCount := tc.BitArray.Count()
-		if !block.MajorityTwoThird(uint32(voteCount), p.reactor.committeeSize) {
+		if !block.MajorityTwoThird(uint32(voteCount), p.epochState.CommitteeSize()) {
 			return false
 		}
 
 		// check signature
-		for index, v := range p.reactor.committee.Validators {
+		for index, v := range p.epochState.committee.Validators {
 			if tc.BitArray.GetIndex(index) {
 				pubkeys = append(pubkeys, v.PubKey)
 			}
@@ -155,9 +147,20 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		}
 		valid := aggrSig.FastAggregateVerify(pubkeys, tc.MsgHash)
 		if !valid {
-			p.logger.Warn("Invalid TC", "expected", fmt.Sprintf("E:%v,R:%v", tc.Epoch, tc.Round), "proposal", fmt.Sprintf("E:%v,R:%v", p.reactor.curEpoch, round))
+			p.logger.Warn("Invalid TC", "expected", fmt.Sprintf("E:%v,R:%v", tc.Epoch, tc.Round), "proposal", fmt.Sprintf("E:%v,R:%v", p.epochState.epoch, round))
 		}
 		return valid
 	}
 	return false
+}
+
+func (p *Pacemaker) amIRoundProproser(round uint32) bool {
+	proposer := p.epochState.getRoundProposer(round)
+	return bytes.Equal(proposer.PubKey.Marshal(), p.blsMaster.PubKey.Marshal())
+}
+
+func (p *Pacemaker) SignMessage(msg block.ConsensusMessage) {
+	msgHash := msg.GetMsgHash()
+	sig := p.blsMaster.PrivKey.Sign(msgHash[:])
+	msg.SetMsgSignature(sig.Marshal())
 }

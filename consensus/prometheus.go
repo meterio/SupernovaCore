@@ -28,9 +28,9 @@ var (
 		Name: "pacemaker_role",
 		Help: "Role in pacemaker",
 	})
-	lastKBlockHeightGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_kblock_height",
-		Help: "Height of last k-block",
+	lastKBlockGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_validator_update_num",
+		Help: "Height of last validator set change",
 	})
 	blocksCommitedCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "blocks_commited_total",

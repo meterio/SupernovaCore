@@ -215,7 +215,7 @@ func (n *Node) Start() error {
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
 	// n.goes.Go(func() { n.txStashLoop(n.ctx) })
-	n.goes.Go(func() { n.reactor.OnStart(n.ctx) })
+	n.goes.Go(func() { n.reactor.Start(n.ctx) })
 
 	n.goes.Wait()
 	return nil
@@ -299,19 +299,16 @@ func (n *Node) houseKeeping(ctx context.Context) {
 			return
 		case newBlock := <-newBlockCh:
 			var stats blockStats
-			if newBlock.Block.IsSBlock() {
-				n.logger.Warn("got new sblock", "num", newBlock.Block.Number(), "id", newBlock.Block.ID().ToBlockShortID())
-			} else {
-				if isTrunk, err := n.processBlock(newBlock.Block, newBlock.EscortQC, &stats); err != nil {
-					if consensus.IsFutureBlock(err) ||
-						(consensus.IsParentMissing(err) && futureBlocks.Contains(newBlock.Block.Header().ParentID)) {
-						n.logger.Debug("future block added", "id", newBlock.Block.ID())
-						futureBlocks.Set(newBlock.Block.ID(), newBlock)
-					}
-				} else if isTrunk {
-					n.comm.BroadcastBlock(newBlock.EscortedBlock)
-					// n.logger.Info(fmt.Sprintf("imported blocks (%v)", stats.processed), stats.LogContext(newBlock.Block.Header())...)
+
+			if isTrunk, err := n.processBlock(newBlock.Block, newBlock.EscortQC, &stats); err != nil {
+				if consensus.IsFutureBlock(err) ||
+					(consensus.IsParentMissing(err) && futureBlocks.Contains(newBlock.Block.Header().ParentID)) {
+					n.logger.Debug("future block added", "id", newBlock.Block.ID())
+					futureBlocks.Set(newBlock.Block.ID(), newBlock)
 				}
+			} else if isTrunk {
+				n.comm.BroadcastBlock(newBlock.EscortedBlock)
+				// n.logger.Info(fmt.Sprintf("imported blocks (%v)", stats.processed), stats.LogContext(newBlock.Block.Header())...)
 			}
 		case <-futureTicker.C:
 			// process future blocks
@@ -325,10 +322,6 @@ func (n *Node) houseKeeping(ctx context.Context) {
 			})
 			var stats blockStats
 			for i, block := range blocks {
-				if block.Block.IsSBlock() {
-					n.logger.Warn("got future sblock", "num", block.Block.Number(), "id", block.Block.ID().ToBlockShortID())
-					continue
-				}
 				if isTrunk, err := n.processBlock(block.Block, block.EscortQC, &stats); err == nil || consensus.IsKnownBlock(err) {
 					n.logger.Debug("future block consumed", "id", block.Block.ID())
 					futureBlocks.Remove(block.Block.ID())
@@ -413,13 +406,13 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		return false, errCantExtendBestBlock
 	}
 	if blk.Timestamp()+types.BlockInterval > now {
-		QCValid := n.reactor.ValidateQC(blk, escortQC)
+		QCValid := n.reactor.Pacemaker.ValidateQC(blk, escortQC)
 		if !QCValid {
 			return false, errors.New(fmt.Sprintf("invalid %s on Block %s", escortQC.String(), blk.ID().ToBlockShortID()))
 		}
 	}
 	start := time.Now()
-	err := n.reactor.ProcessSyncedBlock(blk, now)
+	err := n.reactor.ValidateSyncedBlock(blk, now)
 	if time.Since(start) > time.Millisecond*500 {
 		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", types.PrettyDuration(time.Since(start)))
 	}
@@ -450,12 +443,8 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	n.processFork(fork)
 
 	// shortcut to refresh epoch
-	updated, _ := n.reactor.UpdateCurEpoch()
+	n.reactor.Pacemaker.UpdateEpoch()
 
-	if blk.IsKBlock() && n.reactor.SyncDone && updated {
-		n.logger.Info("synced a kblock, schedule regulate", "num", blk.Number(), "id", blk.ID())
-		n.reactor.SchedulePacemakerRegulate()
-	}
 	// end of shortcut
 	return len(fork.Trunk) > 0, nil
 }
@@ -478,10 +467,10 @@ func (n *Node) commitBlock(newBlock *block.Block, escortQC *block.QuorumCert) (*
 	}
 
 	if n.reactor.SyncDone {
-		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", types.PrettyDuration(time.Since(start)))
+		n.logger.Info(fmt.Sprintf("* synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 	} else {
 		if time.Since(start) > time.Millisecond*500 {
-			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.GetBlockEpoch(), "elapsed", types.PrettyDuration(time.Since(start)))
+			n.logger.Info(fmt.Sprintf("* slow synced %v", newBlock.ShortID()), "txs", len(newBlock.Txs), "epoch", newBlock.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 		}
 	}
 	return fork, nil

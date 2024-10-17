@@ -16,22 +16,21 @@ import (
 )
 
 type JSONBlockSummary struct {
-	Number           uint32            `json:"number"`
-	ID               types.Bytes32     `json:"id"`
-	Size             uint32            `json:"size"`
-	ParentID         types.Bytes32     `json:"parentID"`
-	Timestamp        uint64            `json:"timestamp"`
-	GasUsed          uint64            `json:"gasUsed"`
-	TotalScore       uint64            `json:"totalScore"`
-	TxsRoot          cmtbytes.HexBytes `json:"txsRoot"`
-	TxsFeatures      uint32            `json:"txsFeatures"`
-	Signer           common.Address    `json:"signer"`
-	IsTrunk          bool              `json:"isTrunk"`
-	BlockType        string            `json:"blockType"`
-	LastKBlockHeight uint32            `json:"lastKBlockHeight"`
-	QC               *QC               `json:"qc"`
-	Nonce            uint64            `json:"nonce"`
-	Epoch            uint64            `json:"epoch"`
+	Number      uint32            `json:"number"`
+	ID          types.Bytes32     `json:"id"`
+	Size        uint32            `json:"size"`
+	ParentID    types.Bytes32     `json:"parentID"`
+	Timestamp   uint64            `json:"timestamp"`
+	GasUsed     uint64            `json:"gasUsed"`
+	TotalScore  uint64            `json:"totalScore"`
+	TxsRoot     cmtbytes.HexBytes `json:"txsRoot"`
+	TxsFeatures uint32            `json:"txsFeatures"`
+	Signer      common.Address    `json:"signer"`
+	IsTrunk     bool              `json:"isTrunk"`
+	LastKBlock  uint32            `json:"lastKBlock"`
+	QC          *QC               `json:"qc"`
+	Nonce       uint64            `json:"nonce"`
+	Epoch       uint64            `json:"epoch"`
 }
 
 type JSONCollapsedBlock struct {
@@ -79,7 +78,7 @@ type JSONEpoch struct {
 func buildJSONEpoch(blk *block.Block) *JSONEpoch {
 	return &JSONEpoch{
 		Nonce:  blk.Nonce(),
-		Epoch:  blk.GetBlockEpoch(),
+		Epoch:  blk.Epoch(),
 		Number: blk.Number(),
 	}
 }
@@ -93,35 +92,19 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool) *JSONBlockSummary {
 	header := blk.Header()
 	signer, _ := header.Signer()
 
-	var epoch uint64
-	blockType := ""
-	if blk.IsKBlock() {
-		blockType = "KBlock"
-	} else if blk.IsMBlock() {
-		blockType = "MBlock"
-	} else if blk.IsSBlock() {
-		blockType = "SBlock"
-	}
-	isKBlock := header.BlockType == block.KBlockType
-	if isTrunk && isKBlock {
-		epoch = blk.QC.Epoch
-	} else {
-		epoch = blk.QC.Epoch
-	}
 	result := &JSONBlockSummary{
 		Number:    header.Number(),
 		ID:        header.ID(),
 		ParentID:  header.ParentID,
 		Timestamp: header.Timestamp,
 
-		Signer:           signer,
-		Size:             uint32(blk.Size()),
-		TxsRoot:          header.TxsRoot,
-		IsTrunk:          isTrunk,
-		BlockType:        blockType,
-		LastKBlockHeight: header.LastKBlockHeight,
-		Epoch:            epoch,
-		Nonce:            blk.Nonce(),
+		Signer:     signer,
+		Size:       uint32(blk.Size()),
+		TxsRoot:    header.TxsRoot,
+		IsTrunk:    isTrunk,
+		LastKBlock: header.LastKBlock,
+		Epoch:      blk.Epoch(),
+		Nonce:      blk.Nonce(),
 	}
 	var err error
 	if blk.QC != nil {
@@ -144,17 +127,17 @@ func buildJSONEmbeddedTxs(txs types.Transactions) []*JSONEmbeddedTx {
 }
 
 type QC struct {
-	Height           uint32 `json:"height"`
+	Epoch            uint64 `json:"height"`
 	Round            uint32 `json:"round"`
+	BlockID          string `json:"blockID"`
 	VoterBitArrayStr string `json:"voterBitArrayStr"`
-	Epoch            uint64 `json:"epoch"`
 }
 
 type QCWithRaw struct {
-	Height           uint32 `json:"height"`
+	Epoch            uint64 `json:"height"`
 	Round            uint32 `json:"round"`
+	BlockID          string `json:"blockID"`
 	VoterBitArrayStr string `json:"voterBitArrayStr"`
-	Epoch            uint64 `json:"epoch"`
 	Raw              string `json:"raw"`
 }
 
@@ -167,20 +150,20 @@ type CommitteeMember struct {
 
 func convertQC(qc *block.QuorumCert) (*QC, error) {
 	return &QC{
-		Height:           qc.Height,
-		Round:            qc.Round,
-		VoterBitArrayStr: qc.BitArray.String(),
 		Epoch:            qc.Epoch,
+		Round:            qc.Round,
+		BlockID:          qc.BlockID.String(),
+		VoterBitArrayStr: qc.BitArray.String(),
 	}, nil
 }
 
 func convertQCWithRaw(qc *block.QuorumCert) (*QCWithRaw, error) {
 	raw := hex.EncodeToString(qc.ToBytes())
 	return &QCWithRaw{
-		Height:           qc.Height,
-		Round:            qc.Round,
-		VoterBitArrayStr: qc.BitArray.String(),
 		Epoch:            qc.Epoch,
+		Round:            qc.Round,
+		BlockID:          qc.BlockID.String(),
+		VoterBitArrayStr: qc.BitArray.String(),
 		Raw:              raw,
 	}, nil
 }

@@ -317,7 +317,7 @@ func (m *PMTimeoutMessage) String() string {
 	qcHigh := m.DecodeQCHigh()
 	s := fmt.Sprintf("Timeout(E:%v,WR:%d)", m.Epoch, m.WishRound)
 	if qcHigh != nil {
-		s = s + " " + fmt.Sprintf("QCHigh(#%d,R:%d)", qcHigh.Height, qcHigh.Round)
+		s = s + " " + fmt.Sprintf("QCHigh(E:%d,R:%d)", qcHigh.BlockID, qcHigh.Round)
 	}
 	if len(m.LastVoteSignature) > 0 {
 		s = s + " " + fmt.Sprintf("LastVote(R:%d, %v)", m.LastVoteRound, m.LastVoteBlockID.ToBlockShortID())

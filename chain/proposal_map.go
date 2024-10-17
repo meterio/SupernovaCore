@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"bytes"
 	"log/slog"
 
 	"github.com/meterio/supernova/block"
@@ -87,21 +86,15 @@ func BlockMatchDraftQC(b *block.DraftBlock, escortQC *block.QuorumCert) bool {
 		return false
 	}
 
-	// genesis does not have qc
-	if b.Height == 0 && escortQC.Height == 0 {
-		return true
-	}
-
 	blk := b.ProposedBlock
 
-	votingHash := blk.VotingHash()
-	return bytes.Equal(escortQC.MsgHash[:], votingHash[:])
+	return blk.ID() == escortQC.BlockID
 }
 
 func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {
 	for key := range p.proposals {
 		draftBlk := p.proposals[key]
-		if draftBlk.Height == qc.Height && draftBlk.Round == qc.Round {
+		if draftBlk.ProposedBlock.ID() == qc.BlockID && draftBlk.Round == qc.Round {
 			if match := BlockMatchDraftQC(draftBlk, qc); match {
 				return draftBlk
 			}
@@ -109,21 +102,17 @@ func (p *ProposalMap) GetOneByEscortQC(qc *block.QuorumCert) *block.DraftBlock {
 	}
 
 	// load from database
-	blkID, err := p.chain.GetAncestorBlockID(p.chain.BestBlock().ID(), qc.Height)
+
+	blkInDB, err := p.chain.GetBlock(qc.BlockID)
 	if err == nil {
-		blkInDB, err := p.chain.GetBlock(blkID)
-		if err == nil {
-			p.logger.Debug("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
-			if blkInDB.Number() == qc.Height {
-				return &block.DraftBlock{
-					Height:        qc.Height,
-					Round:         qc.Round,
-					Parent:        nil,
-					Justify:       nil,
-					Committed:     true,
-					ProposedBlock: blkInDB,
-				}
-			}
+		p.logger.Debug("load block from DB", "num", blkInDB.Number(), "id", blkInDB.ShortID())
+		return &block.DraftBlock{
+			Height:        qc.Number(),
+			Round:         qc.Round,
+			Parent:        nil,
+			Justify:       nil,
+			Committed:     true,
+			ProposedBlock: blkInDB,
 		}
 	}
 	return nil

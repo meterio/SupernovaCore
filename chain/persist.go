@@ -180,7 +180,7 @@ func deleteBlock(rw db.DB, blockID types.Bytes32) (*block.Block, error) {
 
 // saveBestQC save the best qc
 func saveBestQC(w db.DB, qc *block.QuorumCert) error {
-	bestQCHeightGauge.Set(float64(qc.Height))
+	bestQCHeightGauge.Set(float64(qc.Number()))
 	batch := w.NewBatch()
 	saveRLP(batch, bestQCKey, qc)
 	return batch.Write()

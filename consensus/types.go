@@ -10,10 +10,10 @@ import (
 )
 
 type EpochEndInfo struct {
-	Height           uint32
-	LastKBlockHeight uint32
-	Nonce            uint64
-	Epoch            uint64
+	Height     uint32
+	LastKBlock uint32
+	Nonce      uint64
+	Epoch      uint64
 }
 
 type commitReadyBlock struct {
@@ -60,8 +60,6 @@ func (rtype roundType) String() string {
 		return "Regular"
 	case TimeoutRound:
 		return "Timeout"
-	case KBlockRound:
-		return "KBlock"
 	}
 	return "Unknown"
 }
@@ -69,5 +67,4 @@ func (rtype roundType) String() string {
 const (
 	RegularRound = roundType(1)
 	TimeoutRound = roundType(3)
-	KBlockRound  = roundType(5)
 )

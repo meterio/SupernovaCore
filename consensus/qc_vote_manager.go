@@ -89,19 +89,16 @@ func (m *QCVoteManager) Aggregate(round uint32, blockID types.Bytes32, epoch uin
 	key := voteKey{Round: round, BlockID: blockID}
 
 	bitArray := cmn.NewBitArray(int(m.committeeSize))
-	var msgHash [32]byte
 	for index, v := range m.votes[key] {
 		sigs = append(sigs, v.Signature)
 		bitArray.SetIndex(int(index), true)
-		msgHash = v.Hash
 	}
 	aggrSig := bls.AggregateSignatures(sigs)
 
 	return &block.QuorumCert{
-		Height:   block.Number(blockID),
-		Round:    round,
 		Epoch:    epoch,
-		MsgHash:  msgHash,
+		Round:    round,
+		BlockID:  blockID,
 		BitArray: bitArray,
 		AggSig:   aggrSig.Marshal(),
 	}
