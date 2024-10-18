@@ -15,6 +15,7 @@ import (
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -163,4 +164,19 @@ func (p *Pacemaker) SignMessage(msg block.ConsensusMessage) {
 	msgHash := msg.GetMsgHash()
 	sig := p.blsMaster.PrivKey.Sign(msgHash[:])
 	msg.SetMsgSignature(sig.Marshal())
+}
+
+func (p *Pacemaker) printFork(fork *chain.Fork) {
+	if len(fork.Branch) >= 2 {
+		trunkLen := len(fork.Trunk)
+		branchLen := len(fork.Branch)
+		p.logger.Warn(fmt.Sprintf(
+			`
+⑂⑂⑂⑂⑂⑂⑂⑂ FORK HAPPENED ⑂⑂⑂⑂⑂⑂⑂⑂
+ancestor: %v
+trunk:    %v  %v
+branch:   %v  %v`, fork.Ancestor,
+			trunkLen, fork.Trunk[trunkLen-1],
+			branchLen, fork.Branch[branchLen-1]))
+	}
 }

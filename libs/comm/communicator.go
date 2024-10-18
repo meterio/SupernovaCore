@@ -51,6 +51,7 @@ type Communicator struct {
 	goes           co.Goes
 	onceSynced     sync.Once
 	peersCachePath string
+	Synced         bool
 
 	magic  [4]byte
 	logger *slog.Logger
@@ -83,7 +84,7 @@ func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxP
 }
 
 // Synced returns a channel indicates if synchronization process passed.
-func (c *Communicator) Synced() <-chan struct{} {
+func (c *Communicator) SyncedCh() <-chan struct{} {
 	return c.syncedCh
 }
 
@@ -151,6 +152,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 				if shouldSynced() {
 					delay = syncInterval
 					c.onceSynced.Do(func() {
+						c.Synced = true
 						close(c.syncedCh)
 					})
 				}

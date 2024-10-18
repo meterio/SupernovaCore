@@ -214,7 +214,7 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) {
 		}
 
 		// commit the approved block
-		err := p.commitBlock(blk, escortQC)
+		err := p.CommitBlock(blk.ProposedBlock, escortQC)
 		if err != nil {
 			if err != chain.ErrBlockExist && err != errKnownBlock {
 				if blk != nil {

@@ -94,7 +94,7 @@ func (r *Reactor) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			r.logger.Warn("stop reactor due to context end")
 			return nil
-		case <-r.Pacemaker.communicator.Synced():
+		case <-r.Pacemaker.communicator.SyncedCh():
 			r.SyncDone = true
 			r.logger.Info("syncing is done")
 			r.Pacemaker.Start()

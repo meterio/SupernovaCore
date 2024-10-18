@@ -24,6 +24,7 @@ var (
 	ErrKnownMsg            = errors.New("known msg")
 	ErrProposalRejected    = errors.New("proposal rejected")
 	ErrProposalUnknown     = errors.New("proposal unknown")
+	ErrForkHappened        = errors.New("fork happened")
 )
 
 type consensusError string

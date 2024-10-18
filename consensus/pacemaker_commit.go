@@ -31,10 +31,9 @@ func (p *Pacemaker) FinalizeBlockViaABCI(blk *block.Block) error {
 }
 
 // finalize the block with its own QC
-func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.QuorumCert) error {
+func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) error {
 
 	start := time.Now()
-	blk := draftBlk.ProposedBlock
 	p.logger.Debug("Try to finalize block", "block", blk.Oneliner())
 
 	// fmt.Println("Calling AddBlock from consensus_block.commitBlock, newBlock=", blk.ID())
@@ -51,7 +50,7 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 		return err
 	}
 
-	err = p.FinalizeBlockViaABCI(draftBlk.ProposedBlock)
+	err = p.FinalizeBlockViaABCI(blk)
 	if err != nil {
 		p.logger.Warn("could not finalize via ABCI", "err", err)
 		return err
@@ -59,13 +58,13 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 
 	// unlike processBlock, we do not need to handle fork
 	if fork != nil {
-		//panic(" chain is in forked state, something wrong")
-		//return false
 		// process fork????
 		if len(fork.Branch) > 0 {
 			out := fmt.Sprintf("Fork Happened ... fork(Ancestor=%s, Branch=%s), bestBlock=%s", fork.Ancestor.ID().String(), fork.Branch[0].ID().String(), p.chain.BestBlock().ID().String())
 			p.logger.Warn(out)
-			panic(out)
+			p.printFork(fork)
+			p.ScheduleRegulate()
+			return ErrForkHappened
 		}
 	}
 
@@ -75,8 +74,8 @@ func (p *Pacemaker) commitBlock(draftBlk *block.DraftBlock, escortQC *block.Quor
 	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus
 
-	if draftBlk.ProposedBlock.IsKBlock() {
-		p.logger.Info("committed a KBlock, schedule regulate now", "blk", draftBlk.ProposedBlock.ID().ToBlockShortID())
+	if blk.IsKBlock() {
+		p.logger.Info("committed a KBlock, schedule regulate now", "blk", blk.ID().ToBlockShortID())
 		p.ScheduleRegulate()
 	}
 	return nil
