@@ -105,7 +105,7 @@ func (q *IncomingQueue) Add(mi IncomingMsg) error {
 		q.logger.Warn(fmt.Sprintf("dropped %s due to cap", dropped.Msg.String()), "from", dropped.Peer.String())
 	}
 
-	q.logger.Info(fmt.Sprintf("recv %s", mi.Msg.String()), "from", mi.Peer.String(), "qlen", len(q.queue))
+	q.logger.Info(fmt.Sprintf(`recv %s`, mi.Msg.String()), "from", mi.Peer.String(), "qlen", len(q.queue))
 	mi.EnqueueAt = time.Now()
 	mi.ExpireAt = time.Now().Add(IN_QUEUE_TTL)
 	q.queue <- mi

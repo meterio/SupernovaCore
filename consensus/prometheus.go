@@ -12,10 +12,6 @@ var (
 		Name: "pacemaker_round",
 		Help: "Current round of pacemaker",
 	})
-	pmRunningGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "pacemaker_running",
-		Help: "status of pacemaker (0-false, 1-true)",
-	})
 	curEpochGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "current_epoch",
 		Help: "Current epoch of consensus",
@@ -27,13 +23,5 @@ var (
 	pmRoleGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "pacemaker_role",
 		Help: "Role in pacemaker",
-	})
-	lastKBlockGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_validator_update_num",
-		Help: "Height of last validator set change",
-	})
-	blocksCommitedCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "blocks_commited_total",
-		Help: "Counter of commited blocks locally",
 	})
 )

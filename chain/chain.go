@@ -7,6 +7,7 @@ package chain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -174,7 +175,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 	bestQCHeightGauge.Set(float64(bestQC.Number()))
 
 	if verbose {
-		slog.Info("Chain Initialized", "genesis", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String(), "genesisVSetHash", genesisValidatorSet.Hash())
+		slog.Info("Chain Initialized", "genesis", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String(), "genesisVSetHash", hex.EncodeToString(genesisValidatorSet.Hash()))
 	}
 	c := &Chain{
 		kv:           kv,

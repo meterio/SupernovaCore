@@ -475,7 +475,6 @@ func (p *Pacemaker) OnBeat(epoch uint64, round uint32) {
 		return
 	}
 	if !p.amIRoundProproser(round) {
-		pmRoleGauge.Set(1) // validator
 		p.logger.Info("I'm NOT round proposer, skip OnBeat", "round", round)
 		return
 	}
@@ -489,8 +488,7 @@ func (p *Pacemaker) OnBeat(epoch uint64, round uint32) {
 		return
 	}
 
-	pmRoleGauge.Set(2) // leader
-	// p.logger.Info("I AM round proposer", "round", round)
+	pmRoleGauge.Set(2) // proposer
 
 	pStart := time.Now()
 	bnew := p.OnPropose(p.QCHigh, round)
@@ -575,6 +573,7 @@ func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
 
 		p.logger.Info("I'm IN committee !!!", "myName", myName, "myIP", myAddr.String())
 		inCommitteeGauge.Set(1)
+		pmRoleGauge.Set(1) // validator
 	} else {
 		p.logger.Info("I'm NOT in committee")
 		inCommitteeGauge.Set(0)
@@ -616,7 +615,6 @@ func (p *Pacemaker) Regulate() {
 
 	p.logger.Info(fmt.Sprintf("*** Pacemaker regulate with bestQC %v", bestQC.CompactString()))
 	p.lastOnBeatRound = int32(actualRound) - 1
-	pmRoleGauge.Set(1) // validator
 
 	qcInit := block.NewDraftQC(bestQC, bestNode)
 
@@ -626,8 +624,6 @@ func (p *Pacemaker) Regulate() {
 	p.lastVoteMsg = nil
 	p.QCHigh = qcInit
 	p.chain.AddDraft(bestNode)
-
-	pmRunningGauge.Set(1)
 
 	p.currentRound = 0
 	p.enterRound(actualRound, RegularRound)
@@ -737,8 +733,6 @@ func (p *Pacemaker) OnRoundTimeout(ti PMRoundTimeoutInfo) {
 	p.logger.Warn(fmt.Sprintf("E:%d,R:%d timeout", ti.epoch, ti.round), "counter", p.timeoutCounter)
 
 	p.enterRound(ti.round+1, TimeoutRound)
-
-	pmRoleGauge.Set(1) // validator
 
 	// send new round msg to next round proposer
 	msg, err := p.BuildTimeoutMessage(p.QCHigh, &ti, p.lastVoteMsg)

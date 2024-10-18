@@ -241,10 +241,8 @@ func (b *Block) String() string {
 }
 
 func (b *Block) Oneliner() string {
-	header := b.BlockHeader
-	ci := ""
-	return fmt.Sprintf("%v,%v,txs:%v%v -> %v",
-		b.CompactString(), b.QC.CompactString(), len(b.Transactions()), ci, header.ParentID.ToBlockShortID())
+	return fmt.Sprintf("%v[txs:%v, %v]",
+		b.CompactString(), len(b.Transactions()), b.QC.CompactString())
 }
 
 // -----------------

@@ -67,6 +67,7 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*
 		}
 	}
 
+	curEpochGauge.Set(float64(kblk.Epoch()) + 1)
 	return &EpochState{
 		epoch:       kblk.Epoch() + 1,
 		committee:   committee,

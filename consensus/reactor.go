@@ -6,8 +6,9 @@
 package consensus
 
 import (
+	"bytes"
 	"context"
-	b64 "encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -62,8 +63,6 @@ func init() {
 func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.Communicator, txpool *txpool.TxPool, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Reactor {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
-	prometheus.Register(lastKBlockGauge)
-	prometheus.Register(blocksCommitedCounter)
 	prometheus.Register(inCommitteeGauge)
 	prometheus.Register(pmRoleGauge)
 
@@ -76,7 +75,7 @@ func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.C
 	}
 
 	// initialize consensus common
-	r.logger.Info("my keys", "pubkey", b64.StdEncoding.EncodeToString(blsMaster.PubKey.Marshal()))
+	r.logger.Info("my pubkey", "pubkey", hex.EncodeToString(blsMaster.PubKey.Marshal()))
 
 	return r
 }
@@ -197,4 +196,74 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 			r.AddIncoming(mi, data)
 		})
 	}
+}
+
+// Process process a block.
+func (r *Reactor) ValidateSyncedBlock(blk *block.Block, nowTimestamp uint64) error {
+	header := blk.Header()
+
+	if _, err := r.chain.GetBlockHeader(header.ID()); err != nil {
+		if !r.chain.IsNotFound(err) {
+			return err
+		}
+	} else {
+		// we may already have this blockID. If it is after the best, still accept it
+		if header.Number() <= r.chain.BestBlock().Number() {
+			return errKnownBlock
+		} else {
+			r.logger.Debug("continue to process blk ...", "height", header.Number())
+		}
+	}
+
+	parent, err := r.chain.GetBlock(header.ParentID)
+	if err != nil {
+		if !r.chain.IsNotFound(err) {
+			return err
+		}
+		return errParentMissing
+	}
+
+	return r.validateBlock(blk, parent, nowTimestamp, true)
+}
+
+func (r *Reactor) validateBlock(
+	block *block.Block,
+	parent *block.Block,
+	nowTimestamp uint64,
+	forceValidate bool,
+) error {
+	header := block.Header()
+
+	start := time.Now()
+	if parent == nil {
+		return consensusError("parent is nil")
+	}
+
+	if parent.ID() != block.QC.BlockID {
+		return consensusError(fmt.Sprintf("parent.ID %v and QC.BlockID %v mismatch", parent.ID(), block.QC.BlockID))
+	}
+
+	if header.Timestamp <= parent.Timestamp() {
+		return consensusError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp, header.Timestamp))
+	}
+
+	if header.Timestamp > nowTimestamp+types.BlockInterval {
+		return errFutureBlock
+	}
+
+	if header.LastKBlock < parent.LastKBlock() {
+		return consensusError(fmt.Sprintf("block LastKBlock invalid: parent %v, current %v", parent.LastKBlock, header.LastKBlock))
+	}
+
+	proposedTxs := block.Transactions()
+	if !bytes.Equal(header.TxsRoot, proposedTxs.RootHash()) {
+		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot, proposedTxs.RootHash()))
+	}
+
+	if forceValidate && header.LastKBlock != r.lastKBlock {
+		return consensusError(fmt.Sprintf("header LastKBlock invalid: header %v, local %v", header.LastKBlock, r.lastKBlock))
+	}
+
+	r.logger.Debug("validated!", "id", block.CompactString(), "elapsed", types.PrettyDuration(time.Since(start)))
+	return nil
 }

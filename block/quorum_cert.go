@@ -38,7 +38,7 @@ func (qc *QuorumCert) String() string {
 
 func (qc *QuorumCert) CompactString() string {
 	if qc != nil {
-		return fmt.Sprintf("QC(E:%v,R:%v, %v)",
+		return fmt.Sprintf("QC(E:%v,R:%v -> %v)",
 			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID())
 	}
 	return "QC(nil)"
