@@ -10,23 +10,22 @@ import (
 	"testing"
 
 	cmttypes "github.com/cometbft/cometbft/types"
+	db "github.com/cosmos/cosmos-db"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/stretchr/testify/assert"
 )
 
-func newChain(kv kv.GetPutter) *chain.Chain {
-
+func newChain(kv db.DB) *chain.Chain {
 	gene := genesis.NewGenesis()
 	b0, _ := gene.Build()
 	chain, _ := chain.New(kv, b0, gene.ValidatorSet(), false)
 	return chain
 }
 
-func newTx(from genesis.DevAccount) cmttypes.Tx {
+func newTx() cmttypes.Tx {
 	return cmttypes.Tx{}
 }
 

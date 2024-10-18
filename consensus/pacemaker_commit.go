@@ -24,6 +24,7 @@ func (p *Pacemaker) FinalizeBlockViaABCI(blk *block.Block) error {
 		return err
 	}
 	p.executor.Commit()
+	blk.BlockHeader.AppHash = res.AppHash
 	//stage := blkInfo.Stage
 
 	return nil
