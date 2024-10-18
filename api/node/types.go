@@ -8,7 +8,7 @@ package node
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/comm"
@@ -19,17 +19,19 @@ type Network interface {
 	PeersStats() []*comm.PeerStats
 }
 
-// Block block
 type Peer struct {
-	EnodeID string `json:"enodeID"`
-	IP      string `json:"ip"`
-	Port    uint32 `json:"port"`
+	EnodeID    string `json:"enodeID"`
+	Name       string `json:"name"`
+	ID         string `json:"id"`
+	RemoteAddr string `json:"remoteAddr"`
 }
 
-func convertNode(n *enode.Node) *Peer {
+func convertPeer(p *p2p.Peer) *Peer {
 	return &Peer{
-		EnodeID: n.ID().String(),
-		IP:      n.IP().String(),
+		EnodeID:    p.Info().Enode,
+		ID:         p.Info().ID,
+		Name:       p.Name(),
+		RemoteAddr: p.Info().Network.RemoteAddress,
 	}
 }
 

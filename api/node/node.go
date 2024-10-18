@@ -44,11 +44,11 @@ func (n *Node) handlePeerStat(w http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(w, n.PeersStats())
 }
 
-func (n *Node) handleDiscoveredPeers(w http.ResponseWriter, req *http.Request) error {
-	nodes := n.comm.GetDiscoveredNodes()
+func (n *Node) handlePeers(w http.ResponseWriter, req *http.Request) error {
+	peers := n.comm.GetPeers()
 	result := make([]*Peer, 0)
-	for _, n := range nodes {
-		peer := convertNode(n)
+	for _, p := range peers {
+		peer := convertPeer(p)
 		result = append(result, peer)
 	}
 	return utils.WriteJSON(w, result)
@@ -95,7 +95,7 @@ func (n *Node) Mount(root *mux.Router, pathPrefix string) {
 	sub := root.PathPrefix(pathPrefix).Subrouter()
 
 	sub.Path("/peerstat").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeerStat))
-	sub.Path("/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleDiscoveredPeers))
+	sub.Path("/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeers))
 	sub.Path("/chainid").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleChainId))
 	sub.Path("/version").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleVersion))
 	sub.Path("/probe").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleProbe))

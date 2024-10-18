@@ -19,12 +19,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm/proto"
-	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -40,7 +38,7 @@ var (
 
 // Communicator communicates with remote p2p peers to exchange blocks and txs, etc.
 type Communicator struct {
-	p2pSrv *p2psrv.Server
+	p2pSrv *p2p.Server
 	chain  *chain.Chain
 	txPool *txpool.TxPool
 	ctx    context.Context
@@ -59,9 +57,9 @@ type Communicator struct {
 }
 
 // New create a new Communicator instance.
-func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte, p2pOptions *p2psrv.Options, rootDir string) *Communicator {
-	return &Communicator{
-		p2pSrv: p2psrv.New(p2pOptions),
+func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, magic [4]byte, p2pConfig p2p.Config, rootDir string) *Communicator {
+
+	c := &Communicator{
 		chain:  chain,
 		txPool: txPool,
 		ctx:    ctx,
@@ -73,6 +71,15 @@ func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxP
 		logger:         slog.With("pkg", "comm"),
 		peersCachePath: filepath.Join("peers.cache", rootDir),
 	}
+	p2pConfig.Protocols = []p2p.Protocol{
+		p2p.Protocol{
+			Name:    proto.Name,
+			Version: proto.Version,
+			Length:  proto.Length,
+			Run:     c.servePeer,
+		}}
+	c.p2pSrv = &p2p.Server{Config: p2pConfig}
+	return c
 }
 
 // Synced returns a channel indicates if synchronization process passed.
@@ -80,8 +87,8 @@ func (c *Communicator) Synced() <-chan struct{} {
 	return c.syncedCh
 }
 
-func (c *Communicator) GetDiscoveredNodes() []*enode.Node {
-	return c.p2pSrv.GetDiscoveredNodes()
+func (c *Communicator) GetPeers() []*p2p.Peer {
+	return c.p2pSrv.Peers()
 }
 
 // Sync start synchronization process.
@@ -152,25 +159,10 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 	})
 }
 
-// Protocols returns all supported protocols.
-func (c *Communicator) Protocols() []*p2psrv.Protocol {
-	genesisID := c.chain.GenesisBlock().ID()
-	return []*p2psrv.Protocol{
-		&p2psrv.Protocol{
-			Protocol: p2p.Protocol{
-				Name:    proto.Name,
-				Version: proto.Version,
-				Length:  proto.Length,
-				Run:     c.servePeer,
-			},
-			DiscTopic: fmt.Sprintf("%v%v%v@%x", proto.Name, proto.Version, genesisID[24:]),
-		}}
-}
-
 // Start the communicator.
 func (c *Communicator) Start() {
 	start := time.Now()
-	if err := c.p2pSrv.Start(c.Protocols()); err != nil {
+	if err := c.p2pSrv.Start(); err != nil {
 		panic(err)
 	}
 	c.logger.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
@@ -187,8 +179,7 @@ func (c *Communicator) Stop() {
 	c.logger.Info("stopping P2P server...")
 	c.p2pSrv.Stop()
 
-	// FIXME: store peers into cache file
-	nodes := c.p2pSrv.KnownNodes()
+	nodes := c.p2pSrv.Peers()
 	c.logger.Info("saving peers cache...", "#peers", len(nodes))
 	strs := make([]string, 0)
 	for _, n := range nodes {

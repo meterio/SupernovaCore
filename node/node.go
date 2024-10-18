@@ -25,6 +25,7 @@ import (
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/meterio/supernova/api"
@@ -35,7 +36,6 @@ import (
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm"
-	"github.com/meterio/supernova/p2psrv"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -145,7 +145,7 @@ func NewNode(
 	}
 
 	var BootstrapNodes []*enode.Node
-	p2pOpts := &p2psrv.Options{
+	p2pCfg := p2p.Config{
 		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
 		PrivateKey:     nodeKey.PrivateKey(),
 		MaxPeers:       config.P2P.MaxNumInboundPeers,
@@ -153,7 +153,7 @@ func NewNode(
 		BootstrapNodes: BootstrapNodes,
 		NAT:            nat.Any(),
 	}
-	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pOpts, config.RootDir)
+	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pCfg, config.RootDir)
 
 	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
 

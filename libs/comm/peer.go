@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/meterio/supernova/p2psrv/rpc"
+	"github.com/meterio/supernova/libs/comm/rpc"
 	"github.com/meterio/supernova/types"
 )
 
