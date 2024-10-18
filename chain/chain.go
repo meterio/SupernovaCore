@@ -52,9 +52,8 @@ type Chain struct {
 	rw           sync.RWMutex
 	tick         co.Signal
 
-	bestBlockBeforeIndexFlattern *block.Block
-	proposalMap                  *ProposalMap
-	drw                          sync.RWMutex
+	proposalMap *ProposalMap
+	drw         sync.RWMutex
 
 	logger *slog.Logger
 }

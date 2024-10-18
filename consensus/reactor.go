@@ -78,9 +78,6 @@ func NewConsensusReactor(config *cmtcfg.Config, chain *chain.Chain, comm *comm.C
 	// initialize consensus common
 	r.logger.Info("my keys", "pubkey", b64.StdEncoding.EncodeToString(blsMaster.PubKey.Marshal()))
 
-	// committee info is stored in the first of Mblock after Kblock
-	r.Pacemaker.updateEpochState()
-
 	return r
 }
 

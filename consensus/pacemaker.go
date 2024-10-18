@@ -367,8 +367,12 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 		p.lastVoteMsg = voteMsg
 		p.lastVotingHeight = block.Number(voteMsg.VoteBlockID)
 
-		// enter round and reset timer
-		p.enterRound(voteMsg.VoteRound+1, RegularRound)
+		if bnew.ProposedBlock.IsKBlock() {
+			p.Regulate()
+		} else {
+			// enter round and reset timer
+			p.enterRound(voteMsg.VoteRound+1, RegularRound)
+		}
 	} else {
 		p.logger.Warn("skip voting", "bnew.height", bnew.Height, "lastVoting", p.lastVotingHeight, "extended", p.ExtendedFromLastCommitted(bnew), "bnew", bnew.ProposedBlock.ID().ToBlockShortID(), "lastCommitted", p.lastCommitted.ProposedBlock.ID().ToBlockShortID())
 	}
@@ -550,15 +554,14 @@ func (p *Pacemaker) OnReceiveQuery(mi IncomingMsg) {
 	}
 }
 
-func (p *Pacemaker) updateEpochState() {
-	best := p.chain.BestBlock()
-	if p.epochState != nil && best.Number() != 0 && best.Epoch() == p.epochState.epoch {
-		return
+func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
+	if p.epochState != nil && leaf.Number() != 0 && leaf.Epoch() == p.epochState.epoch {
+		return false
 	}
-	epochState, err := NewEpochState(p.chain, p.blsMaster.PubKey)
+	epochState, err := NewEpochState(p.chain, leaf, p.blsMaster.PubKey)
 	if err != nil {
 		p.logger.Info("could not create epoch state", "err", err)
-		return
+		return false
 	}
 
 	if epochState == nil {
@@ -582,6 +585,7 @@ func (p *Pacemaker) updateEpochState() {
 	p.logger.Info("---------------------------------------------------------")
 
 	p.epochState = epochState
+	return true
 }
 
 func (p *Pacemaker) Start() {
@@ -591,20 +595,22 @@ func (p *Pacemaker) Start() {
 
 // Committee Leader triggers
 func (p *Pacemaker) Regulate() {
-	p.updateEpochState()
 
 	bestQC := p.chain.BestQC()
-	bestBlk, err := p.chain.GetTrunkBlock(bestQC.Number())
-	if err != nil {
-		p.logger.Error("could not get bestBlock with bestQC")
-		panic("could not get bestBlock with bestQC")
+	if p.QCHigh != nil && p.QCHigh.QC.Number() > bestQC.Number() {
+		bestQC = p.QCHigh.QC
 	}
+
+	bestNode := p.chain.GetDraftByEscortQC(bestQC)
+	if bestNode == nil {
+		p.logger.Debug("started with empty qcNode")
+	}
+
+	p.updateEpochState(bestNode.ProposedBlock)
 
 	round := bestQC.Round
 	actualRound := round + 1
-	if bestBlk.IsKBlock() {
-		// started with KBlock or Genesis
-		round = uint32(0)
+	if bestNode.ProposedBlock.IsKBlock() {
 		actualRound = 0
 	}
 
@@ -612,10 +618,6 @@ func (p *Pacemaker) Regulate() {
 	p.lastOnBeatRound = int32(actualRound) - 1
 	pmRoleGauge.Set(1) // validator
 
-	bestNode := p.chain.GetDraftByEscortQC(bestQC)
-	if bestNode == nil {
-		p.logger.Debug("started with empty qcNode")
-	}
 	qcInit := block.NewDraftQC(bestQC, bestNode)
 
 	// now assign b_lock b_exec, b_leaf qc_high

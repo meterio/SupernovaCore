@@ -19,12 +19,11 @@ type EpochState struct {
 	chain *chain.Chain
 
 	// committee calculated from last validator set and last nonce
-	epoch         uint64
-	committee     *types.ValidatorSet
-	lastCommittee *types.ValidatorSet
-	inCommittee   bool
-	index         uint32
-	ipToName      map[string]string
+	epoch       uint64
+	committee   *types.ValidatorSet
+	inCommittee bool
+	index       uint32
+	ipToName    map[string]string
 
 	qcVoteManager *QCVoteManager
 	tcVoteManager *TCVoteManager
@@ -32,38 +31,25 @@ type EpochState struct {
 	logger *slog.Logger
 }
 
-func NewEpochState(c *chain.Chain, myPubKey bls.PublicKey) (*EpochState, error) {
-	kblk, err := c.BestKBlock()
-	if err != nil {
-		return nil, err
-	}
-	if !kblk.IsKBlock() {
-		return nil, errors.New("not kblock")
-	}
-	vset := c.GetNextValidatorSet(kblk.Number())
-	if vset == nil {
-		fmt.Println("COUL DNOT GET NXT VALIDATOR SET", kblk.Number(), kblk.NextValidatorHash())
-		return nil, err
-	}
-	committee := vset.SortWithNonce(kblk.Nonce())
-
-	lastCommittee := &types.ValidatorSet{Validators: make([]*types.Validator, 0)}
-	if kblk.Number() > 0 {
-		lastKBlk, err := c.GetTrunkBlock(kblk.LastKBlock())
+func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*EpochState, error) {
+	var kblk *block.Block
+	if leaf.IsKBlock() {
+		kblk = leaf
+	} else {
+		var err error
+		num := leaf.LastKBlock()
+		kblk, err = c.GetTrunkBlock(num)
 		if err != nil {
 			return nil, err
 		}
-		if !lastKBlk.IsKBlock() {
-			return nil, errors.New("not kblock")
-		}
-
-		lastVSet := c.GetValidatorSet(kblk.LastKBlock())
-		if lastVSet == nil {
-			fmt.Println("COUL DNOT GET NXT VALIDATOR SET", kblk.Number())
-			return nil, err
-		}
-		lastCommittee = vset.SortWithNonce(lastKBlk.Nonce())
 	}
+
+	vset := c.GetNextValidatorSet(kblk.Number())
+	if vset == nil {
+		slog.Error("Could not get next validator set", "num", kblk.Number())
+		return nil, errors.New("could not get next validator set")
+	}
+	committee := vset.SortWithNonce(kblk.Nonce())
 
 	// it is used for temp calculate committee set by a given nonce in the fly.
 	// also return the committee
@@ -82,12 +68,11 @@ func NewEpochState(c *chain.Chain, myPubKey bls.PublicKey) (*EpochState, error) 
 	}
 
 	return &EpochState{
-		epoch:         kblk.Epoch() + 1,
-		committee:     committee,
-		lastCommittee: lastCommittee,
-		inCommittee:   inCommittee,
-		index:         uint32(index),
-		ipToName:      ipToName,
+		epoch:       kblk.Epoch() + 1,
+		committee:   committee,
+		inCommittee: inCommittee,
+		index:       uint32(index),
+		ipToName:    ipToName,
 
 		qcVoteManager: NewQCVoteManager(uint32(committee.Size())),
 		tcVoteManager: NewTCVoteManager(uint32(committee.Size())),
@@ -152,8 +137,6 @@ func (es *EpochState) GetMyself() *types.Validator {
 
 func (es *EpochState) PrintCommittee() {
 	fmt.Printf("* Current Committee (%d):\n%s\n\n", es.committee.Size(), peekCommittee(es.committee))
-
-	fmt.Printf("Last Committee (%d):\n%s\n\n", es.lastCommittee.Size(), peekCommittee(es.lastCommittee))
 }
 
 func peekCommittee(committee *types.ValidatorSet) string {
