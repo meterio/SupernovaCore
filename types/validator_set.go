@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -100,7 +101,14 @@ func (vals *ValidatorSet) Copy() *ValidatorSet {
 	return &ValidatorSet{
 		Validators: validatorListCopy(vals.Validators),
 	}
+}
 
+func (vals *ValidatorSet) String() string {
+	s := make([]string, 0)
+	for i, v := range vals.Validators {
+		s = append(s, strconv.Itoa(i+1)+v.String())
+	}
+	return strings.Join(s, "\n")
 }
 
 // HasAddress returns true if address given is in the validator set, false -

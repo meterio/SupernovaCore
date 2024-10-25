@@ -33,7 +33,7 @@ type Header struct {
 	QCHash            cmtbytes.HexBytes // hash of QC
 	ValidatorHash     cmtbytes.HexBytes // hash of validator set
 	NextValidatorHash cmtbytes.HexBytes // hash of next validator set
-	AppHash           cmtbytes.HexBytes
+	AppHash           cmtbytes.HexBytes //
 
 	cache struct {
 		signingHash atomic.Value

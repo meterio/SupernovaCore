@@ -84,6 +84,8 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 		panic(ErrInvalidGenesis)
 	}
 	if _, err := loadValidatorSet(kv, genesisValidatorSet.Hash()); err != nil {
+		fmt.Println("Saving Genesis Validator Set", "hash=", genesisValidatorSet.Hash())
+		fmt.Println(genesisValidatorSet.String())
 		err = saveValidatorSet(kv, genesisValidatorSet)
 		if err != nil {
 			panic(err)

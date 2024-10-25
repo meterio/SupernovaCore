@@ -768,7 +768,7 @@ func (p *Pacemaker) enterRound(round uint32, rtype roundType) bool {
 	proposer := p.epochState.getRoundProposer(round)
 
 	if restart {
-		p.logger.Info(fmt.Sprintf("E:%d, Round:%d restart", p.epochState.epoch, p.currentRound), oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("E:%d, Round:%d restart", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
 	} else {
 		p.logger.Info("---------------------------------------------------------")
 		p.logger.Info(fmt.Sprintf("E:%d, Round:%d start", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
