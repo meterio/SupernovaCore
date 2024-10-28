@@ -17,8 +17,7 @@ type Builder struct {
 	txs    types.Transactions
 	//	committeeInfo CommitteeInfo
 	//	kBlockData    kBlockData
-	qc    *QuorumCert
-	magic [4]byte
+	qc *QuorumCert
 }
 
 // ParentID set parent id.
