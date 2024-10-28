@@ -113,7 +113,6 @@ func NewNode(
 	ctx := context.Background()
 	InitLogger(config)
 
-	slog.Info("Meter Start ...")
 	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb", Config: config})
 
 	genDoc, err := LoadGenesisDoc(mainDB, genesisDocProvider)
@@ -130,10 +129,13 @@ func NewNode(
 	blsMaster := types.NewBlsMasterWithSecretBytes(privValidator.Key.PrivKey.Bytes())
 
 	// set magic
-	sum := sha256.Sum256([]byte(fmt.Sprintf(config.BaseConfig.Moniker, config.BaseConfig.Version)))
+
+	sum := sha256.Sum256([]byte(fmt.Sprintf(config.BaseConfig.Version)))
 
 	// Split magic to p2p_magic and consensus_magic
 	copy(p2pMagic[:], sum[:4])
+
+	slog.Info("Meter Start ...", "version", config.BaseConfig.Version, "p2pMagic", hex.EncodeToString(p2pMagic[:]))
 
 	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
@@ -145,6 +147,8 @@ func NewNode(
 	}
 
 	var BootstrapNodes []*enode.Node
+	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235")) // nova-1
+	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235"))
 	p2pCfg := p2p.Config{
 		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
 		PrivateKey:     nodeKey.PrivateKey(),
@@ -152,6 +156,7 @@ func NewNode(
 		ListenAddr:     "0.0.0.0:11235", // config.P2P.ListenAddress,
 		BootstrapNodes: BootstrapNodes,
 		NAT:            nat.Any(),
+		DiscoveryV4:    true,
 	}
 	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pCfg, config.RootDir)
 

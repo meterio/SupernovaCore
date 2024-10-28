@@ -78,6 +78,7 @@ func main() {
 		log.Fatalf("failed to parse log level: %v", err)
 	}
 
+	// config.LogLevel = "debug" // default is info
 	node := nm.NewNode(
 		config,
 		pv,

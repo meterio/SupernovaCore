@@ -24,11 +24,6 @@ type (
 	}
 )
 
-type WireQC struct {
-	Magic [4]byte
-	QC    *block.QuorumCert
-}
-
 // RPC defines RPC interface.
 type RPC interface {
 	Notify(ctx context.Context, msgCode uint64, arg interface{}) error

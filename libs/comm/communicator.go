@@ -167,11 +167,13 @@ func (c *Communicator) Start() {
 	if err := c.p2pSrv.Start(); err != nil {
 		panic(err)
 	}
-	c.logger.Info("P2P server started", "elapsed", types.PrettyDuration(time.Since(start)))
+	id := c.p2pSrv.Self().ID()
+	// pubkey := c.p2pSrv.Self().Pubkey()
+	c.logger.Info("P2P server started", "enodeID", id, "self", c.p2pSrv.Self().URLv4(), "elapsed", types.PrettyDuration(time.Since(start)))
 	start = time.Now()
 	// c.goes.Go(c.txsLoop)
 	c.goes.Go(c.announcementLoop)
-	c.logger.Info("communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
+	c.logger.Info("Communicator started", "elapsed", types.PrettyDuration(time.Since(start)))
 	//c.goes.Go(c.powsLoop)
 }
 
@@ -201,6 +203,7 @@ type txsToSync struct {
 }
 
 func (c *Communicator) servePeer(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+	c.logger.Info("Serve Peer", "p", p.Node().URLv4())
 	peer, dir := newPeer(p, rw, c.magic)
 	curIP := peer.RemoteAddr().String()
 	lastIndex := strings.LastIndex(curIP, ":")
@@ -235,6 +238,7 @@ func (c *Communicator) servePeer(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 func (c *Communicator) runPeer(peer *Peer, dir string) {
 	defer peer.Disconnect(p2p.DiscRequested)
 
+	c.logger.Info("Run peer", "p", peer.Node().URLv4())
 	// 5sec timeout for handshake
 	ctx, cancel := context.WithTimeout(c.ctx, time.Second*5)
 	defer cancel()
@@ -292,8 +296,8 @@ func (c *Communicator) SubscribeBlock(ch chan *NewBlockEvent) event.Subscription
 func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 	h := blk.Block.Header()
 	qc := blk.EscortQC
-	c.logger.Debug("Broadcast block and qc",
-		"height", h.Number(),
+	c.logger.Debug("Broadcast escorted block",
+		"num", h.Number(),
 		"id", h.ID(),
 		"lastKblock", h.LastKBlock,
 		"escortQC", qc.String())
