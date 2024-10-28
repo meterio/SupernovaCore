@@ -34,7 +34,7 @@ func (p *Pacemaker) FinalizeBlockViaABCI(blk *block.Block) error {
 func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) error {
 
 	start := time.Now()
-	p.logger.Debug("Try to finalize block", "block", blk.Oneliner())
+	p.logger.Debug("try to finalize block", "block", blk.Oneliner())
 
 	// fmt.Println("Calling AddBlock from consensus_block.commitBlock, newBlock=", blk.ID())
 	if blk.Number() <= p.chain.BestBlock().Number() {

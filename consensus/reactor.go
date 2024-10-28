@@ -113,7 +113,7 @@ func (r *Reactor) OnReceiveMsg(w http.ResponseWriter, req *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	r.logger.Debug("before receive", "alloc", types.PrettyStorage(m.Alloc), "sys", types.PrettyStorage(m.Sys))
+	// r.logger.Debug("before receive", "alloc", types.PrettyStorage(m.Alloc), "sys", types.PrettyStorage(m.Sys))
 
 	data, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -128,7 +128,7 @@ func (r *Reactor) OnReceiveMsg(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		var ma runtime.MemStats
 		runtime.ReadMemStats(&ma)
-		r.logger.Debug(fmt.Sprintf("after receive %s", mi.Msg.GetType()), "allocDiff", types.PrettyStorage(ma.Alloc-m.Alloc), "sysDiff(KB)", types.PrettyStorage(ma.Sys-m.Sys))
+		// r.logger.Debug(fmt.Sprintf("after receive %s", mi.Msg.GetType()), "allocDiff", types.PrettyStorage(ma.Alloc-m.Alloc), "sysDiff(KB)", types.PrettyStorage(ma.Sys-m.Sys))
 	}()
 
 	r.AddIncoming(*mi, data)
@@ -264,6 +264,6 @@ func (r *Reactor) validateBlock(
 		return consensusError(fmt.Sprintf("header LastKBlock invalid: header %v, local %v", header.LastKBlock, r.lastKBlock))
 	}
 
-	r.logger.Debug("validated!", "id", block.CompactString(), "elapsed", types.PrettyDuration(time.Since(start)))
+	r.logger.Debug("validated block", "id", block.CompactString(), "elapsed", types.PrettyDuration(time.Since(start)))
 	return nil
 }

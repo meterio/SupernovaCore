@@ -202,7 +202,10 @@ func loadBestQC(r db.DB) (*block.QuorumCert, error) {
 // saveBestQC save the best qc
 func saveValidatorSet(w db.DB, vset *types.ValidatorSet) error {
 	batch := w.NewBatch()
-	saveRLP(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
+	err := saveRLP(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
+	if err != nil {
+		return err
+	}
 	return batch.Write()
 }
 

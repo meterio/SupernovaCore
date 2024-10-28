@@ -45,6 +45,10 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	start := time.Now()
 	blk := b.ProposedBlock
 
+	defer func() {
+		p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "err", b.ProcessError)
+	}()
+
 	// avoid duplicate validation
 	if b.SuccessProcessed && b.ProcessError == nil {
 		return nil
@@ -83,10 +87,11 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 		}
 	}
 
-	processStart := time.Now()
 	res, err := p.executor.ProcessProposal(&v1.ProcessProposalRequest{Txs: blk.Txs.Convert(), Hash: blk.ID().Bytes(), Height: int64(blk.Number())})
 
 	if res.Status == v1.PROCESS_PROPOSAL_STATUS_ACCEPT {
+		b.SuccessProcessed = true
+		b.ProcessError = nil
 		return nil
 	} else if res.Status == v1.PROCESS_PROPOSAL_STATUS_REJECT {
 		err = ErrProposalRejected
@@ -100,14 +105,9 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 		b.ProcessError = err
 		return err
 	}
-	processElapsed := time.Since(processStart)
-
-	// p.logger.Info(fmt.Sprintf("cached %s", blk.ID().ToBlockShortID()))
-
 	b.SuccessProcessed = true
-	b.ProcessError = err
+	b.ProcessError = nil
 
-	p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "processElapsed", types.PrettyDuration(processElapsed))
 	return nil
 }
 
