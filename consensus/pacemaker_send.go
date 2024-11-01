@@ -157,7 +157,7 @@ func (p *Pacemaker) BuildQueryMessage() (*block.PMQueryMessage, error) {
 		Epoch:       p.epochState.epoch,
 		SignerIndex: uint32(p.epochState.CommitteeIndex()),
 
-		LastCommitted: p.lastCommitted.ProposedBlock.ID(),
+		LastCommitted: p.lastCommitted.ID(),
 	}
 
 	// sign message

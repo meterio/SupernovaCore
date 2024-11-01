@@ -122,6 +122,20 @@ func (vals *ValidatorSet) HasAddress(address common.Address) bool {
 	return false
 }
 
+func (vals *ValidatorSet) Upsert(newV *Validator) *ValidatorSet {
+	for _, v := range vals.Validators {
+		if bytes.Equal(v.PubKey.Marshal(), newV.PubKey.Marshal()) {
+			v.Name = newV.Name
+			v.Address = newV.Address
+			v.IP = newV.IP
+			v.Port = newV.Port
+			return vals
+		}
+	}
+	vals.Validators = append(vals.Validators, newV)
+	return vals
+}
+
 func (vals *ValidatorSet) GetByPubkey(pubkey bls.PublicKey) (val *Validator) {
 	for _, v := range vals.Validators {
 		if bytes.Equal(v.PubKey.Marshal(), pubkey.Marshal()) {
@@ -168,6 +182,10 @@ func (vals *ValidatorSet) Hash() []byte {
 		bzs[i], _ = rlp.EncodeToBytes(val)
 	}
 	return merkle.HashFromByteSlices(bzs)
+}
+
+func (vals *ValidatorSet) Hex() string {
+	return hex.EncodeToString(vals.Hash())
 }
 
 func (vals *ValidatorSet) SortWithNonce(nonce uint64) *ValidatorSet {

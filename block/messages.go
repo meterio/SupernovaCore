@@ -155,7 +155,7 @@ func (m *PMProposalMessage) String() string {
 		tcStr = "TC:" + m.TimeoutCert.String()
 	}
 	blkStr := blk.Oneliner()
-	return fmt.Sprintf("Proposal(R:%v) %v %v", m.Round, blkStr, tcStr)
+	return fmt.Sprintf("Proposal(E:%v,R:%v) %v %v", m.Epoch, m.Round, blkStr, tcStr)
 }
 
 func (m *PMProposalMessage) SetMsgSignature(msgSignature []byte) {

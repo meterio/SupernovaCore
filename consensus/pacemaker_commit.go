@@ -16,16 +16,41 @@ func (p *Pacemaker) FinalizeBlockViaABCI(blk *block.Block) error {
 		txs = append(txs, tx)
 	}
 	res, err := p.executor.FinalizeBlock(&v1.FinalizeBlockRequest{Txs: txs, Height: int64(blk.Number()), Hash: blk.ID().Bytes()})
-	// res.AppHash
-	// res.TxResults
-	err = p.validatorSetRegistry.Update(blk.Number(), p.epochState.committee, res.ValidatorUpdates)
 	if err != nil {
-		p.logger.Warn("could not update vset registry", "err", err)
 		return err
 	}
-	p.executor.Commit()
+	// res.AppHash
+	// res.TxResults
 	blk.BlockHeader.AppHash = res.AppHash
-	//stage := blkInfo.Stage
+	p.executor.Commit()
+
+	// calculate the next committee
+	if len(res.ValidatorUpdates) > 0 {
+		nxtVSet, addedValidators, err := p.validatorSetRegistry.Update(blk.Number(), p.epochState.committee, res.ValidatorUpdates, res.Events)
+		if err != nil {
+			p.logger.Warn("could not update vset registry", "err", err)
+			return err
+		}
+		//stage := blkInfo.Stage
+
+		p.nextEpochState, err = NewPendingEpochState(nxtVSet, p.blsMaster.PubKey, p.epochState.epoch)
+		if err != nil {
+			p.logger.Error("could not calc pending epoch state", "err", err)
+			return err
+		}
+		p.logger.Info("next epoch state", "incommittee", p.nextEpochState.inCommittee, "epoch", p.nextEpochState.epoch)
+
+		if p.nextEpochState.inCommittee && !p.epochState.inCommittee {
+			// if I'm not in current committee but in the next
+			// prepare pacemaker for this
+		}
+
+		if p.epochState.inCommittee && len(addedValidators) > 0 {
+			// if I'm in the current committee, I'm responsible for forwarding messages from now
+			p.logger.Info("updated addedValidators", "size", len(addedValidators))
+			p.addedValidators = addedValidators
+		}
+	}
 
 	return nil
 }
@@ -70,6 +95,7 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 
 	p.logger.Info(fmt.Sprintf("* committed %v", blk.CompactString()), "txs", len(blk.Txs), "epoch", blk.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
 
+	p.lastCommitted = blk
 	// broadcast the new block to all peers
 	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus

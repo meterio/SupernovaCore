@@ -16,22 +16,21 @@ import (
 )
 
 type EpochState struct {
-	chain *chain.Chain
-
+	logger        *slog.Logger
+	epoch         uint64
+	startKBlockID types.Bytes32
 	// committee calculated from last validator set and last nonce
-	epoch       uint64
-	committee   *types.ValidatorSet
-	inCommittee bool
-	index       uint32
-	ipToName    map[string]string
-
+	committee     *types.ValidatorSet
+	inCommittee   bool
+	index         uint32
+	ipToName      map[string]string
 	qcVoteManager *QCVoteManager
 	tcVoteManager *TCVoteManager
-
-	logger *slog.Logger
+	pending       bool
 }
 
 func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*EpochState, error) {
+	logger := slog.With("pkg", "es")
 	var kblk *block.Block
 	if leaf.IsKBlock() {
 		kblk = leaf
@@ -50,6 +49,7 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*
 		return nil, errors.New("could not get next validator set")
 	}
 	committee := vset.SortWithNonce(kblk.Nonce())
+	logger.Info("calc epoch state", "kblk", kblk.Number(), "vset", vset.Hex(), "committeeSize", committee.Size())
 
 	// it is used for temp calculate committee set by a given nonce in the fly.
 	// also return the committee
@@ -69,16 +69,55 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*
 
 	curEpochGauge.Set(float64(kblk.Epoch()) + 1)
 	return &EpochState{
-		epoch:       kblk.Epoch() + 1,
+		epoch:  kblk.Epoch() + 1,
+		logger: logger,
+
+		startKBlockID: kblk.ID(),
+		committee:     committee,
+		inCommittee:   inCommittee,
+		index:         uint32(index),
+		ipToName:      ipToName,
+		qcVoteManager: NewQCVoteManager(uint32(committee.Size())),
+		tcVoteManager: NewTCVoteManager(uint32(committee.Size())),
+		pending:       false,
+	}, nil
+}
+
+func NewPendingEpochState(vset *types.ValidatorSet, myPubKey bls.PublicKey, curEpoch uint64) (*EpochState, error) {
+
+	logger := slog.With("pkg", "es")
+	if vset == nil {
+		slog.Error("validator set is nil")
+		return nil, errors.New("validator set is nil")
+	}
+	committee := vset
+	logger.Info("calc epoch state", "vset", vset.Hex(), "committeeSize", committee.Size())
+
+	// it is used for temp calculate committee set by a given nonce in the fly.
+	// also return the committee
+
+	inCommittee := false
+	index := -1
+	ipToName := make(map[string]string)
+	if len(committee.Validators) > 0 {
+		for i, val := range committee.Validators {
+			if bytes.Equal(val.PubKey.Marshal(), myPubKey.Marshal()) {
+				index = i
+				inCommittee = true
+			}
+			ipToName[val.IP.String()] = val.Name
+		}
+	}
+
+	return &EpochState{
+		logger: logger,
+		epoch:  curEpoch + 1,
+
 		committee:   committee,
 		inCommittee: inCommittee,
 		index:       uint32(index),
 		ipToName:    ipToName,
-
-		qcVoteManager: NewQCVoteManager(uint32(committee.Size())),
-		tcVoteManager: NewTCVoteManager(uint32(committee.Size())),
-
-		logger: slog.With("pkg", "es"),
+		pending:     true,
 	}, nil
 }
 

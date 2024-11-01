@@ -43,7 +43,7 @@ func (p *Pacemaker) Probe() *PMProbeResult {
 	}
 	if p.lastCommitted != nil {
 		rlp.EncodeToBytes(p.lastCommitted)
-		result.LastCommitted = &BlockProbe{Height: p.lastCommitted.Height, Round: p.lastCommitted.Round, ID: p.lastCommitted.ProposedBlock.ID()}
+		result.LastCommitted = &BlockProbe{Height: p.lastCommitted.Number(), ID: p.lastCommitted.ID()}
 	}
 	result.ProposalCount = p.chain.DraftLen()
 

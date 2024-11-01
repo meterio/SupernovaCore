@@ -25,7 +25,7 @@ func (p *Pacemaker) ValidateQC(b *block.Block, escortQC *block.QuorumCert) bool 
 	}
 	valid, err = b.VerifyQC(escortQC, p.blsMaster, p.epochState.committee)
 	if valid && err == nil {
-		p.logger.Info(fmt.Sprintf("validated %s", escortQC.CompactString()))
+		p.logger.Debug(fmt.Sprintf("validated %s", escortQC.CompactString()))
 		validQCs.Add(qcID, true)
 		return true
 	}

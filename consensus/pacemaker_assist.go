@@ -30,7 +30,7 @@ func (p *Pacemaker) ExtendedFromLastCommitted(b *block.DraftBlock) bool {
 	i := int(0)
 	tmp := b
 	for i < 10 {
-		if tmp == p.lastCommitted {
+		if tmp.ProposedBlock.ID() == p.lastCommitted.ID() {
 			return true
 		}
 		if tmp = tmp.Parent; tmp == nil {
@@ -179,4 +179,8 @@ branch:   %v  %v`, fork.Ancestor,
 			trunkLen, fork.Trunk[trunkLen-1],
 			branchLen, fork.Branch[branchLen-1]))
 	}
+}
+
+func (p *Pacemaker) EpochStartKBlockNum() uint32 {
+	return block.Number(p.epochState.startKBlockID)
 }

@@ -1,10 +1,14 @@
 package consensus
 
 import (
+	"encoding/hex"
 	"errors"
 	"log/slog"
+	"net/netip"
+	"strconv"
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
@@ -31,12 +35,12 @@ func NewValidatorSetRegistry(c *chain.Chain) *ValidatorSetRegistry {
 	}
 
 	if best.IsKBlock() {
-		registry.registerReelect(bestNum, vset, nxtVSet)
+		registry.registerNewValidatorSet(bestNum, vset, nxtVSet)
 	}
 	return registry
 }
 
-func (vr *ValidatorSetRegistry) registerReelect(curNum uint32, vset *types.ValidatorSet, nxtVSet *types.ValidatorSet) error {
+func (vr *ValidatorSetRegistry) registerNewValidatorSet(curNum uint32, vset *types.ValidatorSet, nxtVSet *types.ValidatorSet) error {
 	bestNum := vr.Chain.BestBlock().Number()
 	enableNum := curNum + types.NBlockDelayToEnableValidatorSet - 1
 	if curNum == 0 {
@@ -46,13 +50,14 @@ func (vr *ValidatorSetRegistry) registerReelect(curNum uint32, vset *types.Valid
 		return errors.New("could not enable validator set before best block")
 	}
 	if vset != nil {
-		vr.CurrentVSet[enableNum-1] = vset
+		vr.CurrentVSet[enableNum] = vset
 	}
 	if nxtVSet == nil {
 		panic("next validator set could not be empty")
 	}
-	vr.NextVSet[enableNum-1] = nxtVSet
-	vr.logger.Info("registered next vset", "hash", nxtVSet.Hash(), "num", enableNum-1)
+	vr.NextVSet[enableNum] = nxtVSet
+	vr.Chain.SaveValidatorSet(nxtVSet)
+	vr.logger.Info("registered next vset", "hash", nxtVSet.Hex(), "cur", curNum, "num", enableNum, "size", nxtVSet.Size())
 
 	vr.Prune()
 	return nil
@@ -72,13 +77,44 @@ func (vr *ValidatorSetRegistry) GetNext(num uint32) *types.ValidatorSet {
 	return nil
 }
 
-func (vr *ValidatorSetRegistry) Update(num uint32, vset *types.ValidatorSet, updates abcitypes.ValidatorUpdates) error {
+type validatorExtra struct {
+	Name    string
+	Address common.Address
+	Pubkey  []byte
+	IP      string
+	Port    uint64
+}
+
+func (vr *ValidatorSetRegistry) Update(num uint32, vset *types.ValidatorSet, updates abcitypes.ValidatorUpdates, events []abcitypes.Event) (nxtVSet *types.ValidatorSet, addedValidators []*types.Validator, err error) {
 	if updates.Len() <= 0 {
-		return nil
+		return
 	}
-	nxtVSet := vset.Copy()
+	nxtVSet = vset.Copy()
+
+	veMap := make(map[string]validatorExtra)
+	for _, ev := range events {
+		if ev.Type == "ValidatorExtra" {
+			ve := validatorExtra{}
+			for _, attr := range ev.Attributes {
+				switch attr.Key {
+				case "address":
+					ve.Address = common.Address{}
+				case "name":
+					ve.Name = attr.Value
+				case "pubkey":
+					ve.Pubkey, _ = hex.DecodeString(attr.Value)
+				case "ip":
+					ve.IP = attr.Value
+				case "port":
+					ve.Port, _ = strconv.ParseUint(attr.Value, 10, 32)
+				}
+			}
+			veMap[hex.EncodeToString(ve.Pubkey)] = ve
+		}
+	}
 	for _, update := range updates {
 		pubkey, err := bls.PublicKeyFromBytes(update.PubKeyBytes)
+		pubkeyHex := hex.EncodeToString(update.PubKeyBytes)
 		if err != nil {
 			panic(err)
 		}
@@ -86,10 +122,37 @@ func (vr *ValidatorSetRegistry) Update(num uint32, vset *types.ValidatorSet, upd
 			nxtVSet.DeleteByPubkey(pubkey)
 		} else {
 			v := nxtVSet.GetByPubkey(pubkey)
+
+			added := false
+			if v == nil {
+				added = true
+				v = &types.Validator{PubKey: pubkey, VotingPower: uint64(update.Power)}
+			}
+
+			if ve, existed := veMap[pubkeyHex]; existed {
+				v.IP, err = netip.ParseAddr(ve.IP)
+				if err != nil {
+					continue
+				}
+				if ve.Port != 0 {
+					v.Port = uint32(ve.Port)
+				}
+				if ve.Name != "" {
+					v.Name = ve.Name
+				}
+				v.Address = common.Address{}
+			}
+
 			v.VotingPower = uint64(update.Power)
+			nxtVSet.Upsert(v)
+
+			if added {
+				addedValidators = append(addedValidators, v)
+			}
 		}
 	}
-	return vr.registerReelect(num+types.NBlockDelayToEnableValidatorSet, vset, nxtVSet)
+	err = vr.registerNewValidatorSet(num, vset, nxtVSet)
+	return
 }
 
 func (vr *ValidatorSetRegistry) Prune() {

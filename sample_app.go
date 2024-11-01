@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"log"
 
@@ -79,6 +80,8 @@ func (app *KVStoreApplication) ProcessProposal(_ context.Context, proposal *abci
 
 func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.FinalizeBlockRequest) (*abcitypes.FinalizeBlockResponse, error) {
 	var txs = make([]*abcitypes.ExecTxResult, len(req.Txs))
+	var updates = make([]abcitypes.ValidatorUpdate, 0)
+	var events = make([]abcitypes.Event, 0)
 
 	app.onGoingBlock = app.db.NewTransaction(true)
 	for i, tx := range req.Txs {
@@ -113,8 +116,37 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 		}
 	}
 
+	nova2PubkeyHex := "9016f8eba9f86d6a9bd880b50925b28d5dea35e9fa6de82da4a8f355ccfc68bbbe1f9374b97f67ce3e3c0689c9fa075c"
+	if req.Height == 6 {
+		pubkey, _ := hex.DecodeString(nova2PubkeyHex)
+		updates = append(updates, abcitypes.ValidatorUpdate{
+			Power:       10,
+			PubKeyBytes: pubkey,
+			PubKeyType:  "bls12-381.pubkey",
+		})
+		events = append(events, abcitypes.Event{
+			Type: "ValidatorExtra",
+			Attributes: []abcitypes.EventAttribute{
+				abcitypes.EventAttribute{Key: "pubkey", Value: nova2PubkeyHex},
+				abcitypes.EventAttribute{Key: "name", Value: "nova-2"},
+				abcitypes.EventAttribute{Key: "ip", Value: "52.22.222.17"},
+				abcitypes.EventAttribute{Key: "port", Value: "8670"},
+			},
+		})
+	}
+
+	if req.Height == 20 {
+		pubkey, _ := hex.DecodeString(nova2PubkeyHex)
+		updates = append(updates, abcitypes.ValidatorUpdate{
+			Power:       0,
+			PubKeyBytes: pubkey,
+			PubKeyType:  "bls12-381.pubkey",
+		})
+	}
 	return &abcitypes.FinalizeBlockResponse{
-		TxResults: txs,
+		TxResults:        txs,
+		ValidatorUpdates: updates,
+		Events:           events,
 	}, nil
 }
 

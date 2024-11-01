@@ -26,7 +26,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 	parentBlock := parent.ProposedBlock
 	qc := justify.QC
 
-	qc.Epoch = p.epochState.epoch
+	// qc.Epoch = p.epochState.epoch
 
 	lastKBlock := uint32(0)
 	if parent.ProposedBlock.IsKBlock() {

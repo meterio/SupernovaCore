@@ -32,7 +32,7 @@ const (
 	CallStipend                 uint64 = 2300  // Free gas given at beginning of call.
 
 	Sha3Gas     uint64 = 30 // Once per SHA3 operation.
-	Sha3WordGas uint64 = 6  // Once per word of the SHA3 operation's data.
+	Sha3WordGas uint64 = 4  // Once per word of the SHA3 operation's data.
 
 	ParamsSstoreSetGas   uint64 = 20000 // Once per SLOAD operation.
 	ParamsSstoreResetGas uint64 = 5000  // Once per SSTORE operation if the zeroness changes from zero.

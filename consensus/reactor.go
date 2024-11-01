@@ -187,7 +187,7 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 		// relay the message if these two conditions are met:
 		// 1. the original message is not sent by myself
 		// 2. it's a proposal message
-		if !fromMyself && typeName == "PMProposal" {
+		if (!fromMyself || len(r.Pacemaker.addedValidators) > 0) && typeName == "PMProposal" {
 			r.Relay(mi.Msg, data)
 		}
 	} else {
@@ -260,8 +260,8 @@ func (r *Reactor) validateBlock(
 		return consensusError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot, proposedTxs.RootHash()))
 	}
 
-	if forceValidate && header.LastKBlock != r.lastKBlock {
-		return consensusError(fmt.Sprintf("header LastKBlock invalid: header %v, local %v", header.LastKBlock, r.lastKBlock))
+	if forceValidate && header.LastKBlock != r.Pacemaker.EpochStartKBlockNum() {
+		return consensusError(fmt.Sprintf("header LastKBlock invalid: header %v, local %v", header.LastKBlock, r.Pacemaker.EpochStartKBlockNum()))
 	}
 
 	r.logger.Debug("validated block", "id", block.CompactString(), "elapsed", types.PrettyDuration(time.Since(start)))

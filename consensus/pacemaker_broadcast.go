@@ -63,7 +63,7 @@ func (p *Pacemaker) OnBroadcastProposal() {
 	}
 	blk := proposalMsg.DecodeBlock()
 
-	if blk.Epoch() < p.epochState.epoch {
+	if proposalMsg.Epoch < p.epochState.epoch {
 		p.logger.Info(fmt.Sprintf("proposal epoch %d < curEpoch %d , skip broadcast ...", blk.Epoch(), p.epochState.epoch))
 		return
 	}

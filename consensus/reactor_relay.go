@@ -14,6 +14,11 @@ func (r *Reactor) Relay(msg block.ConsensusMessage, rawMsg []byte) {
 				outQueue.Add(*peer, msg, rawMsg, true)
 			}
 		}
+		if len(r.Pacemaker.addedValidators) > 0 {
+			for _, v := range r.Pacemaker.addedValidators {
+				outQueue.Add(*NewConsensusPeer(v.Name, v.IP.String()), msg, rawMsg, true)
+			}
+		}
 	}
 
 }
