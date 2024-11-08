@@ -41,12 +41,42 @@ func (e *Executor) InitChain(req *abcitypes.InitChainRequest) (*abcitypes.InitCh
 	return e.proxyApp.InitChain(context.TODO(), req)
 }
 
-func (e *Executor) PrepareProposal(req *abcitypes.PrepareProposalRequest) (*abcitypes.PrepareProposalResponse, error) {
-	return e.proxyApp.PrepareProposal(context.TODO(), req)
+func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int) (*abcitypes.PrepareProposalResponse, error) {
+	maxBytes := int64(cmttypes.MaxBlockSizeBytes)
+
+	evSize := int64(0)
+	vset := e.chain.GetValidatorsByHash(parent.ProposedBlock.NextValidatorsHash())
+	maxDataBytes := cmttypes.MaxDataBytes(maxBytes, evSize, vset.Size())
+	return e.proxyApp.PrepareProposal(context.TODO(), &v1.PrepareProposalRequest{
+		MaxTxBytes:         maxDataBytes,
+		Height:             int64(parent.Height) + 1,
+		Time:               time.Now(),
+		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
+		NextValidatorsHash: parent.ProposedBlock.NextValidatorsHash(),
+		ProposerAddress:    vset.GetByIndex(proposerIndex).Address.Bytes(),
+	})
 }
 
-func (e *Executor) ProcessProposal(req *abcitypes.ProcessProposalRequest) (*abcitypes.ProcessProposalResponse, error) {
-	return e.proxyApp.ProcessProposal(context.TODO(), req)
+func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
+	vset := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
+	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{
+		Hash:               blk.ID().Bytes(),
+		Height:             int64(blk.Number()),
+		Time:               time.Unix(int64(blk.Timestamp()), 0),
+		Txs:                blk.Txs.Convert(),
+		ProposedLastCommit: e.chain.BuildLastCommitInfo(blk),
+		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
+		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
+		NextValidatorsHash: blk.NextValidatorsHash(),
+	})
+
+	if err != nil {
+		return false, err
+	}
+	if resp.IsStatusUnknown() {
+		panic("ProcessProposal responded with status " + resp.Status.String())
+	}
+	return resp.IsAccepted(), nil
 }
 
 func (e *Executor) ExtendVote(req *abcitypes.ExtendVoteRequest) (*abcitypes.ExtendVoteResponse, error) {
@@ -84,25 +114,23 @@ func (e *Executor) ApplyBlock(block *block.Block, syncingToHeight int64) ([]byte
 	return e.applyBlock(block, syncingToHeight)
 }
 
-func (e *Executor) applyBlock(block *block.Block, syncingToHeight int64) (appHash []byte, nxtVSet *types.ValidatorSet, err error) {
-	t := time.Unix(int64(block.Timestamp()), 0)
-
-	vset := e.chain.GetValidatorsByHash(block.ValidatorsHash())
+func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash []byte, nxtVSet *types.ValidatorSet, err error) {
+	vset := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
 	abciResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.FinalizeBlockRequest{
-		Hash:               block.ID().Bytes(),
-		NextValidatorsHash: block.Header().NextValidatorsHash,
-		ProposerAddress:    vset.GetByIndex(int(block.ProposerIndex())).Address.Bytes(),
-		Height:             int64(block.Number()),
-		Time:               t,
-		DecidedLastCommit:  e.chain.BuildLastCommitInfo(block),
+		Hash:               blk.ID().Bytes(),
+		NextValidatorsHash: blk.Header().NextValidatorsHash,
+		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
+		Height:             int64(blk.Number()),
+		Time:               time.Unix(int64(blk.Timestamp()), 0),
+		DecidedLastCommit:  e.chain.BuildLastCommitInfo(blk),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
-		Txs:                block.Transactions().Convert(),
+		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,
 	})
 	appHash = abciResponse.AppHash
 	e.logger.Info(
 		"Finalized block",
-		"height", block.Number(),
+		"height", blk.Number(),
 		"num_txs_res", len(abciResponse.TxResults),
 		"num_val_updates", len(abciResponse.ValidatorUpdates),
 		"block_app_hash", fmt.Sprintf("%X", abciResponse.AppHash),
@@ -110,14 +138,14 @@ func (e *Executor) applyBlock(block *block.Block, syncingToHeight int64) (appHas
 	)
 
 	// Assert that the application correctly returned tx results for each of the transactions provided in the block
-	if len(block.Txs) != len(abciResponse.TxResults) {
-		err = fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(block.Txs), len(abciResponse.TxResults))
+	if len(blk.Txs) != len(abciResponse.TxResults) {
+		err = fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(blk.Txs), len(abciResponse.TxResults))
 		return
 	}
 
 	// calculate the next committee
 	if len(abciResponse.ValidatorUpdates) > 0 {
-		curVSet := e.chain.GetValidatorsByHash(block.ValidatorsHash())
+		curVSet := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
 		nxtVSet = calcNewValidatorSet(curVSet, abciResponse.ValidatorUpdates, abciResponse.Events)
 	} else {
 		nxtVSet = nil

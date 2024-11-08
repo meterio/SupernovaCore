@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	"github.com/cometbft/cometbft/privval"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -121,7 +120,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		targetTime = now
 	}
 
-	res, err := p.executor.PrepareProposal(&v1.PrepareProposalRequest{Height: int64(parent.Height) + 1})
+	res, err := p.executor.PrepareProposal(parent, p.epochState.index)
 	if err != nil {
 		return err, nil
 	}

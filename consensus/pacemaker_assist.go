@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"time"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
@@ -87,16 +86,17 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 		}
 	}
 
-	res, err := p.executor.ProcessProposal(&v1.ProcessProposalRequest{Txs: blk.Txs.Convert(), Hash: blk.ID().Bytes(), Height: int64(blk.Number())})
+	accepted, err := p.executor.ProcessProposal(blk)
 
-	if res.Status == v1.PROCESS_PROPOSAL_STATUS_ACCEPT {
+	if err != nil {
+		return err
+	}
+	if accepted {
 		b.SuccessProcessed = true
 		b.ProcessError = nil
 		return nil
-	} else if res.Status == v1.PROCESS_PROPOSAL_STATUS_REJECT {
-		err = ErrProposalRejected
 	} else {
-		err = ErrProposalUnknown
+		err = ErrProposalRejected
 	}
 
 	if err != nil && err != errKnownBlock {
