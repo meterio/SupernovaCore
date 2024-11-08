@@ -153,10 +153,20 @@ func (p *ProposalMap) PruneUpTo(lastCommitted *block.DraftBlock) {
 	}
 }
 
-func (p *ProposalMap) GetDraftByNum(num uint32) []*block.DraftBlock {
+func (p *ProposalMap) GetDraftsByNum(num uint32) []*block.DraftBlock {
 	result := make([]*block.DraftBlock, 0)
 	for _, prop := range p.proposals {
 		if prop.ProposedBlock.Number() == num {
+			result = append(result, prop)
+		}
+	}
+	return result
+}
+
+func (p *ProposalMap) GetDraftsByParentID(parentID types.Bytes32) []*block.DraftBlock {
+	result := make([]*block.DraftBlock, 0)
+	for _, prop := range p.proposals {
+		if prop.ProposedBlock.ParentID() == parentID {
 			result = append(result, prop)
 		}
 	}

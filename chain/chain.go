@@ -33,7 +33,7 @@ var (
 	ErrNotFound           = errors.New("not found")
 	ErrBlockExist         = errors.New("block already exists")
 	ErrQCMismatch         = errors.New("QC mismatch")
-	ErrNoQCForFutureBlock = errors.New("No QC for future block")
+	ErrEmptyDraft         = errors.New("empty draft")
 	errParentNotFinalized = errors.New("parent is not finalized")
 )
 
@@ -767,7 +767,23 @@ func (c *Chain) GetDraft(blkID types.Bytes32) *block.DraftBlock {
 func (c *Chain) GetDraftByNum(num uint32) *block.DraftBlock {
 	c.drw.RLock()
 	defer c.drw.RUnlock()
-	proposals := c.proposalMap.GetDraftByNum(num)
+	proposals := c.proposalMap.GetDraftsByNum(num)
+	if len(proposals) > 0 {
+		latest := proposals[0]
+		for _, prop := range proposals[1:] {
+			if prop.Round > latest.Round {
+				latest = prop
+			}
+		}
+		return latest
+	}
+	return nil
+}
+
+func (c *Chain) GetDraftByParentID(parentID types.Bytes32) *block.DraftBlock {
+	c.drw.RLock()
+	defer c.drw.RUnlock()
+	proposals := c.proposalMap.GetDraftsByParentID(parentID)
 	if len(proposals) > 0 {
 		latest := proposals[0]
 		for _, prop := range proposals[1:] {
@@ -882,7 +898,14 @@ func (c *Chain) SaveValidatorSet(vset *types.ValidatorSet) {
 func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 	num := block.Number(blkID)
 	if num > c.BestBlock().Number() {
-		return nil, ErrNoQCForFutureBlock
+		draftChild := c.GetDraftByNum(num + 1)
+		if draftChild == nil {
+			return nil, ErrEmptyDraft
+		}
+		if draftChild.ProposedBlock.QC.BlockID != blkID {
+			return nil, ErrQCMismatch
+		}
+		return draftChild.ProposedBlock.QC, nil
 	}
 	child, err := c.GetTrunkBlock(num + 1)
 	if err != nil {
