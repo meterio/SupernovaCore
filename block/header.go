@@ -30,10 +30,10 @@ type Header struct {
 	LastKBlock    uint32
 	Nonce         uint64 //
 
-	QCHash            cmtbytes.HexBytes // hash of QC
-	ValidatorHash     cmtbytes.HexBytes // hash of validator set
-	NextValidatorHash cmtbytes.HexBytes // hash of next validator set
-	AppHash           cmtbytes.HexBytes //
+	QCHash             cmtbytes.HexBytes // hash of QC
+	ValidatorsHash     cmtbytes.HexBytes // hash of validator set
+	NextValidatorsHash cmtbytes.HexBytes // hash of next validator set
+	AppHash            cmtbytes.HexBytes //
 
 	cache struct {
 		signingHash atomic.Value
@@ -86,8 +86,8 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 		h.Nonce,
 
 		h.QCHash,
-		h.ValidatorHash,
-		h.NextValidatorHash,
+		h.ValidatorsHash,
+		h.NextValidatorsHash,
 	})
 	if err != nil {
 		slog.Error("could not calculate signing hash", "err", err)
@@ -102,9 +102,9 @@ func (h *Header) String() string {
 	ProposerIndex:            %v
     LastKBlock:               %v
     TxsRoot:                  %v
-	ValidatorHash             %v
-	NextValidatorHash         %v
-    Nonce:                    %v`, h.ParentID, h.Timestamp, h.ProposerIndex, h.LastKBlock, h.TxsRoot, h.ValidatorHash.String(), h.NextValidatorHash.String(), h.Nonce)
+	ValidatorsHash             %v
+	NextValidatorsHash         %v
+    Nonce:                    %v`, h.ParentID, h.Timestamp, h.ProposerIndex, h.LastKBlock, h.TxsRoot, h.ValidatorsHash.String(), h.NextValidatorsHash.String(), h.Nonce)
 }
 
 // Number extract block number from block id.

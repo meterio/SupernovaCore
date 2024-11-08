@@ -13,6 +13,9 @@ import (
 	"sync"
 
 	db "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
@@ -26,9 +29,14 @@ const (
 	blockCacheLimit = 512
 )
 
-var ErrNotFound = errors.New("not found")
-var ErrBlockExist = errors.New("block already exists")
-var errParentNotFinalized = errors.New("parent is not finalized")
+var (
+	ErrNotFound           = errors.New("not found")
+	ErrBlockExist         = errors.New("block already exists")
+	ErrQCMismatch         = errors.New("QC mismatch")
+	ErrNoQCForFutureBlock = errors.New("No QC for future block")
+	errParentNotFinalized = errors.New("parent is not finalized")
+)
+
 var (
 	bestHeightGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "best_height",
@@ -80,7 +88,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.Validat
 	}
 	var bestBlock *block.Block
 
-	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.NextValidatorHash().Bytes()) {
+	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.NextValidatorsHash().Bytes()) {
 		panic(ErrInvalidGenesis)
 	}
 	if _, err := loadValidatorSet(kv, genesisValidatorSet.Hash()); err != nil {
@@ -806,18 +814,18 @@ func (c *Chain) RawBlocksCacheLen() int {
 }
 
 func (c *Chain) GetBestNextValidatorSet() *types.ValidatorSet {
-	vset, err := loadValidatorSet(c.kv, c.bestBlock.NextValidatorHash())
+	vset, err := loadValidatorSet(c.kv, c.bestBlock.NextValidatorsHash())
 	if err != nil {
-		fmt.Println("could not load next vset", "hash", c.bestBlock.NextValidatorHash(), "num", c.bestBlock.Number(), "err", err)
+		fmt.Println("could not load next vset", "hash", c.bestBlock.NextValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
 		return nil
 	}
 	return vset
 }
 
 func (c *Chain) GetBestValidatorSet() *types.ValidatorSet {
-	vset, err := loadValidatorSet(c.kv, c.bestBlock.ValidatorHash())
+	vset, err := loadValidatorSet(c.kv, c.bestBlock.ValidatorsHash())
 	if err != nil {
-		c.logger.Warn("could not load vset", "hash", c.bestBlock.ValidatorHash(), "num", c.bestBlock.Number(), "err", err)
+		c.logger.Warn("could not load vset", "hash", c.bestBlock.ValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
 		return nil
 	}
 	return vset
@@ -832,7 +840,16 @@ func (c *Chain) GetValidatorSet(num uint32) *types.ValidatorSet {
 	if err != nil {
 		return nil
 	}
-	vset, err := loadValidatorSet(c.kv, blk.ValidatorHash())
+	vset, err := loadValidatorSet(c.kv, blk.ValidatorsHash())
+	if err != nil {
+		return nil
+	}
+	return vset
+}
+
+// FIXME: should add cache
+func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *types.ValidatorSet {
+	vset, err := loadValidatorSet(c.kv, hash)
 	if err != nil {
 		return nil
 	}
@@ -848,7 +865,7 @@ func (c *Chain) GetNextValidatorSet(num uint32) *types.ValidatorSet {
 	if err != nil {
 		return nil
 	}
-	vset, err := loadValidatorSet(c.kv, blk.NextValidatorHash())
+	vset, err := loadValidatorSet(c.kv, blk.NextValidatorsHash())
 	if err != nil {
 		return nil
 	}
@@ -859,5 +876,62 @@ func (c *Chain) SaveValidatorSet(vset *types.ValidatorSet) {
 	err := saveValidatorSet(c.kv, vset)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
+	num := block.Number(blkID)
+	if num > c.BestBlock().Number() {
+		return nil, ErrNoQCForFutureBlock
+	}
+	child, err := c.GetTrunkBlock(num + 1)
+	if err != nil {
+		return nil, err
+	}
+	if child.QC.BlockID != blkID {
+		return nil, ErrQCMismatch
+	}
+	return child.QC, nil
+}
+
+// BuildLastCommitInfo builds a CommitInfo from the given block and validator set.
+// If you want to load the validator set from the store instead of providing it,
+// use buildLastCommitInfoFromStore.
+func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
+	vset := c.GetValidatorsByHash(block.ValidatorsHash())
+	if vset == nil {
+		panic("validator set is empty")
+	}
+
+	qc, err := c.GetQCForBlock(block.ID())
+
+	if err != nil {
+		panic(err)
+	}
+
+	var (
+		commiteeSize = vset.Size()
+		votesSize    = qc.BitArray.Size()
+	)
+
+	if commiteeSize != votesSize {
+		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, block.Number()))
+	}
+
+	votes := make([]abci.VoteInfo, vset.Size())
+	for i := 0; i < votesSize; i++ {
+		if qc.BitArray.GetIndex(i) {
+			v := vset.GetByIndex(i)
+			votes[i] = abci.VoteInfo{
+				Validator:   abci.Validator{Address: v.Address.Bytes(), Power: int64(v.VotingPower)},
+				BlockIdFlag: cmtproto.BlockIDFlagCommit,
+			}
+
+		}
+	}
+
+	return abci.CommitInfo{
+		Round: int32(qc.Round),
+		Votes: votes,
 	}
 }

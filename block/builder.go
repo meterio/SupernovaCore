@@ -59,13 +59,13 @@ func (b *Builder) QC(qc *QuorumCert) *Builder {
 	return b
 }
 
-func (b *Builder) ValidatorHash(hash []byte) *Builder {
-	b.header.ValidatorHash = hash
+func (b *Builder) ValidatorsHash(hash []byte) *Builder {
+	b.header.ValidatorsHash = hash
 	return b
 }
 
-func (b *Builder) NextValidatorHash(hash []byte) *Builder {
-	b.header.NextValidatorHash = hash
+func (b *Builder) NextValidatorsHash(hash []byte) *Builder {
+	b.header.NextValidatorsHash = hash
 	return b
 }
 

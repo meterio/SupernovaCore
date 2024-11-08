@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"log/slog"
 	"sort"
 	"time"
@@ -209,6 +210,22 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 	return proxyApp, nil
+}
+
+func doHandshake(
+	ctx context.Context,
+	c *chain.Chain,
+	genDoc *cmttypes.GenesisDoc,
+	eventBus cmttypes.BlockEventPublisher,
+	proxyApp proxy.AppConns,
+	consensusLogger log.Logger,
+) error {
+	handshaker := consensus.NewHandshaker(c, genDoc)
+	handshaker.SetEventBus(eventBus)
+	if err := handshaker.Handshake(ctx, proxyApp); err != nil {
+		return fmt.Errorf("error during handshake: %v", err)
+	}
+	return nil
 }
 
 func (n *Node) Start() error {

@@ -57,8 +57,8 @@ func (genDoc *GenesisDoc) SaveAs(file string) error {
 	return cmn.WriteFile(file, genDocBytes, 0o644)
 }
 
-// ValidatorHash returns the hash of the validator set contained in the GenesisDoc.
-func (genDoc *GenesisDoc) ValidatorHash() []byte {
+// ValidatorsHash returns the hash of the validator set contained in the GenesisDoc.
+func (genDoc *GenesisDoc) ValidatorsHash() []byte {
 	vals := make([]*cmttypes.Validator, len(genDoc.Validators))
 	for i, v := range genDoc.Validators {
 		vals[i] = cmttypes.NewValidator(v.PubKey, v.Power)

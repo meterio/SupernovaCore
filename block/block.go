@@ -140,21 +140,25 @@ func (b *Block) Number() uint32 {
 	return b.BlockHeader.Number()
 }
 
-func (b *Block) ValidatorHash() cmtbytes.HexBytes {
-	return b.BlockHeader.ValidatorHash
+func (b *Block) ValidatorsHash() cmtbytes.HexBytes {
+	return b.BlockHeader.ValidatorsHash
 }
 
-func (b *Block) NextValidatorHash() cmtbytes.HexBytes {
-	return b.BlockHeader.NextValidatorHash
+func (b *Block) NextValidatorsHash() cmtbytes.HexBytes {
+	return b.BlockHeader.NextValidatorsHash
 }
 
 func (b *Block) IsKBlock() bool {
-	return !bytes.Equal(b.ValidatorHash(), b.NextValidatorHash())
+	return !bytes.Equal(b.ValidatorsHash(), b.NextValidatorsHash())
 }
 
 // Timestamp returns timestamp of this block.
 func (b *Block) Timestamp() uint64 {
 	return b.BlockHeader.Timestamp
+}
+
+func (b *Block) AppHash() cmtbytes.HexBytes {
+	return b.BlockHeader.AppHash
 }
 
 // TxsRoot returns merkle root of txs contained in this block.

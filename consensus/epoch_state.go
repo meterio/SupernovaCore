@@ -22,7 +22,7 @@ type EpochState struct {
 	// committee calculated from last validator set and last nonce
 	committee     *types.ValidatorSet
 	inCommittee   bool
-	index         uint32
+	index         int
 	ipToName      map[string]string
 	qcVoteManager *QCVoteManager
 	tcVoteManager *TCVoteManager
@@ -75,7 +75,7 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*
 		startKBlockID: kblk.ID(),
 		committee:     committee,
 		inCommittee:   inCommittee,
-		index:         uint32(index),
+		index:         index,
 		ipToName:      ipToName,
 		qcVoteManager: NewQCVoteManager(uint32(committee.Size())),
 		tcVoteManager: NewTCVoteManager(uint32(committee.Size())),
@@ -115,7 +115,7 @@ func NewPendingEpochState(vset *types.ValidatorSet, myPubKey bls.PublicKey, curE
 
 		committee:   committee,
 		inCommittee: inCommittee,
-		index:       uint32(index),
+		index:       index,
 		ipToName:    ipToName,
 		pending:     true,
 	}, nil
@@ -160,11 +160,11 @@ func (es *EpochState) InCommittee() bool {
 	return es.inCommittee
 }
 
-func (es *EpochState) CommitteeIndex() uint32 {
+func (es *EpochState) CommitteeIndex() int {
 	return es.index
 }
 
-func (es *EpochState) GetValidatorByIndex(index uint32) *types.Validator {
+func (es *EpochState) GetValidatorByIndex(index int) *types.Validator {
 	return es.committee.GetByIndex(index)
 }
 
@@ -263,7 +263,7 @@ func (es *EpochState) GetRelayPeers(round uint32) []*ConsensusPeer {
 		if index >= size {
 			index = index % size
 		}
-		member := es.committee.GetByIndex(uint32(index))
+		member := es.committee.GetByIndex(index)
 		name := member.Name
 		peers = append(peers, NewConsensusPeer(name, member.IP.String()))
 	}
@@ -273,11 +273,11 @@ func (es *EpochState) GetRelayPeers(round uint32) []*ConsensusPeer {
 
 // get the specific round proposer
 func (es *EpochState) getRoundProposer(round uint32) *types.Validator {
-	size := es.CommitteeSize()
+	size := int(es.CommitteeSize())
 	if size == 0 {
 		return &types.Validator{}
 	}
-	return es.committee.GetByIndex(round % size)
+	return es.committee.GetByIndex(int(round) % size)
 }
 
 func (es *EpochState) GetNameByIP(ip string) string {

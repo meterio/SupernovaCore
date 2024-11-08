@@ -14,6 +14,7 @@ import (
 	"time"
 
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
+	"github.com/cometbft/cometbft/privval"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
@@ -46,6 +47,7 @@ type Pacemaker struct {
 	epochState      *EpochState
 	nextEpochState  *EpochState
 	addedValidators []*types.Validator
+	pv              *privval.FilePV
 	currentRound    uint32
 	roundStartedAt  time.Time
 
@@ -88,7 +90,7 @@ func NewPacemaker(version string, c *chain.Chain, txpool *txpool.TxPool, communi
 		version:      version,
 		txpool:       txpool,
 		communicator: communicator,
-		executor:     NewExecutor(proxyApp),
+		executor:     NewExecutor(proxyApp.Consensus(), c),
 
 		cmdCh:           make(chan PMCmd, 2),
 		beatCh:          make(chan PMBeatInfo, 2),

@@ -150,7 +150,7 @@ func (r *Reactor) AddIncoming(mi IncomingMsg, data []byte) {
 			r.logger.Warn("index out of range for signer, dropped ...", "peer", peer, "msg", msg.GetType())
 			return
 		}
-		signer := r.Pacemaker.epochState.GetValidatorByIndex(signerIndex)
+		signer := r.Pacemaker.epochState.GetValidatorByIndex(int(signerIndex))
 
 		if !msg.VerifyMsgSignature(signer.PubKey) {
 			r.logger.Error("invalid signature, dropped ...", "peer", peer, "msg", msg.String(), "signer", signer.Name)

@@ -35,7 +35,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		lastKBlock = parent.ProposedBlock.LastKBlock()
 	}
 
-	nextValidatorHash := parent.ProposedBlock.NextValidatorHash()
+	nextValidatorHash := parent.ProposedBlock.NextValidatorsHash()
 	num := parent.ProposedBlock.Number() + 1
 	newVSet := p.validatorSetRegistry.GetNext(num)
 	if newVSet != nil {
@@ -45,9 +45,9 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 		ParentID(parentBlock.ID()).
 		Timestamp(timestamp).
 		Nonce(nonce).
-		ValidatorHash(parent.ProposedBlock.NextValidatorHash()).
-		NextValidatorHash(nextValidatorHash).
-		ProposerIndex(p.epochState.CommitteeIndex()).
+		ValidatorsHash(parent.ProposedBlock.NextValidatorsHash()).
+		NextValidatorsHash(nextValidatorHash).
+		ProposerIndex(uint32(p.epochState.CommitteeIndex())).
 		LastKBlock(lastKBlock).QC(qc)
 
 	for _, tx := range txs {

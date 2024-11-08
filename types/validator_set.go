@@ -158,8 +158,8 @@ func (vals *ValidatorSet) DeleteByPubkey(pubkey bls.PublicKey) {
 // index.
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
-func (vals *ValidatorSet) GetByIndex(index uint32) (val *Validator) {
-	N := uint32(len(vals.Validators))
+func (vals *ValidatorSet) GetByIndex(index int) (val *Validator) {
+	N := len(vals.Validators)
 	if index >= N {
 		index = index % N
 	}
