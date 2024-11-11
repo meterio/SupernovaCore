@@ -110,8 +110,16 @@ func NewNode(
 	genesisDocProvider types.GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider,
 ) *Node {
-
 	ctx := context.Background()
+	return NewNodeWithContext(ctx, config, privValidator, nodeKey, clientCreator, genesisDocProvider, dbProvider)
+}
+
+func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
+	privValidator *privval.FilePV,
+	nodeKey *types.NodeKey,
+	clientCreator cmtproxy.ClientCreator,
+	genesisDocProvider types.GenesisDocProvider,
+	dbProvider cmtcfg.DBProvider) *Node {
 	InitLogger(config)
 
 	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb", Config: config})
