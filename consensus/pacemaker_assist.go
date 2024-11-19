@@ -157,6 +157,9 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 
 func (p *Pacemaker) amIRoundProproser(round uint32) bool {
 	proposer := p.epochState.getRoundProposer(round)
+	if proposer == nil || proposer.PubKey == nil {
+		return false
+	}
 	return bytes.Equal(proposer.PubKey.Marshal(), p.blsMaster.PubKey.Marshal())
 }
 

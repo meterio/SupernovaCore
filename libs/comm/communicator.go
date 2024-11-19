@@ -169,7 +169,7 @@ func (c *Communicator) Start() {
 	}
 	id := c.p2pSrv.Self().ID()
 	// pubkey := c.p2pSrv.Self().Pubkey()
-	c.logger.Info("P2P server started", "enodeID", id, "self", c.p2pSrv.Self().URLv4(), "elapsed", types.PrettyDuration(time.Since(start)))
+	c.logger.Info("P2P server started", "enodeID", id, "self", c.p2pSrv.Self(), "elapsed", types.PrettyDuration(time.Since(start)))
 	start = time.Now()
 	// c.goes.Go(c.txsLoop)
 	c.goes.Go(c.announcementLoop)

@@ -9,6 +9,8 @@ import (
 	"os"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
+	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
+	cmtlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmn "github.com/meterio/supernova/libs/common"
@@ -110,12 +112,15 @@ func RunNodeCmd() *cobra.Command {
 			}
 
 			InitLogger(config)
+			logger := cmtlog.NewTMLogger(cmtlog.NewSyncWriter(os.Stdout))
+			logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cmtcfg.DefaultLogLevel)
 			node := node.NewNode(config,
 				privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
 				nodeKey,
 				proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
-				types.DefaultGenesisDocProviderFunc(config),
+				node.DefaultGenesisDocProviderFunc(config),
 				cmtcfg.DefaultDBProvider,
+				logger,
 			)
 
 			node.Start()

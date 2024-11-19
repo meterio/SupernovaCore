@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -18,13 +19,13 @@ import (
 type Handshaker struct {
 	chain    *chain.Chain
 	eventBus cmttypes.BlockEventPublisher
-	genDoc   *cmttypes.GenesisDoc
+	genDoc   *types.GenesisDoc
 	logger   log.Logger
 
 	nBlocks int // number of blocks applied to the state
 }
 
-func NewHandshaker(c *chain.Chain, genDoc *cmttypes.GenesisDoc,
+func NewHandshaker(c *chain.Chain, genDoc *types.GenesisDoc,
 ) *Handshaker {
 	return &Handshaker{
 		chain:    c,
@@ -52,6 +53,7 @@ func (h *Handshaker) NBlocks() int {
 
 // TODO: retry the handshake/replay if it fails ?
 func (h *Handshaker) Handshake(ctx context.Context, proxyApp proxy.AppConns) error {
+	fmt.Println("Start handshake")
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().Info(ctx, proxy.InfoRequest)
 	if err != nil {
@@ -113,10 +115,12 @@ func (h *Handshaker) ReplayBlocks(
 
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain.
 	if appBlockHeight == 0 {
+		fmt.Println("app block height = 0")
 		validators := make([]*cmttypes.Validator, len(h.genDoc.Validators))
 		for i, val := range h.genDoc.Validators {
 			// Ensure that the public key type is supported.
 			if _, ok := cmttypes.ABCIPubKeyTypesToNames[val.PubKey.Type()]; !ok {
+				fmt.Println("ERROR:! unspported key type ", val.PubKey.Type(), val.Name)
 				return nil, fmt.Errorf("unsupported public key type %s (validator name: %s)", val.PubKey.Type(), val.Name)
 			}
 			validators[i] = cmttypes.NewValidator(val.PubKey, val.Power)
@@ -134,12 +138,18 @@ func (h *Handshaker) ReplayBlocks(
 		}
 		res, err := proxyApp.Consensus().InitChain(context.TODO(), req)
 		if err != nil {
+			fmt.Println("ERROR: ", err)
 			return nil, err
 		}
 
 		appHash = res.AppHash
+		fmt.Println("Validators updates: ", len(res.Validators), res.Validators)
+		for _, v := range res.Validators {
+			fmt.Println(v.PubKeyType, hex.EncodeToString(v.PubKeyBytes), v.Power)
+		}
 
 	}
+	fmt.Println("store block height", storeBlockHeight)
 
 	// First handle edge cases and constraints on the storeBlockHeight and storeBlockBase.
 	switch {

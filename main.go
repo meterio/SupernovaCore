@@ -84,7 +84,7 @@ func main() {
 		pv,
 		nodeKey,
 		proxy.NewLocalClientCreator(app),
-		types.DefaultGenesisDocProviderFunc(config),
+		nm.DefaultGenesisDocProviderFunc(config),
 		cfg.DefaultDBProvider,
 	)
 

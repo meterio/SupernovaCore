@@ -48,6 +48,7 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey bls.PublicKey) (*
 		slog.Error("Could not get next validator set", "num", kblk.Number())
 		return nil, errors.New("could not get next validator set")
 	}
+	slog.Info("vset size", "size", vset.Size())
 	committee := vset.SortWithNonce(kblk.Nonce())
 	logger.Info("calc epoch state", "kblk", kblk.Number(), "vset", vset.Hex(), "committeeSize", committee.Size())
 

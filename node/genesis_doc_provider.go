@@ -1,4 +1,4 @@
-package types
+package node
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/tmhash"
+	"github.com/meterio/supernova/types"
 )
 
 // ChecksummedGenesisDoc combines a GenesisDoc together with its
 // SHA256 checksum.
 type ChecksummedGenesisDoc struct {
-	GenesisDoc     *GenesisDoc
+	GenesisDoc     *types.GenesisDoc
 	Sha256Checksum []byte
 }
 
@@ -32,7 +33,7 @@ func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
 			return ChecksummedGenesisDoc{}, fmt.Errorf("couldn't read GenesisDoc file: %w", err)
 		}
 		incomingChecksum := tmhash.Sum(jsonBlob)
-		genDoc, err := GenesisDocFromJSON(jsonBlob)
+		genDoc, err := types.GenesisDocFromJSON(jsonBlob)
 		if err != nil {
 			return ChecksummedGenesisDoc{}, err
 		}

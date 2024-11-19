@@ -22,7 +22,6 @@ var (
 
 func DefaultConfig() *cmtcfg.Config {
 	config := cmtcfg.DefaultConfig()
-	config.P2P.ListenAddress = "0.0.0.0:11235"
 	config.BaseConfig.RootDir = os.ExpandEnv(filepath.Join("$HOME", ".supernova"))
 	config.ProxyApp = "noop"
 	return config

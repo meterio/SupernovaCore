@@ -11,13 +11,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"log/slog"
 	"sort"
 	"time"
 
 	"github.com/beevik/ntp"
 	cmtcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -25,6 +25,7 @@ import (
 	db "github.com/cometbft/cometbft-db"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -50,7 +51,7 @@ var (
 
 func LoadGenesisDoc(
 	mainDB db.DB,
-	genesisDocProvider types.GenesisDocProvider,
+	genesisDocProvider GenesisDocProvider,
 ) (*types.GenesisDoc, error) { // originally, LoadStateFromDBOrGenesisDocProvider
 	// Get genesis doc hash
 	genDocHash, err := mainDB.Get(genesisDocHashKey)
@@ -107,19 +108,20 @@ func NewNode(
 	privValidator *privval.FilePV,
 	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
-	genesisDocProvider types.GenesisDocProvider,
+	genesisDocProvider GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider,
+	logger log.Logger,
 ) *Node {
 	ctx := context.Background()
-	return NewNodeWithContext(ctx, config, privValidator, nodeKey, clientCreator, genesisDocProvider, dbProvider)
+	return NewNodeWithContext(ctx, config, privValidator, nodeKey, clientCreator, genesisDocProvider, dbProvider, logger)
 }
 
 func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	privValidator *privval.FilePV,
 	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
-	genesisDocProvider types.GenesisDocProvider,
-	dbProvider cmtcfg.DBProvider) *Node {
+	genesisDocProvider GenesisDocProvider,
+	dbProvider cmtcfg.DBProvider, logger log.Logger) *Node {
 	InitLogger(config)
 
 	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb", Config: config})
@@ -144,7 +146,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	// Split magic to p2p_magic and consensus_magic
 	copy(p2pMagic[:], sum[:4])
 
-	slog.Info("Meter Start ...", "version", config.BaseConfig.Version, "p2pMagic", hex.EncodeToString(p2pMagic[:]))
+	slog.Info("Supernova Start ...", "version", config.BaseConfig.Version, "p2pMagic", hex.EncodeToString(p2pMagic[:]))
 
 	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
@@ -158,14 +160,15 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	var BootstrapNodes []*enode.Node
 	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235")) // nova-1
 	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235"))
+	nodeKeyECDSA, _ := crypto.GenerateKey()
 	p2pCfg := p2p.Config{
 		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
-		PrivateKey:     nodeKey.PrivateKey(),
+		PrivateKey:     nodeKeyECDSA,
 		MaxPeers:       config.P2P.MaxNumInboundPeers,
 		ListenAddr:     "0.0.0.0:11235", // config.P2P.ListenAddress,
 		BootstrapNodes: BootstrapNodes,
 		NAT:            nat.Any(),
-		DiscoveryV4:    true,
+		DiscoveryV4:    false,
 	}
 	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pCfg, config.RootDir)
 
@@ -178,6 +181,11 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 
 	bestBlock := chain.BestBlock()
 
+	eventBus, err := createAndStartEventBus(logger)
+	if err != nil {
+		return nil
+	}
+	doHandshake(ctx, chain, genDoc, eventBus, proxyApp)
 	fmt.Printf(`Starting %v
     Magic           [ %v p2p & consensus ]
     Network         [ %v %v ]    
@@ -223,17 +231,26 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 func doHandshake(
 	ctx context.Context,
 	c *chain.Chain,
-	genDoc *cmttypes.GenesisDoc,
+	genDoc *types.GenesisDoc,
 	eventBus cmttypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
-	consensusLogger log.Logger,
 ) error {
+	fmt.Println("DO HANDSHAKE")
 	handshaker := consensus.NewHandshaker(c, genDoc)
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(ctx, proxyApp); err != nil {
 		return fmt.Errorf("error during handshake: %v", err)
 	}
 	return nil
+}
+
+func createAndStartEventBus(logger log.Logger) (*cmttypes.EventBus, error) {
+	eventBus := cmttypes.NewEventBus()
+	eventBus.SetLogger(logger.With("module", "events"))
+	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+	return eventBus, nil
 }
 
 func (n *Node) Start() error {
