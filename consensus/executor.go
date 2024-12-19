@@ -59,12 +59,17 @@ func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int) 
 
 func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 	vset := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
+	parent, err := e.chain.GetBlock(blk.ParentID())
+	if err != nil {
+		parentDraft := e.chain.GetDraft(blk.ParentID())
+		parent = parentDraft.ProposedBlock
+	}
 	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{
 		Hash:               blk.ID().Bytes(),
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(int64(blk.Timestamp()), 0),
 		Txs:                blk.Txs.Convert(),
-		ProposedLastCommit: e.chain.BuildLastCommitInfo(blk),
+		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
 		NextValidatorsHash: blk.NextValidatorsHash(),
@@ -116,13 +121,18 @@ func (e *Executor) ApplyBlock(block *block.Block, syncingToHeight int64) ([]byte
 
 func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash []byte, nxtVSet *types.ValidatorSet, err error) {
 	vset := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
+	parent, err := e.chain.GetBlock(blk.ParentID())
+	if err != nil {
+		parentDraft := e.chain.GetDraft(blk.ParentID())
+		parent = parentDraft.ProposedBlock
+	}
 	abciResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.FinalizeBlockRequest{
 		Hash:               blk.ID().Bytes(),
 		NextValidatorsHash: blk.Header().NextValidatorsHash,
 		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(int64(blk.Timestamp()), 0),
-		DecidedLastCommit:  e.chain.BuildLastCommitInfo(blk),
+		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,

@@ -27,6 +27,12 @@ func init() {
 	flag.StringVar(&homeDir, "cmt-home", "", "Path to the CometBFT config directory (if empty, uses $HOME/.cometbft)")
 }
 
+var (
+	logger = cmtlog.NewTMLogger(
+		cmtlog.NewSyncWriter(os.Stdout),
+	).With("module", "priv_val")
+)
+
 func main() {
 
 	flag.Parse()
@@ -68,7 +74,7 @@ func main() {
 
 	nodeKey, err := types.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
-		log.Fatalf("failed to load node's key: %v", err)
+		log.Fatalf("failed to load node's key: %v %v", config.NodeKeyFile(), err)
 	}
 
 	logger := cmtlog.NewTMLogger(cmtlog.NewSyncWriter(os.Stdout))
@@ -86,6 +92,7 @@ func main() {
 		proxy.NewLocalClientCreator(app),
 		nm.DefaultGenesisDocProviderFunc(config),
 		cfg.DefaultDBProvider,
+		logger,
 	)
 
 	if err != nil {

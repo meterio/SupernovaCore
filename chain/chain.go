@@ -900,21 +900,25 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 	if num > c.BestBlock().Number() {
 		draftChild := c.GetDraftByNum(num + 1)
 		if draftChild == nil {
+			fmt.Println("error getting draft", num+1)
 			return nil, ErrEmptyDraft
 		}
 		if draftChild.ProposedBlock.QC.BlockID != blkID {
 			return nil, ErrQCMismatch
 		}
 		return draftChild.ProposedBlock.QC, nil
+	} else if num == c.BestBlock().Number() {
+		return c.BestQC(), nil
+	} else {
+		child, err := c.GetTrunkBlock(num + 1)
+		if err != nil {
+			return nil, err
+		}
+		if child.QC.BlockID != blkID {
+			return nil, ErrQCMismatch
+		}
+		return child.QC, nil
 	}
-	child, err := c.GetTrunkBlock(num + 1)
-	if err != nil {
-		return nil, err
-	}
-	if child.QC.BlockID != blkID {
-		return nil, ErrQCMismatch
-	}
-	return child.QC, nil
 }
 
 // BuildLastCommitInfo builds a CommitInfo from the given block and validator set.
@@ -922,6 +926,9 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 // use buildLastCommitInfoFromStore.
 func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
 	vset := c.GetValidatorsByHash(block.ValidatorsHash())
+	if block.Number() == 0 {
+		vset = c.GetValidatorsByHash(block.NextValidatorsHash())
+	}
 	if vset == nil {
 		panic("validator set is empty")
 	}

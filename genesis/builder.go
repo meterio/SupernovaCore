@@ -11,10 +11,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/block"
+	snbls "github.com/meterio/supernova/libs/bls"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 // Builder helper to build genesis block.
@@ -51,16 +51,26 @@ func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
 	vs := make([]*types.Validator, 0)
 
 	for _, v := range gdoc.Validators {
-		pubkey, err := bls.PublicKeyFromBytes(v.PubKey.Bytes())
+		pubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
 		if err != nil {
 			panic(fmt.Errorf(`Could not decode pubkey: %v`, err))
 		}
+		// FIXME: default set to 127.0.0.1
+		IP := v.IP
+		Port := uint32(v.Port)
+		if IP == "" {
+			IP = "127.0.0.1"
+		}
+		if Port == 0 {
+			Port = 8670
+		}
+
 		vs = append(vs, &types.Validator{
 			Name:    v.Name,
 			Address: common.Address(v.PubKey.Address()),
 			PubKey:  pubkey,
-			IP:      netip.MustParseAddr(v.IP),
-			Port:    uint32(v.Port),
+			IP:      netip.MustParseAddr(IP),
+			Port:    Port,
 		})
 	}
 	b.vset = types.NewValidatorSet(vs)

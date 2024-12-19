@@ -12,6 +12,7 @@ import (
 
 	_ "net/http/pprof"
 
+	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
 	"github.com/cometbft/cometbft/libs/cli"
 	"github.com/meterio/supernova/cmd/supernova/commands"
@@ -45,7 +46,7 @@ func main() {
 	rootCmd.AddCommand(
 		commands.RunNodeCmd(),
 		debug.DebugCmd,
-		commands.InitFilesCmd,
+		cmtcmd.InitFilesCmd,
 		cli.NewCompletionCmd(rootCmd, true),
 	)
 
