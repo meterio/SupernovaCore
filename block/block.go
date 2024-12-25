@@ -19,6 +19,7 @@ import (
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	snbls "github.com/meterio/supernova/libs/bls"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -68,7 +69,7 @@ func MajorityTwoThird(voterNum, committeeSize uint32) bool {
 	return float64(voterNum) >= twoThirds
 }
 
-func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, committee *types.ValidatorSet) (bool, error) {
+func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, committee *cmttypes.ValidatorSet) (bool, error) {
 	committeeSize := uint32(committee.Size())
 	if b == nil {
 		// decode block to get qc
@@ -89,8 +90,15 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 
 	pubkeys := make([]bls.PublicKey, 0)
 	for index, v := range committee.Validators {
-		if escortQC.BitArray.GetIndex(index) {
-			pubkeys = append(pubkeys, v.PubKey)
+		if v.PubKey.Type() == "bls12_381" {
+			if escortQC.BitArray.GetIndex(index) {
+				cmnPubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+				if err != nil {
+					// FIXME: implement this
+					panic("unsupported pubkey type")
+				}
+				pubkeys = append(pubkeys, cmnPubkey)
+			}
 		}
 	}
 	sig, err := bls.SignatureFromBytes(escortQC.AggSig)

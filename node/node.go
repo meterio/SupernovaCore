@@ -137,7 +137,8 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
 
-	blsMaster := types.NewBlsMasterWithSecretBytes(privValidator.Key.PrivKey.Bytes())
+	privValidator.Key.PubKey.Bytes()
+	blsMaster := types.NewBlsMasterWithCometKeys(privValidator.Key.PrivKey, privValidator.Key.PubKey)
 
 	// set magic
 

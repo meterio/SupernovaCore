@@ -74,7 +74,7 @@ type caches struct {
 var log = slog.With("pkg", "c")
 
 // New create an instance of Chain.
-func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *types.ValidatorSet, verbose bool) (*Chain, error) {
+func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.ValidatorSet, verbose bool) (*Chain, error) {
 	prometheus.Register(bestQCHeightGauge)
 	prometheus.Register(bestHeightGauge)
 	logger := slog.With("pkg", "c")
@@ -829,7 +829,7 @@ func (c *Chain) RawBlocksCacheLen() int {
 	return c.caches.rawBlocks.Len()
 }
 
-func (c *Chain) GetBestNextValidatorSet() *types.ValidatorSet {
+func (c *Chain) GetBestNextValidatorSet() *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, c.bestBlock.NextValidatorsHash())
 	if err != nil {
 		fmt.Println("could not load next vset", "hash", c.bestBlock.NextValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
@@ -838,7 +838,7 @@ func (c *Chain) GetBestNextValidatorSet() *types.ValidatorSet {
 	return vset
 }
 
-func (c *Chain) GetBestValidatorSet() *types.ValidatorSet {
+func (c *Chain) GetBestValidatorSet() *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, c.bestBlock.ValidatorsHash())
 	if err != nil {
 		c.logger.Warn("could not load vset", "hash", c.bestBlock.ValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
@@ -847,7 +847,7 @@ func (c *Chain) GetBestValidatorSet() *types.ValidatorSet {
 	return vset
 }
 
-func (c *Chain) GetValidatorSet(num uint32) *types.ValidatorSet {
+func (c *Chain) GetValidatorSet(num uint32) *cmttypes.ValidatorSet {
 	hash, err := loadBlockHash(c.kv, num)
 	if err != nil {
 		return nil
@@ -864,7 +864,7 @@ func (c *Chain) GetValidatorSet(num uint32) *types.ValidatorSet {
 }
 
 // FIXME: should add cache
-func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *types.ValidatorSet {
+func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, hash)
 	if err != nil {
 		return nil
@@ -872,7 +872,7 @@ func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *types.ValidatorSet 
 	return vset
 }
 
-func (c *Chain) GetNextValidatorSet(num uint32) *types.ValidatorSet {
+func (c *Chain) GetNextValidatorSet(num uint32) *cmttypes.ValidatorSet {
 	hash, err := loadBlockHash(c.kv, num)
 	if err != nil {
 		return nil
@@ -888,7 +888,7 @@ func (c *Chain) GetNextValidatorSet(num uint32) *types.ValidatorSet {
 	return vset
 }
 
-func (c *Chain) SaveValidatorSet(vset *types.ValidatorSet) {
+func (c *Chain) SaveValidatorSet(vset *cmttypes.ValidatorSet) {
 	err := saveValidatorSet(c.kv, vset)
 	if err != nil {
 		panic(err)
@@ -951,7 +951,7 @@ func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
 	votes := make([]abci.VoteInfo, vset.Size())
 	for i := 0; i < votesSize; i++ {
 		if qc.BitArray.GetIndex(i) {
-			v := vset.GetByIndex(i)
+			_, v := vset.GetByIndex(int32(i))
 			votes[i] = abci.VoteInfo{
 				Validator:   abci.Validator{Address: v.Address.Bytes(), Power: int64(v.VotingPower)},
 				BlockIdFlag: cmtproto.BlockIDFlagCommit,

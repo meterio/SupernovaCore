@@ -12,53 +12,45 @@ import (
 	"fmt"
 	"io"
 
+	cmtcrypto "github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 type BlsMaster struct {
-	PrivKey bls.SecretKey //my private key
-	PubKey  bls.PublicKey //my public key
-
+	PrivKey    bls.SecretKey //my private key
+	PubKey     bls.PublicKey //my public key
+	CmtPrivKey cmtcrypto.PrivKey
+	CmtPubKey  cmtcrypto.PubKey
 }
 
 func NewBlsMasterWithRandKey() *BlsMaster {
-	secretKey, err := bls.RandKey()
-	if err != nil {
-		return nil
-	}
-	return &BlsMaster{
-		PrivKey: secretKey,
-		PubKey:  secretKey.PublicKey(),
-	}
-}
-
-func NewBlsMasterWithSecretBytes(secretBytes []byte) *BlsMaster {
-	secret, err := bls.SecretKeyFromBytes(secretBytes)
+	cmtPrivKey, err := bls12381.GenPrivKey()
 	if err != nil {
 		panic(err)
 	}
-	pubkey := secret.PublicKey()
+	cmtPubKey := cmtPrivKey.PubKey()
+	return NewBlsMasterWithCometKeys(cmtPrivKey, cmtPubKey)
+}
+
+func NewBlsMasterWithCometKeys(cmtPrivKey cmtcrypto.PrivKey, cmtPubKey cmtcrypto.PubKey) *BlsMaster {
+	secretBytes := cmtPrivKey.Bytes()
+	blsPrivKey, err := bls.SecretKeyFromBytes(secretBytes)
+	if err != nil {
+		panic(err)
+	}
+	blsPubKey := blsPrivKey.PublicKey()
 
 	bm := &BlsMaster{
-		PrivKey: secret,
-		PubKey:  pubkey,
+		PrivKey:    blsPrivKey,
+		PubKey:     blsPubKey,
+		CmtPrivKey: cmtPrivKey,
+		CmtPubKey:  cmtPubKey,
 	}
 	validated := bm.ValidateKeyPair()
 	if !validated {
 		panic("invalid bls secret")
-	}
-	return bm
-}
-
-func NewBlsMaster(privKey bls.SecretKey, pubKey bls.PublicKey) *BlsMaster {
-	bm := &BlsMaster{
-		PrivKey: privKey,
-		PubKey:  pubKey,
-	}
-	validated := bm.ValidateKeyPair()
-	if !validated {
-		panic("invalid bls key pairs")
 	}
 	return bm
 }

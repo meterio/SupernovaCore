@@ -6,12 +6,8 @@
 package genesis
 
 import (
-	"fmt"
-	"net/netip"
-
-	"github.com/ethereum/go-ethereum/common"
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
-	snbls "github.com/meterio/supernova/libs/bls"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -22,7 +18,7 @@ type Builder struct {
 	timestamp uint64
 
 	extraData [28]byte
-	vset      *types.ValidatorSet
+	vset      *cmttypes.ValidatorSet
 }
 
 // Timestamp set timestamp.
@@ -48,37 +44,22 @@ func (b *Builder) ComputeID() (types.Bytes32, error) {
 }
 
 func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
-	vs := make([]*types.Validator, 0)
+	vs := make([]*cmttypes.Validator, 0)
 
 	for _, v := range gdoc.Validators {
-		pubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
-		if err != nil {
-			panic(fmt.Errorf(`Could not decode pubkey: %v`, err))
-		}
-		// FIXME: default set to 127.0.0.1
-		IP := v.IP
-		Port := uint32(v.Port)
-		if IP == "" {
-			IP = "127.0.0.1"
-		}
-		if Port == 0 {
-			Port = 8670
-		}
 
-		vs = append(vs, &types.Validator{
-			Name:    v.Name,
-			Address: common.Address(v.PubKey.Address()),
-			PubKey:  pubkey,
-			IP:      netip.MustParseAddr(IP),
-			Port:    Port,
+		vs = append(vs, &cmttypes.Validator{
+			Address:     v.Address,
+			PubKey:      v.PubKey,
+			VotingPower: v.Power,
 		})
 	}
-	b.vset = types.NewValidatorSet(vs)
+	b.vset = cmttypes.NewValidatorSet(vs)
 	b.timestamp = uint64(gdoc.GenesisTime.Unix())
 	return b
 }
 
-func (b *Builder) ValidatorSet() *types.ValidatorSet {
+func (b *Builder) ValidatorSet() *cmttypes.ValidatorSet {
 	return b.vset
 }
 

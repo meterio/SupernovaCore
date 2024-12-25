@@ -231,7 +231,7 @@ func (h *Handshaker) replayBlocks(
 }
 
 // ApplyBlock on the proxyApp with the last block.
-func (h *Handshaker) replayBlock(height int64, proxyApp proxy.AppConnConsensus) ([]byte, *types.ValidatorSet, error) {
+func (h *Handshaker) replayBlock(height int64, proxyApp proxy.AppConnConsensus) ([]byte, *cmttypes.ValidatorSet, error) {
 	block, err := h.chain.GetTrunkBlock(uint32(height))
 	if err != nil {
 		return nil, nil, err

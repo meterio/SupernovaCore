@@ -6,20 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/netip"
 	"strconv"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
+	"github.com/cometbft/cometbft/crypto/bls12381"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/types"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
+	cmn "github.com/meterio/supernova/libs/common"
 )
 
 var (
@@ -47,13 +46,14 @@ func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int) 
 	evSize := int64(0)
 	vset := e.chain.GetValidatorsByHash(parent.ProposedBlock.NextValidatorsHash())
 	maxDataBytes := cmttypes.MaxDataBytes(maxBytes, evSize, vset.Size())
+	proposerAddr, _ := vset.GetByIndex(int32(proposerIndex))
 	return e.proxyApp.PrepareProposal(context.TODO(), &v1.PrepareProposalRequest{
 		MaxTxBytes:         maxDataBytes,
 		Height:             int64(parent.Height) + 1,
 		Time:               time.Now(),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		NextValidatorsHash: parent.ProposedBlock.NextValidatorsHash(),
-		ProposerAddress:    vset.GetByIndex(proposerIndex).Address.Bytes(),
+		ProposerAddress:    proposerAddr,
 	})
 }
 
@@ -64,6 +64,7 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 		parentDraft := e.chain.GetDraft(blk.ParentID())
 		parent = parentDraft.ProposedBlock
 	}
+	proposerAddr, _ := vset.GetByIndex(int32(blk.ProposerIndex()))
 	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{
 		Hash:               blk.ID().Bytes(),
 		Height:             int64(blk.Number()),
@@ -71,7 +72,7 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 		Txs:                blk.Txs.Convert(),
 		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
-		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
+		ProposerAddress:    proposerAddr,
 		NextValidatorsHash: blk.NextValidatorsHash(),
 	})
 
@@ -111,7 +112,7 @@ func validateBlock(b *block.Block) error {
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func (e *Executor) ApplyBlock(block *block.Block, syncingToHeight int64) ([]byte, *types.ValidatorSet, error) {
+func (e *Executor) ApplyBlock(block *block.Block, syncingToHeight int64) ([]byte, *cmttypes.ValidatorSet, error) {
 	if err := validateBlock(block); err != nil {
 		return make([]byte, 0), nil, ErrInvalidBlock
 	}
@@ -119,17 +120,18 @@ func (e *Executor) ApplyBlock(block *block.Block, syncingToHeight int64) ([]byte
 	return e.applyBlock(block, syncingToHeight)
 }
 
-func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash []byte, nxtVSet *types.ValidatorSet, err error) {
+func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash []byte, nxtVSet *cmttypes.ValidatorSet, err error) {
 	vset := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
 	parent, err := e.chain.GetBlock(blk.ParentID())
 	if err != nil {
 		parentDraft := e.chain.GetDraft(blk.ParentID())
 		parent = parentDraft.ProposedBlock
 	}
+	proposerAddr, _ := vset.GetByIndex(int32(blk.ProposerIndex()))
 	abciResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.FinalizeBlockRequest{
 		Hash:               blk.ID().Bytes(),
 		NextValidatorsHash: blk.Header().NextValidatorsHash,
-		ProposerAddress:    vset.GetByIndex(int(blk.ProposerIndex())).Address.Bytes(),
+		ProposerAddress:    proposerAddr,
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(int64(blk.Timestamp()), 0),
 		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent),
@@ -164,11 +166,11 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 	return
 }
 
-func calcNewValidatorSet(vset *types.ValidatorSet, updates abcitypes.ValidatorUpdates, events []abcitypes.Event) (nxtVSet *types.ValidatorSet) {
+func calcNewValidatorSet(vset *cmttypes.ValidatorSet, updates abcitypes.ValidatorUpdates, events []abcitypes.Event) (nxtVSet *cmttypes.ValidatorSet) {
 	if updates.Len() <= 0 {
 		return
 	}
-	nxtVSet = vset.Copy()
+	nxtVSetAdapter := cmn.NewValidatorSetAdapter(vset)
 
 	veMap := make(map[string]validatorExtra)
 	for _, ev := range events {
@@ -192,51 +194,36 @@ func calcNewValidatorSet(vset *types.ValidatorSet, updates abcitypes.ValidatorUp
 		}
 	}
 	for _, update := range updates {
-		pubkey, err := bls.PublicKeyFromBytes(update.PubKeyBytes)
-		pubkeyHex := hex.EncodeToString(update.PubKeyBytes)
+		pubkey, err := bls12381.NewPublicKeyFromBytes(update.PubKeyBytes)
 		if err != nil {
 			panic(err)
 		}
 		if update.Power == 0 {
-			nxtVSet.DeleteByPubkey(pubkey)
+			nxtVSetAdapter.DeleteByPubkey(update.PubKeyBytes)
 		} else {
-			v := nxtVSet.GetByPubkey(pubkey)
+			v := nxtVSetAdapter.GetByPubkey(update.PubKeyBytes)
 
 			if v == nil {
-				v = &types.Validator{PubKey: pubkey, VotingPower: uint64(update.Power)}
+				v = &cmttypes.Validator{PubKey: pubkey, VotingPower: update.Power}
 			}
 
-			if ve, existed := veMap[pubkeyHex]; existed {
-				v.IP, err = netip.ParseAddr(ve.IP)
-				if err != nil {
-					continue
-				}
-				if ve.Port != 0 {
-					v.Port = uint32(ve.Port)
-				}
-				if ve.Name != "" {
-					v.Name = ve.Name
-				}
-				v.Address = common.Address{}
-			}
-
-			v.VotingPower = uint64(update.Power)
-			nxtVSet.Upsert(v)
+			v.VotingPower = update.Power
+			nxtVSetAdapter.Upsert(v)
 		}
 	}
 	return
 }
 
-func CalcAddedValidators(curVSet, nxtVSet *types.ValidatorSet) (added []*types.Validator) {
+func CalcAddedValidators(curVSet, nxtVSet *cmttypes.ValidatorSet) (added []*cmttypes.Validator) {
 	if nxtVSet == nil {
 		return
 	}
 	visited := make(map[string]bool)
 	for _, v := range curVSet.Validators {
-		visited[hex.EncodeToString(v.PubKey.Marshal())] = true
+		visited[hex.EncodeToString(v.PubKey.Bytes())] = true
 	}
 	for _, v := range nxtVSet.Validators {
-		if _, exist := visited[hex.EncodeToString(v.PubKey.Marshal())]; !exist {
+		if _, exist := visited[hex.EncodeToString(v.PubKey.Bytes())]; !exist {
 			added = append(added, v)
 		}
 	}

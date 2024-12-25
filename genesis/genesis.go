@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"strconv"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
 )
@@ -21,7 +22,7 @@ const (
 type Genesis struct {
 	builder *Builder
 	id      types.Bytes32
-	vset    *types.ValidatorSet
+	vset    *cmttypes.ValidatorSet
 
 	ChainId uint64
 	Name    string
@@ -55,7 +56,7 @@ func (g *Genesis) ID() types.Bytes32 {
 	return g.id
 }
 
-func (g *Genesis) ValidatorSet() *types.ValidatorSet {
+func (g *Genesis) ValidatorSet() *cmttypes.ValidatorSet {
 	return g.vset
 }
 

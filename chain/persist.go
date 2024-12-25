@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 
 	db "github.com/cometbft/cometbft-db"
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
@@ -200,7 +201,7 @@ func loadBestQC(r db.DB) (*block.QuorumCert, error) {
 }
 
 // saveBestQC save the best qc
-func saveValidatorSet(w db.DB, vset *types.ValidatorSet) error {
+func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 	batch := w.NewBatch()
 	err := saveRLP(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
 	if err != nil {
@@ -210,10 +211,10 @@ func saveValidatorSet(w db.DB, vset *types.ValidatorSet) error {
 }
 
 // loadBestQC load the best qc
-func loadValidatorSet(r db.DB, vhash []byte) (*types.ValidatorSet, error) {
-	var vs []*types.Validator
+func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
+	var vs []*cmttypes.Validator
 	if err := loadRLP(r, append(validatorPrefix, vhash...), &vs); err != nil {
 		return nil, err
 	}
-	return types.NewValidatorSet(vs), nil
+	return cmttypes.NewValidatorSet(vs), nil
 }

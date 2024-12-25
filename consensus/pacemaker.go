@@ -19,6 +19,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/comm"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 )
@@ -45,7 +46,7 @@ type Pacemaker struct {
 	// it changes
 	epochState      *EpochState
 	nextEpochState  *EpochState
-	addedValidators []*types.Validator
+	addedValidators []*cmttypes.Validator
 	pv              *privval.FilePV
 	currentRound    uint32
 	roundStartedAt  time.Time
@@ -98,7 +99,7 @@ func NewPacemaker(version string, c *chain.Chain, txpool *txpool.TxPool, communi
 		roundMutex:      sync.Mutex{},
 		broadcastCh:     make(chan *block.PMProposalMessage, 4),
 		newTxCh:         txpool.GetNewTxFeed(),
-		addedValidators: make([]*types.Validator, 0),
+		addedValidators: make([]*cmttypes.Validator, 0),
 
 		timeoutCounter:       0,
 		lastOnBeatRound:      -1,
@@ -561,7 +562,7 @@ func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
 	// if p.epochState != nil && leaf.Number() != 0 && leaf.Epoch() == p.epochState.epoch {
 	// 	return false
 	// }
-	epochState, err := NewEpochState(p.chain, leaf, p.blsMaster.PubKey)
+	epochState, err := NewEpochState(p.chain, leaf, p.blsMaster.CmtPubKey)
 	if err != nil {
 		p.logger.Info("could not create epoch state", "err", err)
 		return false
@@ -575,11 +576,9 @@ func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
 	p.logger.Info(fmt.Sprintf("Entered epoch %d", epochState.epoch))
 	p.logger.Info("---------------------------------------------------------")
 	if epochState.InCommittee() {
-		me := epochState.GetValidatorByIndex(epochState.CommitteeIndex())
-		myAddr := me.IP
-		myName := me.Name
+		addr, me := epochState.GetValidatorByIndex(epochState.CommitteeIndex())
 
-		p.logger.Info("I'm IN committee !!!", "myName", myName, "myIP", myAddr.String())
+		p.logger.Info("I'm IN committee !!!", "myAddr", hex.EncodeToString(addr), "myPubkey", hex.EncodeToString(me.PubKey.Bytes()))
 		inCommitteeGauge.Set(1)
 		pmRoleGauge.Set(1) // validator
 	} else {
@@ -631,7 +630,7 @@ func (p *Pacemaker) Regulate() {
 	p.QCHigh = qcInit
 	p.chain.AddDraft(bestNode)
 
-	p.addedValidators = make([]*types.Validator, 0)
+	p.addedValidators = make([]*cmttypes.Validator, 0)
 	p.currentRound = 0
 	p.enterRound(actualRound, RegularRound)
 	p.scheduleOnBeat(p.epochState.epoch, actualRound)
@@ -775,10 +774,10 @@ func (p *Pacemaker) enterRound(round uint32, rtype roundType) bool {
 	proposer := p.epochState.getRoundProposer(round)
 
 	if restart {
-		p.logger.Info(fmt.Sprintf("E:%d, Round:%d restart", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("E:%d, Round:%d restart", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", cmn.ValidatorName(proposer), "interval", types.PrettyDuration(interval))
 	} else {
 		p.logger.Info("---------------------------------------------------------")
-		p.logger.Info(fmt.Sprintf("E:%d, Round:%d start", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", proposer.NameAndIP(), "interval", types.PrettyDuration(interval))
+		p.logger.Info(fmt.Sprintf("E:%d, Round:%d start", p.epochState.epoch, p.currentRound), "lastRound", oldRound, "type", rtype.String(), "proposer", cmn.ValidatorName(proposer), "interval", types.PrettyDuration(interval))
 	}
 	pmRoundGauge.Set(float64(p.currentRound))
 	return true

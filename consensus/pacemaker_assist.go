@@ -15,6 +15,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
+	snbls "github.com/meterio/supernova/libs/bls"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -111,11 +112,6 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	return nil
 }
 
-func (p *Pacemaker) getProposerByRound(round uint32) *ConsensusPeer {
-	proposer := p.epochState.getRoundProposer(round)
-	return NewConsensusPeer(proposer.Name, proposer.IP.String())
-}
-
 func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 	if tc != nil {
 		voteHash := BuildTimeoutVotingHash(tc.Epoch, tc.Round)
@@ -138,8 +134,14 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 
 		// check signature
 		for index, v := range p.epochState.committee.Validators {
+			cmnPubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+			if err != nil {
+				// FIXME: better handling
+				continue
+			}
+
 			if tc.BitArray.GetIndex(index) {
-				pubkeys = append(pubkeys, v.PubKey)
+				pubkeys = append(pubkeys, cmnPubkey)
 			}
 		}
 		aggrSig, err := bls.SignatureFromBytes(tc.AggSig)
@@ -160,7 +162,7 @@ func (p *Pacemaker) amIRoundProproser(round uint32) bool {
 	if proposer == nil || proposer.PubKey == nil {
 		return false
 	}
-	return bytes.Equal(proposer.PubKey.Marshal(), p.blsMaster.PubKey.Marshal())
+	return bytes.Equal(proposer.PubKey.Bytes(), p.blsMaster.PubKey.Marshal())
 }
 
 func (p *Pacemaker) SignMessage(msg block.ConsensusMessage) {
