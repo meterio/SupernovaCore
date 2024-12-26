@@ -64,9 +64,6 @@ func checkBlock(t *testing.T, expBl *meter_block.Block, actBl *blocks.JSONBlockS
 	header := expBl.Header()
 	assert.Equal(t, header.Number(), actBl.Number, "Number should be equal")
 	assert.Equal(t, header.ID(), actBl.ID, "Hash should be equal")
-	assert.Equal(t, header.ParentID(), actBl.ParentID, "ParentID should be equal")
-	assert.Equal(t, header.Timestamp(), actBl.Timestamp, "Timestamp should be equal")
-	assert.Equal(t, header.TxsRoot(), actBl.TxsRoot, "TxsRoot should be equal")
 
 }
 

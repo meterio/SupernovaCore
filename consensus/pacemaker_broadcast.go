@@ -68,5 +68,5 @@ func (p *Pacemaker) OnBroadcastProposal() {
 		return
 	}
 
-	p.sendMsg(proposalMsg, true)
+	p.Broadcast(proposalMsg)
 }

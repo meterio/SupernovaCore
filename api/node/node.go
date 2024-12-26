@@ -13,45 +13,27 @@ import (
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
-	"github.com/meterio/supernova/libs/comm"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 )
 
 type Node struct {
 	version string
 	chainId uint64
-	comm    *comm.Communicator
+	p2pSrv  p2p.P2P
 	Cons    *consensus.Reactor
 	Chain   *chain.Chain
 	pubkey  string
 }
 
-func New(version string, chainId uint64, comm *comm.Communicator, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
+func New(version string, chainId uint64, p2pSrv p2p.P2P, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
 	return &Node{
 		version,
 		chainId,
-		comm,
+		p2pSrv,
 		cons,
 		c,
 		hex.EncodeToString(pubkey),
 	}
-}
-
-func (n *Node) PeersStats() []*PeerStats {
-	return ConvertPeersStats(n.comm.PeersStats())
-}
-
-func (n *Node) handlePeerStat(w http.ResponseWriter, req *http.Request) error {
-	return utils.WriteJSON(w, n.PeersStats())
-}
-
-func (n *Node) handlePeers(w http.ResponseWriter, req *http.Request) error {
-	peers := n.comm.GetPeers()
-	result := make([]*Peer, 0)
-	for _, p := range peers {
-		peer := convertPeer(p)
-		result = append(result, peer)
-	}
-	return utils.WriteJSON(w, result)
 }
 
 func (n *Node) handleChainId(w http.ResponseWriter, req *http.Request) error {
@@ -94,11 +76,8 @@ func (n *Node) handleProbe(w http.ResponseWriter, r *http.Request) error {
 func (n *Node) Mount(root *mux.Router, pathPrefix string) {
 	sub := root.PathPrefix(pathPrefix).Subrouter()
 
-	sub.Path("/peerstat").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeerStat))
-	sub.Path("/peers").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handlePeers))
 	sub.Path("/chainid").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleChainId))
 	sub.Path("/version").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleVersion))
 	sub.Path("/probe").Methods("Get").HandlerFunc(utils.WrapHandlerFunc(n.handleProbe))
-	sub.Path("/msg").Methods("Post").HandlerFunc(n.Cons.OnReceiveMsg)
 
 }

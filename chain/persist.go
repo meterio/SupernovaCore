@@ -7,6 +7,7 @@ package chain
 
 import (
 	"encoding/binary"
+	"encoding/json"
 
 	db "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -60,6 +61,22 @@ func loadRLP(r db.DB, key []byte, val interface{}) error {
 		return err
 	}
 	return rlp.DecodeBytes(data, val)
+}
+
+func saveJSON(w db.Batch, key []byte, val interface{}) error {
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	return w.Set(key, data)
+}
+
+func loadJSON(r db.DB, key []byte, val interface{}) error {
+	data, err := r.Get(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &val)
 }
 
 // loadBestBlockID returns the best block ID on trunk.
@@ -203,7 +220,7 @@ func loadBestQC(r db.DB) (*block.QuorumCert, error) {
 // saveBestQC save the best qc
 func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 	batch := w.NewBatch()
-	err := saveRLP(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
+	err := saveJSON(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
 	if err != nil {
 		return err
 	}
@@ -213,7 +230,7 @@ func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 // loadBestQC load the best qc
 func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
 	var vs []*cmttypes.Validator
-	if err := loadRLP(r, append(validatorPrefix, vhash...), &vs); err != nil {
+	if err := loadJSON(r, append(validatorPrefix, vhash...), &vs); err != nil {
 		return nil, err
 	}
 	return cmttypes.NewValidatorSet(vs), nil

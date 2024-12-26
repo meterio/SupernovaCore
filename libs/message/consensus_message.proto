@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package message;
+
+option go_package = "github.com/meterio/supernova/libs/message;message";
+
+message ConsensusEnvelope {
+    bytes raw = 1;
+    bytes senderAddr = 2; 
+}

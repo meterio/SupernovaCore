@@ -21,8 +21,8 @@ import (
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/txpool"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 )
 
 type APIServer struct {
@@ -31,7 +31,7 @@ type APIServer struct {
 }
 
 // New return api router
-func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, comm *comm.Communicator) *APIServer {
+func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chain.Chain, txPool *txpool.TxPool, cons *consensus.Reactor, pubkey []byte, p2pSrv p2p.P2P) *APIServer {
 	router := mux.NewRouter()
 
 	// to serve api doc and swagger-ui
@@ -50,7 +50,7 @@ func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chai
 
 	blocks.New(chain).
 		Mount(router, "/blocks")
-	node.New(version, chainId, comm, cons, chain, pubkey).
+	node.New(version, chainId, p2pSrv, cons, chain, pubkey).
 		Mount(router, "/node")
 
 	return &APIServer{

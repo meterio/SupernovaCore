@@ -7,18 +7,18 @@ import (
 	"errors"
 	"log"
 
+	"github.com/cockroachdb/pebble"
 	abcitypes "github.com/cometbft/cometbft/abci/types"
-	"github.com/dgraph-io/badger/v4"
 )
 
 type KVStoreApplication struct {
-	db           *badger.DB
-	onGoingBlock *badger.Txn
+	db           *pebble.DB
+	onGoingBatch *pebble.Batch
 }
 
 var _ abcitypes.Application = (*KVStoreApplication)(nil)
 
-func NewKVStoreApplication(db *badger.DB) *KVStoreApplication {
+func NewKVStoreApplication(db *pebble.DB) *KVStoreApplication {
 	return &KVStoreApplication{db: db}
 }
 
@@ -28,7 +28,6 @@ func (app *KVStoreApplication) isValid(tx []byte) uint32 {
 	if len(parts) != 2 {
 		return 1
 	}
-
 	return 0
 }
 
@@ -39,25 +38,19 @@ func (app *KVStoreApplication) Info(_ context.Context, info *abcitypes.InfoReque
 func (app *KVStoreApplication) Query(_ context.Context, req *abcitypes.QueryRequest) (*abcitypes.QueryResponse, error) {
 	resp := abcitypes.QueryResponse{Key: req.Data}
 
-	dbErr := app.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(req.Data)
-		if err != nil {
-			if !errors.Is(err, badger.ErrKeyNotFound) {
-				return err
-			}
+	value, closer, err := app.db.Get(req.Data)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
 			resp.Log = "key does not exist"
-			return nil
+		} else {
+			log.Panicf("Error reading database, unable to execute query: %v", err)
 		}
-
-		return item.Value(func(val []byte) error {
-			resp.Log = "exists"
-			resp.Value = val
-			return nil
-		})
-	})
-	if dbErr != nil {
-		log.Panicf("Error reading database, unable to execute query: %v", dbErr)
+		return &resp, nil
 	}
+	defer closer.Close()
+
+	resp.Log = "exists"
+	resp.Value = value
 	return &resp, nil
 }
 
@@ -83,7 +76,9 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 	var updates = make([]abcitypes.ValidatorUpdate, 0)
 	var events = make([]abcitypes.Event, 0)
 
-	app.onGoingBlock = app.db.NewTransaction(true)
+	app.onGoingBatch = app.db.NewBatch()
+	defer app.onGoingBatch.Close()
+
 	for i, tx := range req.Txs {
 		if code := app.isValid(tx); code != 0 {
 			log.Printf("Error: invalid transaction index %v", i)
@@ -93,14 +88,12 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 			key, value := parts[0], parts[1]
 			log.Printf("Adding key %s with value %s", key, value)
 
-			if err := app.onGoingBlock.Set(key, value); err != nil {
+			if err := app.onGoingBatch.Set(key, value, pebble.Sync); err != nil {
 				log.Panicf("Error writing to database, unable to execute tx: %v", err)
 			}
 
 			log.Printf("Successfully added key %s with value %s", key, value)
 
-			// Add an event for the transaction execution.
-			// Multiple events can be emitted for a transaction, but we are adding only one event
 			txs[i] = &abcitypes.ExecTxResult{
 				Code: 0,
 				Events: []abcitypes.Event{
@@ -127,10 +120,10 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 		events = append(events, abcitypes.Event{
 			Type: "ValidatorExtra",
 			Attributes: []abcitypes.EventAttribute{
-				abcitypes.EventAttribute{Key: "pubkey", Value: nova2PubkeyHex},
-				abcitypes.EventAttribute{Key: "name", Value: "nova-2"},
-				abcitypes.EventAttribute{Key: "ip", Value: "52.22.222.17"},
-				abcitypes.EventAttribute{Key: "port", Value: "8670"},
+				{Key: "pubkey", Value: nova2PubkeyHex},
+				{Key: "name", Value: "nova-2"},
+				{Key: "ip", Value: "52.22.222.17"},
+				{Key: "port", Value: "8670"},
 			},
 		})
 	}
@@ -143,6 +136,11 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 			PubKeyType:  "bls12-381.pubkey",
 		})
 	}
+
+	if err := app.onGoingBatch.Commit(pebble.Sync); err != nil {
+		log.Panicf("Failed to commit batch: %v", err)
+	}
+
 	return &abcitypes.FinalizeBlockResponse{
 		TxResults:        txs,
 		ValidatorUpdates: updates,
@@ -150,8 +148,9 @@ func (app *KVStoreApplication) FinalizeBlock(_ context.Context, req *abcitypes.F
 	}, nil
 }
 
-func (app KVStoreApplication) Commit(_ context.Context, commit *abcitypes.CommitRequest) (*abcitypes.CommitResponse, error) {
-	return &abcitypes.CommitResponse{}, app.onGoingBlock.Commit()
+func (app *KVStoreApplication) Commit(_ context.Context, commit *abcitypes.CommitRequest) (*abcitypes.CommitResponse, error) {
+	// PebbleDB batches are committed in FinalizeBlock, so nothing to do here
+	return &abcitypes.CommitResponse{}, nil
 }
 
 func (app *KVStoreApplication) ListSnapshots(_ context.Context, snapshots *abcitypes.ListSnapshotsRequest) (*abcitypes.ListSnapshotsResponse, error) {
@@ -170,7 +169,7 @@ func (app *KVStoreApplication) ApplySnapshotChunk(_ context.Context, chunk *abci
 	return &abcitypes.ApplySnapshotChunkResponse{Result: abcitypes.APPLY_SNAPSHOT_CHUNK_RESULT_ACCEPT}, nil
 }
 
-func (app KVStoreApplication) ExtendVote(_ context.Context, extend *abcitypes.ExtendVoteRequest) (*abcitypes.ExtendVoteResponse, error) {
+func (app *KVStoreApplication) ExtendVote(_ context.Context, extend *abcitypes.ExtendVoteRequest) (*abcitypes.ExtendVoteResponse, error) {
 	return &abcitypes.ExtendVoteResponse{}, nil
 }
 

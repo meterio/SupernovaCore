@@ -63,7 +63,8 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 
 	p.lastCommitted = blk
 	// broadcast the new block to all peers
-	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
+
+	// p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus
 
 	if blk.IsKBlock() {

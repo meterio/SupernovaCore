@@ -10,50 +10,16 @@ package consensus
 // 2. send messages to peer
 
 import (
+	"context"
 	sha256 "crypto/sha256"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
+	snmsg "github.com/meterio/supernova/libs/message"
 	"github.com/meterio/supernova/types"
 )
-
-func (p *Pacemaker) sendMsg(msg block.ConsensusMessage, copyMyself bool) bool {
-	myNetAddr := p.getMyNetAddr()
-	myName := p.getMyName()
-	myself := NewConsensusPeer(myName, myNetAddr.IP.String())
-
-	round := msg.GetRound()
-
-	peers := make([]*ConsensusPeer, 0)
-	switch msg.(type) {
-	case *block.PMProposalMessage:
-		peers = p.epochState.GetRelayPeers(round)
-	case *block.PMVoteMessage:
-		nxtProposer := p.getProposerByRound(round + 1)
-		peers = append(peers, nxtProposer)
-	case *block.PMTimeoutMessage:
-		nxtProposer := p.getProposerByRound(round)
-		peers = append(peers, nxtProposer)
-	}
-
-	myselfInPeers := myself == nil
-	for _, p := range peers {
-		if p.IP == myNetAddr.IP.String() {
-			myselfInPeers = true
-			break
-		}
-	}
-	// send consensus message to myself first (except for PMNewViewMessage)
-	if copyMyself && !myselfInPeers {
-		p.Send(msg, myself)
-	}
-
-	p.Send(msg, peers...)
-	return true
-}
 
 func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.DraftBlock, tc *types.TimeoutCert) (*block.PMProposalMessage, error) {
 	raw, err := rlp.EncodeToBytes(bnew.ProposedBlock)
@@ -166,37 +132,65 @@ func (p *Pacemaker) BuildQueryMessage() (*block.PMQueryMessage, error) {
 	return msg, nil
 }
 
-func (p *Pacemaker) getMyNetAddr() *types.NetAddress {
-	me := p.epochState.GetMyself()
-	if me == nil {
-		return &types.NetAddress{IP: net.IP{}, Port: 0}
-	}
-	return types.NewNetAddressFromNetIP(me.IP, me.Port)
-}
-
-func (p *Pacemaker) getMyName() string {
-	me := p.epochState.GetMyself()
-	if me == nil {
-		return "unknown"
-	}
-	return me.Name
-}
-
-func (p *Pacemaker) isMe(peer *ConsensusPeer) bool {
-	me := p.epochState.GetMyself()
-	return me != nil && me.IP.String() == peer.IP
-}
-
-func (p *Pacemaker) Send(msg block.ConsensusMessage, peers ...*ConsensusPeer) {
-	rawMsg, err := p.MarshalMsg(msg)
+func (p *Pacemaker) Broadcast(msg block.ConsensusMessage) {
+	rawMsg, err := block.EncodeMsg(msg)
 	if err != nil {
 		p.logger.Warn("could not marshal msg", "err", err)
 		return
 	}
+	me := p.epochState.GetMyself()
+	pbMsg := &snmsg.ConsensusEnvelope{Raw: rawMsg, SenderAddr: me.Address}
+	p.p2pSrv.Broadcast(context.TODO(), pbMsg)
+}
 
-	if len(peers) > 0 {
-		for _, peer := range peers {
-			outQueue.Add(*peer, msg, rawMsg, false)
+func (p *Pacemaker) AddIncoming(mi IncomingMsg) {
+	msg, senderAddr := mi.Msg, mi.SenderAddr
+
+	if msg.GetEpoch() < p.epochState.epoch {
+		p.logger.Info(fmt.Sprintf("outdated %s, dropped ...", msg.String()), "sender", senderAddr)
+		return
+	}
+
+	if msg.GetEpoch() == p.epochState.epoch {
+		signerIndex := msg.GetSignerIndex()
+		if signerIndex >= p.epochState.CommitteeSize() {
+			p.logger.Warn("index out of range for signer, dropped ...", "sender", senderAddr, "msg", msg.GetType())
+			return
 		}
+		_, signer := p.epochState.GetValidatorByIndex(int(signerIndex))
+
+		if !msg.VerifyMsgSignature(signer.PubKey) {
+			p.logger.Error("invalid signature, dropped ...", "senderAddr", senderAddr, "msg", msg.String(), "signer", signer.Address)
+			return
+		}
+	}
+
+	// sanity check for messages
+	switch m := msg.(type) {
+	case *block.PMProposalMessage:
+		blk := m.DecodeBlock()
+		if blk == nil {
+			p.logger.Error("Invalid PMProposal: could not decode proposed block")
+			return
+		}
+
+	case *block.PMTimeoutMessage:
+		qcHigh := m.DecodeQCHigh()
+		if qcHigh == nil {
+			p.logger.Error("Invalid QCHigh: could not decode qcHigh")
+		}
+	}
+
+	if msg.GetEpoch() == p.epochState.epoch {
+		err := inQueue.Add(mi)
+		if err != nil {
+			return
+		}
+
+	} else {
+		time.AfterFunc(time.Second, func() {
+			p.logger.Info(fmt.Sprintf("future message %s in epoch %d, process after 1s ...", msg.GetType(), msg.GetEpoch()), "curEpoch", p.epochState.epoch)
+			p.AddIncoming(mi)
+		})
 	}
 }

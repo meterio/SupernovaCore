@@ -114,8 +114,10 @@ func RunNodeCmd() *cobra.Command {
 			InitLogger(config)
 			logger := cmtlog.NewTMLogger(cmtlog.NewSyncWriter(os.Stdout))
 			logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cmtcfg.DefaultLogLevel)
+
+			privValidator, _ := privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), nil)
 			node := node.NewNode(config,
-				privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
+				privValidator,
 				nodeKey,
 				proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
 				node.DefaultGenesisDocProviderFunc(config),

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
@@ -18,29 +19,25 @@ const (
 
 type IncomingMsg struct {
 	//Msg    block.ConsensusMessage
-	Msg          block.ConsensusMessage
-	Peer         ConsensusPeer
-	RawData      []byte
+	// from envelope
+	Msg        block.ConsensusMessage
+	SenderAddr common.Address
+
+	// extras
 	Hash         types.Bytes32
 	ShortHashStr string
-
-	// Signer *types.Validator
-	Signer ConsensusPeer
-
-	EnqueueAt time.Time
-	ExpireAt  time.Time
-
+	EnqueueAt    time.Time
+	ExpireAt     time.Time
 	ProcessCount uint32
 }
 
-func newIncomingMsg(msg block.ConsensusMessage, peer ConsensusPeer, rawData []byte) *IncomingMsg {
+func newIncomingMsg(msg block.ConsensusMessage, senderAddr common.Address) *IncomingMsg {
 	msgHash := msg.GetMsgHash()
 	// slog.Info("Incoming Msg", "msg", msg.String(), "msgHash", hex.EncodeToString(msgHash[:]), "rawData", hex.EncodeToString(rawData))
 	shortMsgHash := hex.EncodeToString(msgHash[:])[:8]
 	return &IncomingMsg{
 		Msg:          msg,
-		Peer:         peer,
-		RawData:      rawData,
+		SenderAddr:   senderAddr,
 		Hash:         msgHash,
 		ShortHashStr: shortMsgHash,
 
@@ -102,10 +99,10 @@ func (q *IncomingQueue) Add(mi IncomingMsg) error {
 	// instead of drop the latest message, drop the oldest one in front of queue
 	for len(q.queue) >= cap(q.queue) {
 		dropped := <-q.queue
-		q.logger.Warn(fmt.Sprintf("dropped %s due to cap", dropped.Msg.String()), "from", dropped.Peer.String())
+		q.logger.Warn(fmt.Sprintf("dropped %s due to cap", dropped.Msg.String()), "from", dropped.SenderAddr.String())
 	}
 
-	q.logger.Info(fmt.Sprintf(`recv %s`, mi.Msg.String()), "from", mi.Peer.String(), "qlen", len(q.queue))
+	q.logger.Info(fmt.Sprintf(`recv %s`, mi.Msg.String()), "from", mi.SenderAddr, "qlen", len(q.queue))
 	mi.EnqueueAt = time.Now()
 	mi.ExpireAt = time.Now().Add(IN_QUEUE_TTL)
 	q.queue <- mi

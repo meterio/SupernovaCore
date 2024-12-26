@@ -21,15 +21,14 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
+	prysmp2p "github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/startup"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/meterio/supernova/api"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
@@ -100,6 +99,10 @@ type Node struct {
 	comm        *comm.Communicator
 	logger      *slog.Logger
 
+	mainDB      db.DB
+	clockWaiter startup.ClockWaiter
+	p2pSrv      p2p.P2P
+
 	proxyApp cmtproxy.AppConns
 }
 
@@ -158,27 +161,18 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 		panic(err)
 	}
 
-	var BootstrapNodes []*enode.Node
-	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235")) // nova-1
-	BootstrapNodes = append(BootstrapNodes, enode.MustParse("enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235"))
-	nodeKeyECDSA, _ := crypto.GenerateKey()
-	p2pCfg := p2p.Config{
-		Name:           types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
-		PrivateKey:     nodeKeyECDSA,
-		MaxPeers:       config.P2P.MaxNumInboundPeers,
-		ListenAddr:     "0.0.0.0:11235", // config.P2P.ListenAddress,
-		BootstrapNodes: BootstrapNodes,
-		NAT:            nat.Any(),
-		DiscoveryV4:    false,
-	}
-	comm := comm.NewCommunicator(ctx, chain, txPool, p2pMagic, p2pCfg, config.RootDir)
+	var BootstrapNodes []string
+	BootstrapNodes = append(BootstrapNodes, "enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235") // nova-1
+	BootstrapNodes = append(BootstrapNodes, "enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235")
 
-	reactor := consensus.NewConsensusReactor(config, chain, comm, txPool, blsMaster, proxyApp)
+	synchronizer := startup.NewClockSynchronizer()
+	p2pSrv := newP2PService(ctx, config, synchronizer, BootstrapNodes)
+	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
 
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8670"
-	apiServer := api.NewAPIServer(apiAddr, gene.ChainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), comm)
+	apiServer := api.NewAPIServer(apiAddr, gene.ChainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pSrv)
 
 	bestBlock := chain.BestBlock()
 
@@ -213,9 +207,10 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 		reactor:       reactor,
 		chain:         chain,
 		txPool:        txPool,
-		comm:          comm,
+		p2pSrv:        p2pSrv,
 		logger:        slog.With("pkg", "node"),
 		proxyApp:      proxyApp,
+		clockWaiter:   synchronizer,
 	}
 
 	return node
@@ -227,6 +222,39 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 	return proxyApp, nil
+}
+
+func newP2PService(ctx context.Context, config *cmtcfg.Config, clockWaiter *startup.ClockSynchronizer, bootstrapNodes []string) prysmp2p.P2P {
+	svc, err := prysmp2p.NewService(ctx, &prysmp2p.Config{
+		NoDiscovery: false,
+		// StaticPeers:          slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.StaticPeers.Name)),
+		Discv5BootStrapAddrs: prysmp2p.ParseBootStrapAddrs(bootstrapNodes),
+		// RelayNodeAddr:        cliCtx.String(cmd.RelayNode.Name),
+		DataDir: config.RootDir,
+		// LocalIP:              cliCtx.String(cmd.P2PIP.Name),
+		HostAddress: "0.0.0.0",
+
+		// HostDNS:      cliCtx.String(cmd.P2PHostDNS.Name),
+		PrivateKey:   "",
+		StaticPeerID: false,
+		// MetaDataDir:          cliCtx.String(cmd.P2PMetadata.Name),
+		QUICPort:  13000,
+		TCPPort:   13000,
+		UDPPort:   12000,
+		MaxPeers:  uint(config.P2P.MaxNumInboundPeers),
+		QueueSize: 1000,
+		// AllowListCIDR:        cliCtx.String(cmd.P2PAllowList.Name),
+		// DenyListCIDR:         slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.P2PDenyList.Name)),
+		// EnableUPnP:           cliCtx.Bool(cmd.EnableUPnPFlag.Name),
+		// StateNotifier: n,
+		// DB:            n.mainDB,
+		ClockWaiter: clockWaiter,
+	})
+	if err != nil {
+		return nil
+	}
+	go svc.Start()
+	return svc
 }
 
 func doHandshake(
@@ -256,8 +284,8 @@ func createAndStartEventBus(logger log.Logger) (*cmttypes.EventBus, error) {
 
 func (n *Node) Start() error {
 	n.logger.Info("Node Start")
-	n.comm.Start()
-	n.comm.Sync(n.handleBlockStream)
+	// n.comm.Start()
+	// n.comm.Sync(n.handleBlockStream)
 
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
@@ -328,7 +356,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	defer scope.Close()
 
 	newBlockCh := make(chan *comm.NewBlockEvent)
-	scope.Track(n.comm.SubscribeBlock(newBlockCh))
+	// scope.Track(n.comm.SubscribeBlock(newBlockCh))
 
 	futureTicker := time.NewTicker(time.Duration(types.BlockInterval) * time.Second)
 	defer futureTicker.Stop()
@@ -380,15 +408,15 @@ func (n *Node) houseKeeping(ctx context.Context) {
 				}
 			}
 		case <-connectivityTicker.C:
-			if n.comm.PeerCount() == 0 {
-				noPeerTimes++
-				if noPeerTimes > 30 {
-					noPeerTimes = 0
-					go checkClockOffset()
-				}
-			} else {
-				noPeerTimes = 0
-			}
+			// if n.comm.PeerCount() == 0 {
+			// 	noPeerTimes++
+			// 	if noPeerTimes > 30 {
+			// 		noPeerTimes = 0
+			// 		go checkClockOffset()
+			// 	}
+			// } else {
+			// 	noPeerTimes = 0
+			// }
 		}
 	}
 }

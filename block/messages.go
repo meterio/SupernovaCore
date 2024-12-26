@@ -6,14 +6,15 @@
 package block
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	cmtcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
+	snbls "github.com/meterio/supernova/libs/bls"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	amino "github.com/tendermint/go-amino"
@@ -36,7 +37,7 @@ type ConsensusMessage interface {
 	String() string
 	GetMsgHash() types.Bytes32
 	SetMsgSignature(signature []byte)
-	VerifyMsgSignature(pubkey bls.PublicKey) bool
+	VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool
 }
 
 var _ ConsensusMessage = &PMProposalMessage{}
@@ -61,34 +62,34 @@ func init() {
 	RegisterConsensusMessages(cdc)
 }
 
-func DecodeMsg(rawHex string) (ConsensusMessage, error) {
+func DecodeMsg(raw []byte) (ConsensusMessage, error) {
 	var msg ConsensusMessage
-	b, err := hex.DecodeString(rawHex)
-	if err != nil {
-		return nil, err
+	if len(raw) > maxMsgSize {
+		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(raw), maxMsgSize)
 	}
-	if len(b) > maxMsgSize {
-		return msg, fmt.Errorf("msg exceeds max size (%d > %d)", len(b), maxMsgSize)
-	}
-	err = cdc.UnmarshalBinaryBare(b, &msg)
+	err := cdc.UnmarshalBinaryBare(raw, &msg)
 	return msg, err
 }
 
-func EncodeMsg(msg ConsensusMessage) (string, error) {
+func EncodeMsg(msg ConsensusMessage) ([]byte, error) {
 	raw := cdc.MustMarshalBinaryBare(msg)
 	if len(raw) > maxMsgSize {
 		slog.Error("consensus msg exceeds max size", "raw", len(raw), "maxSize", maxMsgSize)
-		return "", errors.New("msg exceeds max size")
+		return make([]byte, 0), errors.New("msg exceeds max size")
 	}
-	return hex.EncodeToString(raw), nil
+	return raw, nil
 }
 
-func verifyMsgSignature(pubkey bls.PublicKey, msg []byte, signature []byte) bool {
+func verifyMsgSignature(cmtPubkey cmtcrypto.PubKey, msg []byte, signature []byte) bool {
+	blsPubKey, err := snbls.BlsPublicKeyFromCmtPubKey(cmtPubkey)
+	if err != nil {
+		return false
+	}
 	sig, err := bls.SignatureFromBytes(signature)
 	if err != nil {
 		return false
 	}
-	return sig.Verify(pubkey, msg)
+	return sig.Verify(blsPubKey, msg)
 }
 
 // PMProposalMessage is sent when a new block is proposed
@@ -162,8 +163,8 @@ func (m *PMProposalMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMProposalMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
+func (m *PMProposalMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool {
+	return verifyMsgSignature(cmtPubKey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 // PMVoteMessage is sent when voting for a proposal (or lack thereof).
@@ -220,8 +221,8 @@ func (m *PMVoteMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMVoteMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
+func (m *PMVoteMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool {
+	return verifyMsgSignature(cmtPubKey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 // PMTimeoutMessage is sent to the next leader in these two senarios
@@ -315,8 +316,8 @@ func (m *PMTimeoutMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMTimeoutMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
+func (m *PMTimeoutMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool {
+	return verifyMsgSignature(cmtPubKey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }
 
 type PMQueryMessage struct {
@@ -368,6 +369,6 @@ func (m *PMQueryMessage) SetMsgSignature(msgSignature []byte) {
 	m.MsgSignature = msgSignature
 }
 
-func (m *PMQueryMessage) VerifyMsgSignature(pubkey bls.PublicKey) bool {
-	return verifyMsgSignature(pubkey, m.GetMsgHash().Bytes(), m.MsgSignature)
+func (m *PMQueryMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool {
+	return verifyMsgSignature(cmtPubKey, m.GetMsgHash().Bytes(), m.MsgSignature)
 }

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package message;
+
+option go_package = "github.com/meterio/supernova/libs/message;message";
+
+message NewBlockEnvelope {
+    bytes rawBlock = 1;
+}
+
+message NewBlockIDEnvelope {
+    bytes blockID = 1;
+}
+
+message NewTxsEnvelope {
+    repeated bytes rawTxs = 1;
+}
+
+message GetBlockByIDRequest {
+    bytes hash = 1;
+}
+
+message GetBlockByIDResponse {
+    bytes rawBlock = 1;
+}
+
+

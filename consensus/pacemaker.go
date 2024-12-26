@@ -6,7 +6,9 @@
 package consensus
 
 import (
+	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,12 +18,15 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/ethereum/go-ethereum/common"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/libs/comm"
 	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/libs/message"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 )
 
 const (
@@ -32,13 +37,14 @@ const (
 )
 
 type Pacemaker struct {
-	version      string
-	chain        *chain.Chain
-	blsMaster    *types.BlsMaster
-	logger       *slog.Logger
-	executor     *Executor
-	txpool       *txpool.TxPool
-	communicator *comm.Communicator
+	ctx       context.Context
+	version   string
+	chain     *chain.Chain
+	blsMaster *types.BlsMaster
+	logger    *slog.Logger
+	executor  *Executor
+	txpool    *txpool.TxPool
+	p2pSrv    p2p.P2P
 
 	// Current round (current_round - highest_qc_round determines the timeout).
 	// Current round is basically max(highest_qc_round, highest_received_tc, highest_local_tc) + 1
@@ -82,15 +88,16 @@ type Pacemaker struct {
 	validatorSetRegistry *ValidatorSetRegistry
 }
 
-func NewPacemaker(version string, c *chain.Chain, txpool *txpool.TxPool, communicator *comm.Communicator, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Pacemaker {
+func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *txpool.TxPool, p2pSrv p2p.P2P, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Pacemaker {
 	p := &Pacemaker{
-		logger:       slog.With("pkg", "pm"),
-		chain:        c,
-		blsMaster:    blsMaster,
-		version:      version,
-		txpool:       txpool,
-		communicator: communicator,
-		executor:     NewExecutor(proxyApp.Consensus(), c),
+		ctx:       ctx,
+		logger:    slog.With("pkg", "pm"),
+		chain:     c,
+		blsMaster: blsMaster,
+		version:   version,
+		txpool:    txpool,
+		p2pSrv:    p2pSrv,
+		executor:  NewExecutor(proxyApp.Consensus(), c),
 
 		cmdCh:           make(chan PMCmd, 2),
 		beatCh:          make(chan PMBeatInfo, 2),
@@ -105,7 +112,44 @@ func NewPacemaker(version string, c *chain.Chain, txpool *txpool.TxPool, communi
 		lastOnBeatRound:      -1,
 		validatorSetRegistry: NewValidatorSetRegistry(c),
 	}
+
 	return p
+}
+
+func (p *Pacemaker) subscribeToConsensusMessage() {
+	sub, err := p.p2pSrv.SubscribeToTopic("consensus")
+	if err != nil {
+		// FIXME: change this
+		panic(err)
+	}
+	for {
+		msg, err := sub.Next(p.ctx)
+		if err != nil {
+			if !errors.Is(err, pubsub.ErrSubscriptionCancelled) { // Only log a warning on unexpected errors.
+				p.logger.Error("Subscription next failed", "err", err)
+			}
+			sub.Cancel()
+			return
+		}
+		if msg.ValidatorData == nil {
+			p.logger.Warn("Received nil message on pubsub")
+			continue
+		}
+
+		ce := msg.ValidatorData.(*message.ConsensusEnvelope)
+		consensusMsg, err := block.DecodeMsg(ce.Raw)
+		if err != nil {
+			p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
+			continue
+		}
+
+		senderAddr := common.BytesToAddress(ce.SenderAddr)
+
+		msgInfo := newIncomingMsg(consensusMsg, senderAddr)
+		p.AddIncoming(*msgInfo)
+
+	}
+
 }
 
 func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC, round uint32) (error, *block.DraftBlock) {
@@ -280,24 +324,9 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 				if err != nil {
 					p.logger.Error("could not build query message")
 				}
-				peers := []*ConsensusPeer{
-					NewConsensusPeer(mi.Peer.Name, mi.Peer.IP),     // msg sender,
-					NewConsensusPeer(mi.Signer.Name, mi.Signer.IP), // message signer,
-					p.getProposerByRound(round + 1),                // next proposer
-				}
-
 				distinctPeers := make([]*ConsensusPeer, 0)
-				visited := make(map[string]bool)
-				for _, peer := range peers {
-					if _, exist := visited[peer.IP]; exist {
-						continue
-					}
-					visited[peer.IP] = true
-					if !p.isMe(peer) {
-						distinctPeers = append(distinctPeers, peer)
-					}
-				}
-				p.Send(query, distinctPeers...)
+
+				p.Broadcast(query)
 				p.logger.Info(`query proposals`, "distinctPeers", len(distinctPeers))
 			}
 
@@ -377,7 +406,7 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 
 		if !(lastCommitted != nil && lastCommitted.IsKBlock()) {
 			// send vote and enter new round only if the last committed is not KBlock
-			p.sendMsg(voteMsg, false)
+			p.Broadcast(voteMsg)
 			p.enterRound(voteMsg.VoteRound+1, RegularRound)
 		}
 	} else {
@@ -550,11 +579,11 @@ func (p *Pacemaker) OnReceiveTimeout(mi IncomingMsg) {
 func (p *Pacemaker) OnReceiveQuery(mi IncomingMsg) {
 	msg := mi.Msg.(*block.PMQueryMessage)
 	proposals := p.chain.GetDraftsUpTo(msg.LastCommitted, p.QCHigh.QC)
-	p.logger.Info(`received query`, "lastCommitted", msg.LastCommitted.ToBlockShortID(), "from", mi.Peer)
+	p.logger.Info(`received query`, "lastCommitted", msg.LastCommitted.ToBlockShortID(), "from", mi.SenderAddr)
 	for _, proposal := range proposals {
-		p.logger.Info(`forward proposal`, "id", proposal.ProposedBlock.ID().ToBlockShortID(), "to", mi.Peer)
-		p.sendMsg(proposal.Msg, false)
-		p.Send(proposal.Msg, NewConsensusPeer(mi.Peer.Name, mi.Peer.IP))
+		p.logger.Info(`forward proposal`, "id", proposal.ProposedBlock.ID().ToBlockShortID(), "to", mi.SenderAddr)
+		// FIXME: probably should no broadcast to spam everyone else
+		p.Broadcast(proposal.Msg)
 	}
 }
 
@@ -745,7 +774,7 @@ func (p *Pacemaker) OnRoundTimeout(ti PMRoundTimeoutInfo) {
 	if err != nil {
 		p.logger.Error("could not build timeout message", "err", err)
 	} else {
-		p.sendMsg(msg, false)
+		p.Broadcast(msg)
 	}
 }
 
