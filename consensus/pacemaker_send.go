@@ -10,14 +10,18 @@ package consensus
 // 2. send messages to peer
 
 import (
-	"context"
 	sha256 "crypto/sha256"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/libs/message"
 	snmsg "github.com/meterio/supernova/libs/message"
+	"github.com/meterio/supernova/libs/p2p"
 	"github.com/meterio/supernova/types"
 )
 
@@ -140,7 +144,38 @@ func (p *Pacemaker) Broadcast(msg block.ConsensusMessage) {
 	}
 	me := p.epochState.GetMyself()
 	pbMsg := &snmsg.ConsensusEnvelope{Raw: rawMsg, SenderAddr: me.Address}
-	p.p2pSrv.Broadcast(context.TODO(), pbMsg)
+	// topic, ok := GossipTypeMapping[reflect.TypeOf(msg)]
+	// if !ok {
+	// 	p.logger.Warn("could not find topic")
+	// 	return
+	// }
+	// topic := p2p.ConsensusTopic
+
+	// msgBytes, err := proto.Marshal(pbMsg)
+	// if err != nil {
+	// 	p.logger.Error("proto.Marshal failed", "err", err)
+	// 	return
+	// }
+	// if err := p.p2pSrv.PublishToTopic(p.ctx, topic, msgBytes); err != nil {
+	// 	p.logger.Error("PublishToTopic failed", "err", err)
+	// 	return
+	// }
+
+	p.logger.Info("broadcast with topic", "topic", p2p.ConsensusTopic)
+	err = p.p2pSrv.Broadcast(p.ctx, pbMsg)
+	if err != nil {
+		p.logger.Error("Broadcast failed", "err", err)
+		return
+	}
+	consensusMsg, err := block.DecodeMsg(pbMsg.Raw)
+	if err != nil {
+		p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
+	}
+
+	senderAddr := common.BytesToAddress(pbMsg.SenderAddr)
+	mi := newIncomingMsg(consensusMsg, senderAddr)
+	p.AddIncoming(*mi)
+	p.logger.Info("broadcast done")
 }
 
 func (p *Pacemaker) AddIncoming(mi IncomingMsg) {
@@ -193,4 +228,48 @@ func (p *Pacemaker) AddIncoming(mi IncomingMsg) {
 			p.AddIncoming(mi)
 		})
 	}
+}
+
+func (p *Pacemaker) subscribeToConsensusMessage() {
+	p.logger.Warn("subscribe to topic", "topic", p2p.ConsensusTopic)
+	sub, err := p.p2pSrv.SubscribeToTopic(p2p.ConsensusTopic)
+
+	if err != nil {
+		p.logger.Warn("subscribe to topic failed", "err", err)
+		// FIXME: change this
+		panic(err)
+	}
+	for {
+		p.logger.Info("fetching next subscribed msg")
+		msg, err := sub.Next(p.ctx)
+		p.logger.Info("fetched next subscribed msg")
+		if err != nil {
+			if !errors.Is(err, pubsub.ErrSubscriptionCancelled) { // Only log a warning on unexpected errors.
+				p.logger.Error("Subscription next failed", "err", err)
+			}
+			p.logger.Error("subscription canceled", "err", err)
+			sub.Cancel()
+			return
+		}
+		if msg.ValidatorData == nil {
+			p.logger.Warn("Received nil message on pubsub")
+			continue
+		}
+
+		p.logger.Info("received pubsub msg", "id", msg.ID)
+
+		ce := msg.ValidatorData.(*message.ConsensusEnvelope)
+		consensusMsg, err := block.DecodeMsg(ce.Raw)
+		if err != nil {
+			p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
+			continue
+		}
+
+		senderAddr := common.BytesToAddress(ce.SenderAddr)
+
+		msgInfo := newIncomingMsg(consensusMsg, senderAddr)
+		p.AddIncoming(*msgInfo)
+
+	}
+
 }

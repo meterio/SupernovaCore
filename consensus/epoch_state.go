@@ -212,8 +212,10 @@ func peekCommittee(committee *cmttypes.ValidatorSet) string {
 func (es *EpochState) getRoundProposer(round uint32) *cmttypes.Validator {
 	size := int(es.CommitteeSize())
 	if size == 0 {
+		es.logger.Info("can't get round proposer", "size", size, "round", round)
 		return &cmttypes.Validator{}
 	}
 	_, v := es.committee.GetByIndex(int32(int(round) % size))
+	es.logger.Info("get round proposer", "validator", v.Address)
 	return v
 }

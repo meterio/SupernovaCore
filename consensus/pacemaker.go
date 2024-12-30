@@ -8,7 +8,6 @@ package consensus
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,15 +17,12 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/ethereum/go-ethereum/common"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/libs/message"
+	"github.com/meterio/supernova/libs/p2p"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 )
 
 const (
@@ -113,43 +109,8 @@ func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *t
 		validatorSetRegistry: NewValidatorSetRegistry(c),
 	}
 
+	go p.subscribeToConsensusMessage()
 	return p
-}
-
-func (p *Pacemaker) subscribeToConsensusMessage() {
-	sub, err := p.p2pSrv.SubscribeToTopic("consensus")
-	if err != nil {
-		// FIXME: change this
-		panic(err)
-	}
-	for {
-		msg, err := sub.Next(p.ctx)
-		if err != nil {
-			if !errors.Is(err, pubsub.ErrSubscriptionCancelled) { // Only log a warning on unexpected errors.
-				p.logger.Error("Subscription next failed", "err", err)
-			}
-			sub.Cancel()
-			return
-		}
-		if msg.ValidatorData == nil {
-			p.logger.Warn("Received nil message on pubsub")
-			continue
-		}
-
-		ce := msg.ValidatorData.(*message.ConsensusEnvelope)
-		consensusMsg, err := block.DecodeMsg(ce.Raw)
-		if err != nil {
-			p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
-			continue
-		}
-
-		senderAddr := common.BytesToAddress(ce.SenderAddr)
-
-		msgInfo := newIncomingMsg(consensusMsg, senderAddr)
-		p.AddIncoming(*msgInfo)
-
-	}
-
 }
 
 func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC, round uint32) (error, *block.DraftBlock) {

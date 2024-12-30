@@ -21,9 +21,9 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
-	prysmp2p "github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/startup"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/meterio/supernova/libs/p2p"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
@@ -99,9 +99,8 @@ type Node struct {
 	comm        *comm.Communicator
 	logger      *slog.Logger
 
-	mainDB      db.DB
-	clockWaiter startup.ClockWaiter
-	p2pSrv      p2p.P2P
+	mainDB db.DB
+	p2pSrv p2p.P2P
 
 	proxyApp cmtproxy.AppConns
 }
@@ -165,8 +164,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	BootstrapNodes = append(BootstrapNodes, "enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235") // nova-1
 	BootstrapNodes = append(BootstrapNodes, "enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235")
 
-	synchronizer := startup.NewClockSynchronizer()
-	p2pSrv := newP2PService(ctx, config, synchronizer, BootstrapNodes)
+	p2pSrv := newP2PService(ctx, config, BootstrapNodes, gene)
 	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
 
 	pubkey, err := privValidator.GetPubKey()
@@ -210,7 +208,6 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 		p2pSrv:        p2pSrv,
 		logger:        slog.With("pkg", "node"),
 		proxyApp:      proxyApp,
-		clockWaiter:   synchronizer,
 	}
 
 	return node
@@ -224,15 +221,15 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func newP2PService(ctx context.Context, config *cmtcfg.Config, clockWaiter *startup.ClockSynchronizer, bootstrapNodes []string) prysmp2p.P2P {
-	svc, err := prysmp2p.NewService(ctx, &prysmp2p.Config{
+func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, gene *genesis.Genesis) p2p.P2P {
+	svc, err := p2p.NewService(ctx, int64(time.Now().Unix()), gene.ValidatorSet().Hash()[:], &p2p.Config{
 		NoDiscovery: false,
 		// StaticPeers:          slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.StaticPeers.Name)),
-		Discv5BootStrapAddrs: prysmp2p.ParseBootStrapAddrs(bootstrapNodes),
+		Discv5BootStrapAddrs: p2p.ParseBootStrapAddrs(bootstrapNodes),
 		// RelayNodeAddr:        cliCtx.String(cmd.RelayNode.Name),
 		DataDir: config.RootDir,
 		// LocalIP:              cliCtx.String(cmd.P2PIP.Name),
-		HostAddress: "0.0.0.0",
+		// HostAddress: "192.168.3.37",
 
 		// HostDNS:      cliCtx.String(cmd.P2PHostDNS.Name),
 		PrivateKey:   "",
@@ -248,13 +245,28 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, clockWaiter *star
 		// EnableUPnP:           cliCtx.Bool(cmd.EnableUPnPFlag.Name),
 		// StateNotifier: n,
 		// DB:            n.mainDB,
-		ClockWaiter: clockWaiter,
 	})
 	if err != nil {
 		return nil
 	}
+	pubsub.WithSubscriptionFilter(pubsub.NewAllowlistSubscriptionFilter())
+	p := svc.PubSub()
+
+	for _, s := range p.GetTopics() {
+		fmt.Println("Valid topic: ", s)
+	}
+	p.RegisterTopicValidator(p2p.ConsensusTopic, customTopicValidator)
+
 	go svc.Start()
 	return svc
+}
+func customTopicValidator(ctx context.Context, peerID peer.ID, msg *pubsub.Message) (pubsub.ValidationResult, error) {
+	// Perform custom validation
+	// Example: Check message size, content, etc.
+	if len(msg.Data) > 0 { // Simple validation for non-empty messages
+		return pubsub.ValidationAccept, nil
+	}
+	return pubsub.ValidationReject, errors.New("rejected")
 }
 
 func doHandshake(
@@ -363,8 +375,6 @@ func (n *Node) houseKeeping(ctx context.Context) {
 
 	connectivityTicker := time.NewTicker(time.Second)
 	defer connectivityTicker.Stop()
-
-	var noPeerTimes int
 
 	futureBlocks := cache.NewRandCache(32)
 

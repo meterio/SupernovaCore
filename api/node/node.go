@@ -13,7 +13,7 @@ import (
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
+	"github.com/meterio/supernova/libs/p2p"
 )
 
 type Node struct {

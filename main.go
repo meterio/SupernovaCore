@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/cockroachdb/pebble"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 
 	cfg "github.com/cometbft/cometbft/config"
 	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
 	cmtlog "github.com/cometbft/cometbft/libs/log"
-	"github.com/dgraph-io/badger/v4"
 	nm "github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/types"
 	"github.com/spf13/viper"
@@ -54,7 +54,7 @@ func main() {
 		log.Fatalf("Invalid configuration data: %v", err)
 	}
 	dbPath := filepath.Join(homeDir, "badger")
-	db, err := badger.Open(badger.DefaultOptions(dbPath))
+	db, err := pebble.Open(dbPath, &pebble.Options{})
 
 	if err != nil {
 		log.Fatalf("Opening database: %v", err)

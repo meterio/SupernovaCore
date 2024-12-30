@@ -13,8 +13,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/meterio/supernova/libs/p2p"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmtproxy "github.com/cometbft/cometbft/proxy"

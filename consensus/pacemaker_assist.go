@@ -162,7 +162,7 @@ func (p *Pacemaker) amIRoundProproser(round uint32) bool {
 	if proposer == nil || proposer.PubKey == nil {
 		return false
 	}
-	return bytes.Equal(proposer.PubKey.Bytes(), p.blsMaster.PubKey.Marshal())
+	return bytes.Equal(proposer.PubKey.Bytes(), p.blsMaster.CmtPubKey.Bytes())
 }
 
 func (p *Pacemaker) SignMessage(msg block.ConsensusMessage) {

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	db "github.com/cometbft/cometbft-db"
+	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
@@ -220,7 +221,17 @@ func loadBestQC(r db.DB) (*block.QuorumCert, error) {
 // saveBestQC save the best qc
 func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 	batch := w.NewBatch()
-	err := saveJSON(batch, append(validatorPrefix, vset.Hash()...), vset.Validators)
+	key := append(validatorPrefix, vset.Hash()...)
+
+	vsetProto, err := vset.ToProto()
+	if err != nil {
+		return err
+	}
+	vsetBytes, err := vsetProto.Marshal()
+	if err != nil {
+		return err
+	}
+	err = batch.Set(key, vsetBytes)
 	if err != nil {
 		return err
 	}
@@ -229,9 +240,13 @@ func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 
 // loadBestQC load the best qc
 func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
-	var vs []*cmttypes.Validator
-	if err := loadJSON(r, append(validatorPrefix, vhash...), &vs); err != nil {
+	vsetProto := new(cmtproto.ValidatorSet)
+	key := append(validatorPrefix, vhash...)
+	vsetBytes, err := r.Get(key)
+	if err != nil {
 		return nil, err
 	}
-	return cmttypes.NewValidatorSet(vs), nil
+
+	vsetProto.Unmarshal(vsetBytes)
+	return cmttypes.ValidatorSetFromProto(vsetProto)
 }

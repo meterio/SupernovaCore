@@ -21,8 +21,8 @@ import (
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/co"
+	"github.com/meterio/supernova/libs/p2p"
 	"github.com/meterio/supernova/txpool"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 )
 
 type APIServer struct {

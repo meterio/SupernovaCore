@@ -22,8 +22,8 @@ const (
 
 type ConsensusEnvelope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Raw           []byte                 `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty"`
-	SenderAddr    []byte                 `protobuf:"bytes,2,opt,name=senderAddr,proto3" json:"senderAddr,omitempty"`
+	Raw           []byte                 `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty" ssz-max:"1048576"`
+	SenderAddr    []byte                 `protobuf:"bytes,2,opt,name=senderAddr,proto3" json:"senderAddr,omitempty" ssz-size:"20"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
