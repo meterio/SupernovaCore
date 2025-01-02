@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers/peerdata"
-	p2ptypes "github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/types"
+	"github.com/meterio/supernova/libs/p2p/peers/peerdata"
+	p2ptypes "github.com/meterio/supernova/libs/p2p/types"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
 	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )

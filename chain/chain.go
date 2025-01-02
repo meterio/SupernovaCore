@@ -144,7 +144,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.Vali
 		}
 		if bestBlock.Number() == 0 && bestBlock.QC == nil {
 			logger.Info("QC of best block is empty, set it to genesis QC")
-			saveBestQC(kv, block.GenesisEscortQC(bestBlock))
+			saveBestQC(kv, block.GenesisEscortQC(bestBlock, len(genesisValidatorSet.Validators)))
 		}
 
 	}
@@ -163,7 +163,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.Vali
 	bestQC, err := loadBestQC(kv)
 	if err != nil {
 		logger.Debug("BestQC is empty, set it to use genesisEscortQC")
-		bestQC = block.GenesisEscortQC(genesisBlock)
+		bestQC = block.GenesisEscortQC(genesisBlock, len(genesisValidatorSet.Validators))
 		bestQCHeightGauge.Set(float64(bestQC.Number()))
 	}
 
@@ -184,7 +184,7 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.Vali
 	bestQCHeightGauge.Set(float64(bestQC.Number()))
 
 	if verbose {
-		slog.Info("Chain Initialized", "genesis", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String(), "genesisVSetHash", hex.EncodeToString(genesisValidatorSet.Hash()))
+		slog.Info("Chain initialized", "genesis", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String(), "genesisVSetHash", hex.EncodeToString(genesisValidatorSet.Hash()))
 	}
 	c := &Chain{
 		kv:           kv,
@@ -924,20 +924,16 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 // BuildLastCommitInfo builds a CommitInfo from the given block and validator set.
 // If you want to load the validator set from the store instead of providing it,
 // use buildLastCommitInfoFromStore.
-func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
-	vset := c.GetValidatorsByHash(block.ValidatorsHash())
-	if block.Number() == 0 {
-		vset = c.GetValidatorsByHash(block.NextValidatorsHash())
+func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.CommitInfo {
+	vset := c.GetValidatorsByHash(parent.ValidatorsHash())
+	if parent.Number() == 0 {
+		vset = c.GetValidatorsByHash(parent.NextValidatorsHash())
 	}
 	if vset == nil {
 		panic("validator set is empty")
 	}
 
-	qc, err := c.GetQCForBlock(block.ID())
-
-	if err != nil {
-		panic(err)
-	}
+	qc := blk.QC
 
 	var (
 		commiteeSize = vset.Size()
@@ -945,7 +941,7 @@ func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
 	)
 
 	if commiteeSize != votesSize {
-		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, block.Number()))
+		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, parent.Number()))
 	}
 
 	votes := make([]abci.VoteInfo, vset.Size())
@@ -956,7 +952,6 @@ func (c *Chain) BuildLastCommitInfo(block *block.Block) abci.CommitInfo {
 				Validator:   abci.Validator{Address: v.Address.Bytes(), Power: int64(v.VotingPower)},
 				BlockIdFlag: cmtproto.BlockIDFlagCommit,
 			}
-
 		}
 	}
 

@@ -10,7 +10,9 @@ package consensus
 // 2. send messages to peer
 
 import (
+	"context"
 	sha256 "crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -161,21 +163,27 @@ func (p *Pacemaker) Broadcast(msg block.ConsensusMessage) {
 	// 	return
 	// }
 
-	p.logger.Info("broadcast with topic", "topic", p2p.ConsensusTopic)
-	err = p.p2pSrv.Broadcast(p.ctx, pbMsg)
+	p.logger.Info("broadcast with topic", "topic", p2p.ConsensusTopic, "peersCount", len(p.p2pSrv.Peers().All()), "msg", msg.String())
+	sszBytes, err := pbMsg.MarshalSSZ()
+	if err != nil {
+		p.logger.Error("marshal failed", "err", err)
+		return
+	}
+	topic, err := p.p2pSrv.JoinTopic(p2p.ConsensusTopic)
+	// err = p.p2pSrv.PublishToTopic(p.ctx, p2p.ConsensusTopic, sszBytes)
 	if err != nil {
 		p.logger.Error("Broadcast failed", "err", err)
 		return
 	}
-	consensusMsg, err := block.DecodeMsg(pbMsg.Raw)
-	if err != nil {
-		p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
-	}
+	topic.Publish(context.TODO(), sszBytes)
+	// consensusMsg, err := block.DecodeMsg(pbMsg.Raw)
+	// if err != nil {
+	// 	p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
+	// }
 
-	senderAddr := common.BytesToAddress(pbMsg.SenderAddr)
-	mi := newIncomingMsg(consensusMsg, senderAddr)
-	p.AddIncoming(*mi)
-	p.logger.Info("broadcast done")
+	// senderAddr := common.BytesToAddress(pbMsg.SenderAddr)
+	// mi := newIncomingMsg(consensusMsg, senderAddr)
+	// p.AddIncoming(*mi)
 }
 
 func (p *Pacemaker) AddIncoming(mi IncomingMsg) {
@@ -240,9 +248,7 @@ func (p *Pacemaker) subscribeToConsensusMessage() {
 		panic(err)
 	}
 	for {
-		p.logger.Info("fetching next subscribed msg")
 		msg, err := sub.Next(p.ctx)
-		p.logger.Info("fetched next subscribed msg")
 		if err != nil {
 			if !errors.Is(err, pubsub.ErrSubscriptionCancelled) { // Only log a warning on unexpected errors.
 				p.logger.Error("Subscription next failed", "err", err)
@@ -251,21 +257,26 @@ func (p *Pacemaker) subscribeToConsensusMessage() {
 			sub.Cancel()
 			return
 		}
-		if msg.ValidatorData == nil {
-			p.logger.Warn("Received nil message on pubsub")
+		// if msg.ValidatorData == nil {
+		// 	p.logger.Warn("Received nil message on pubsub")
+		// 	continue
+		// }
+
+		p.logger.Debug("received pubsub msg", "id", msg.ID, "from", hex.EncodeToString(msg.From))
+
+		pbMsg := &message.ConsensusEnvelope{}
+		err = pbMsg.UnmarshalSSZ(msg.Data)
+		if err != nil {
+			fmt.Println("Error: ", err, "skip")
 			continue
 		}
-
-		p.logger.Info("received pubsub msg", "id", msg.ID)
-
-		ce := msg.ValidatorData.(*message.ConsensusEnvelope)
-		consensusMsg, err := block.DecodeMsg(ce.Raw)
+		consensusMsg, err := block.DecodeMsg(pbMsg.Raw)
 		if err != nil {
 			p.logger.Error("malformatted msg", "msg", consensusMsg, "err", err)
 			continue
 		}
 
-		senderAddr := common.BytesToAddress(ce.SenderAddr)
+		senderAddr := common.BytesToAddress(pbMsg.SenderAddr)
 
 		msgInfo := newIncomingMsg(consensusMsg, senderAddr)
 		p.AddIncoming(*msgInfo)

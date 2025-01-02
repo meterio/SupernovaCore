@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -349,6 +350,7 @@ func (s *Service) listenForNewNodes() {
 				wg.Add(1)
 				go func(info *peer.AddrInfo) {
 					if err := s.connectWithPeer(s.ctx, *info); err != nil {
+						fmt.Println("Could not connect with peer", info.String(), "error:", err)
 						log.WithError(err).Tracef("Could not connect with peer %s", info.String())
 					}
 					wg.Done()
@@ -505,7 +507,7 @@ func (s *Service) startDiscoveryV5(
 		return nil, errors.Wrap(err, "could not create listener")
 	}
 	record := wrappedListener.Self()
-	log.WithField("ENR", record.String()).Info("Started discovery v5")
+	log.WithField("ENR", record.String()).WithField("id", record.ID()).Info("Started discovery v5")
 	return wrappedListener, nil
 }
 
@@ -563,12 +565,13 @@ func (s *Service) filterPeer(node *enode.Node) bool {
 
 	// Ignore nodes that don't match our fork digest.
 	nodeENR := node.Record()
-	if s.genesisValidatorsRoot != nil {
-		if err := s.compareForkENR(nodeENR); err != nil {
-			log.WithError(err).Trace("Fork ENR mismatches between peer and local node")
-			return false
-		}
-	}
+	// if s.genesisValidatorsRoot != nil {
+	// 	if err := s.compareForkENR(nodeENR); err != nil {
+	// 		fmt.Println("filtered out peer bcuz fork mismatch", node)
+	// 		log.WithError(err).Trace("Fork ENR mismatches between peer and local node")
+	// 		return false
+	// 	}
+	// }
 
 	// If the peer has 2 multiaddrs, favor the QUIC address, which is in first position.
 	multiAddr := multiAddrs[0]

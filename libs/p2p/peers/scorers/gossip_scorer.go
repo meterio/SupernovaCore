@@ -2,8 +2,8 @@ package scorers
 
 import (
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/meterio/supernova/libs/p2p/peers/peerdata"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers/peerdata"
 	pbrpc "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 

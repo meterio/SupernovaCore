@@ -8,7 +8,6 @@ import (
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/cmd/beacon-chain/flags"
@@ -68,6 +67,7 @@ func (s *Service) LeaveTopic(topic string) error {
 	s.joinedTopicsLock.Lock()
 	defer s.joinedTopicsLock.Unlock()
 
+	fmt.Println("Leave Topic called")
 	if t, ok := s.joinedTopics[topic]; ok {
 		if err := t.Close(); err != nil {
 			return err
@@ -87,6 +87,7 @@ func (s *Service) PublishToTopic(ctx context.Context, topic string, data []byte,
 	// Wait for at least 1 peer to be available to receive the published message.
 	for {
 		if len(topicHandle.ListPeers()) > 0 || flags.Get().MinimumSyncPeers == 0 {
+			fmt.Println("Publish to topic", "topic", topic)
 			return topicHandle.Publish(ctx, data, opts...)
 		}
 		select {
@@ -134,29 +135,29 @@ func (s *Service) peerInspector(peerMap map[peer.ID]*pubsub.PeerScoreSnapshot) {
 // pubsubOptions creates a list of options to configure our router with.
 func (s *Service) pubsubOptions() []pubsub.Option {
 	psOpts := []pubsub.Option{
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
-		pubsub.WithNoAuthor(),
-		pubsub.WithMessageIdFn(func(pmsg *pubsubpb.Message) string {
-			return MsgID(s.genesisValidatorsRoot, pmsg)
-		}),
+		// pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
+		// pubsub.WithNoAuthor(),
+		// pubsub.WithMessageIdFn(func(pmsg *pubsub_pb.Message) string {
+		// 	return MsgID(s.genesisValidatorsRoot, pmsg)
+		// }),
 		pubsub.WithSubscriptionFilter(s),
 		pubsub.WithPeerOutboundQueueSize(int(s.cfg.QueueSize)),
 		pubsub.WithMaxMessageSize(int(params.BeaconConfig().GossipMaxSize)),
 		pubsub.WithValidateQueueSize(int(s.cfg.QueueSize)),
-		pubsub.WithPeerScore(peerScoringParams()),
-		pubsub.WithPeerScoreInspect(s.peerInspector, time.Minute),
-		pubsub.WithGossipSubParams(pubsubGossipParam()),
-		pubsub.WithRawTracer(gossipTracer{host: s.host}),
+		// pubsub.WithPeerScore(peerScoringParams()),
+		// pubsub.WithPeerScoreInspect(s.peerInspector, time.Minute),
+		// pubsub.WithGossipSubParams(pubsubGossipParam()),
+		// pubsub.WithRawTracer(gossipTracer{host: s.host}),
 	}
 
-	if len(s.cfg.StaticPeers) > 0 {
-		directPeersAddrInfos, err := parsePeersEnr(s.cfg.StaticPeers)
-		if err != nil {
-			log.WithError(err).Error("Could not add direct peer option")
-			return psOpts
-		}
-		psOpts = append(psOpts, pubsub.WithDirectPeers(directPeersAddrInfos))
-	}
+	// if len(s.cfg.StaticPeers) > 0 {
+	// 	directPeersAddrInfos, err := parsePeersEnr(s.cfg.StaticPeers)
+	// 	if err != nil {
+	// 		log.WithError(err).Error("Could not add direct peer option")
+	// 		return psOpts
+	// 	}
+	// 	psOpts = append(psOpts, pubsub.WithDirectPeers(directPeersAddrInfos))
+	// }
 
 	return psOpts
 }

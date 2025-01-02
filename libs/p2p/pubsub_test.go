@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meterio/supernova/libs/p2p/encoder"
+	testp2p "github.com/meterio/supernova/libs/p2p/testing"
 	"github.com/pkg/errors"
 	mock "github.com/prysmaticlabs/prysm/v5/beacon-chain/blockchain/testing"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
-	testp2p "github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/testing"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/startup"
 	"github.com/prysmaticlabs/prysm/v5/testing/assert"
 	"github.com/prysmaticlabs/prysm/v5/testing/require"

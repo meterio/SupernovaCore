@@ -91,7 +91,7 @@ func (s *Service) buildOptions(ip net.IP, priKey *ecdsa.PrivateKey) ([]libp2p.Op
 		privKeyOption(priKey),
 		libp2p.ListenAddrs(multiaddrs...),
 		libp2p.UserAgent(version.BuildData()),
-		libp2p.ConnectionGater(s),
+		// libp2p.ConnectionGater(s),
 		libp2p.Transport(libp2ptcp.NewTCPTransport),
 		libp2p.DefaultMuxers,
 		libp2p.Muxer("/mplex/6.7.0", mplex.DefaultTransport),

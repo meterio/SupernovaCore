@@ -22,10 +22,6 @@ import (
 	cli "gopkg.in/urfave/cli.v1"
 )
 
-var (
-	p2pMagic [4]byte
-)
-
 func InitLogger(config *cmtcfg.Config) {
 	lvl := config.BaseConfig.LogLevel
 	logLevel := slog.LevelDebug

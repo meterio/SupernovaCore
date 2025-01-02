@@ -109,7 +109,6 @@ func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *t
 		validatorSetRegistry: NewValidatorSetRegistry(c),
 	}
 
-	go p.subscribeToConsensusMessage()
 	return p
 }
 
@@ -205,7 +204,6 @@ func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) (lastCommitted *blo
 		p.logger.Info("nothing to commit")
 		return nil
 	}
-	p.logger.Info("oncommit", "size", len(commitReady))
 	lastCommitted = commitReady[0].block.ProposedBlock
 	for _, b := range commitReady {
 
@@ -388,7 +386,7 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 		return
 	}
 	if !p.amIRoundProproser(round + 1) {
-		p.logger.Info("invalid vote, I'm not the expected next proposer ...", "round", round)
+		p.logger.Info("skip handling vote, I'm not the expected next proposer ...", "round", round+1)
 		return
 	}
 
@@ -566,9 +564,9 @@ func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
 	p.logger.Info(fmt.Sprintf("Entered epoch %d", epochState.epoch))
 	p.logger.Info("---------------------------------------------------------")
 	if epochState.InCommittee() {
-		addr, me := epochState.GetValidatorByIndex(epochState.CommitteeIndex())
+		addr, _ := epochState.GetValidatorByIndex(epochState.CommitteeIndex())
 
-		p.logger.Info("I'm IN committee !!!", "myAddr", hex.EncodeToString(addr), "myPubkey", hex.EncodeToString(me.PubKey.Bytes()))
+		p.logger.Info("I'm IN committee !!!", "myAddr", hex.EncodeToString(addr), "index", epochState.index, "committee", epochState.committee.Size())
 		inCommitteeGauge.Set(1)
 		pmRoleGauge.Set(1) // validator
 	} else {
@@ -582,6 +580,7 @@ func (p *Pacemaker) updateEpochState(leaf *block.Block) bool {
 
 func (p *Pacemaker) Start() {
 	p.Regulate()
+	go p.subscribeToConsensusMessage()
 	go p.mainLoop()
 }
 

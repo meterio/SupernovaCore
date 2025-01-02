@@ -38,8 +38,8 @@ func (qc *QuorumCert) String() string {
 
 func (qc *QuorumCert) CompactString() string {
 	if qc != nil {
-		return fmt.Sprintf("QC(E:%v,R:%v -> %v)",
-			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID())
+		return fmt.Sprintf("QC(E:%v,R:%v -> %v %v/%v voted)",
+			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID(), qc.BitArray.CountYes(), qc.BitArray.Count())
 	}
 	return "QC(nil)"
 }
@@ -101,8 +101,8 @@ func (qc *QuorumCert) Number() uint32 {
 	return Number(qc.BlockID)
 }
 
-func GenesisEscortQC(b *Block) *QuorumCert {
-	return &QuorumCert{Epoch: 0, Round: 0, BlockID: b.ID(), BitArray: cmn.NewBitArray(1)}
+func GenesisEscortQC(b *Block, vsetCount int) *QuorumCert {
+	return &QuorumCert{Epoch: 0, Round: 0, BlockID: b.ID(), BitArray: cmn.NewBitArray(vsetCount)}
 }
 
 // --------------

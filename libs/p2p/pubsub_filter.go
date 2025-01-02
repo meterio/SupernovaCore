@@ -7,7 +7,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
+	"github.com/meterio/supernova/libs/p2p/encoder"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/network/forks"
 	"github.com/sirupsen/logrus"

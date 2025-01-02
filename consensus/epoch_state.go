@@ -51,7 +51,6 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey cmtcrypto.PubKey)
 		slog.Error("Could not get next validator set", "num", kblk.Number())
 		return nil, errors.New("could not get next validator set")
 	}
-	slog.Info("vset size", "size", vset.Size())
 	vsetAdapter := cmn.NewValidatorSetAdapter(vset)
 	vsetAdapter.SortWithNonce(kblk.Nonce())
 	committee := vsetAdapter.ToValidatorSet()
@@ -87,7 +86,6 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey cmtcrypto.PubKey)
 }
 
 func NewPendingEpochState(vset *cmttypes.ValidatorSet, myPubKey bls.PublicKey, curEpoch uint64) (*EpochState, error) {
-
 	logger := slog.With("pkg", "es")
 	if vset == nil {
 		slog.Error("validator set is nil")
@@ -216,6 +214,5 @@ func (es *EpochState) getRoundProposer(round uint32) *cmttypes.Validator {
 		return &cmttypes.Validator{}
 	}
 	_, v := es.committee.GetByIndex(int32(int(round) % size))
-	es.logger.Info("get round proposer", "validator", v.Address)
 	return v
 }

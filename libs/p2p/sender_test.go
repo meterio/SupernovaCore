@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/network"
-	testp2p "github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/testing"
+	testp2p "github.com/meterio/supernova/libs/p2p/testing"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v5/testing/assert"

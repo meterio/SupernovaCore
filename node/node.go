@@ -8,7 +8,6 @@ package node
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -142,14 +141,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	privValidator.Key.PubKey.Bytes()
 	blsMaster := types.NewBlsMasterWithCometKeys(privValidator.Key.PrivKey, privValidator.Key.PubKey)
 
-	// set magic
-
-	sum := sha256.Sum256([]byte(fmt.Sprintf(config.BaseConfig.Version)))
-
-	// Split magic to p2p_magic and consensus_magic
-	copy(p2pMagic[:], sum[:4])
-
-	slog.Info("Supernova Start ...", "version", config.BaseConfig.Version, "p2pMagic", hex.EncodeToString(p2pMagic[:]))
+	slog.Info("Supernova start ...", "version", config.BaseConfig.Version)
 
 	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
@@ -161,8 +153,8 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	}
 
 	var BootstrapNodes []string
-	BootstrapNodes = append(BootstrapNodes, "enode://2698edd4e5f137a0ff738b3c9c109f57584fb72a87acea5d040baf226c7017c3ca4f58961d5d47c6e3f416f5b4a69f38f09069e4da52d5dea28f2cc735b26663@52.21.234.183:11235") // nova-1
-	BootstrapNodes = append(BootstrapNodes, "enode://1756a5aec61b23ae02251080845f406c5cabcfcc1722498b417d8f8b118d552e5eb54960985d4da005ae4621c0b3cc29dc93456b9fc7d410843d5e859d901c4d@52.22.222.17:11235")
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLSevAAY9L6xt5_v4NWcycngCwqx9EwLMC2gkxJ5cvXkZWynzkLJHtpEX9ELyUDBsNM6pLboAoy1RDqWJ8kLyyaGAZQf2UcTh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQV6reJc2VjcDI1NmsxoQNJtgOonAuyML51MDv2iOAKdUPX8eryxGVlbbtrgQ_VVIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QKHeYBXCxMaZuDQfBmdPORCerUN0zEMCp03Rx_xJ7t4GCjmejxc_LvlfPF98lLjfVx7IlDbwv7yYFRJUALX1mlOGAZQf2UhGh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQW3hGJc2VjcDI1NmsxoQKKtWc2VkrGlwvW1XY7PvKIUAnOcC__CniDbSo0sT5uHYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A")
 
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, gene)
 	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
@@ -180,15 +172,13 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	}
 	doHandshake(ctx, chain, genDoc, eventBus, proxyApp)
 	fmt.Printf(`Starting %v
-    Magic           [ %v p2p & consensus ]
     Network         [ %v %v ]    
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
     PubKey          [ %v ]
     API portal      [ %v ]
 `,
-		types.MakeName(config.BaseConfig.Moniker, config.BaseConfig.Version),
-		hex.EncodeToString(p2pMagic[:]),
+		types.MakeName("Supernova", config.BaseConfig.Version),
 		gene.ID(), gene.Name,
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
 		types.GetForkConfig(gene.ID()),
@@ -229,11 +219,11 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 		// RelayNodeAddr:        cliCtx.String(cmd.RelayNode.Name),
 		DataDir: config.RootDir,
 		// LocalIP:              cliCtx.String(cmd.P2PIP.Name),
-		// HostAddress: "192.168.3.37",
+		// HostAddress: config.P2P.ExternalAddress,
 
 		// HostDNS:      cliCtx.String(cmd.P2PHostDNS.Name),
 		PrivateKey:   "",
-		StaticPeerID: false,
+		StaticPeerID: true,
 		// MetaDataDir:          cliCtx.String(cmd.P2PMetadata.Name),
 		QUICPort:  13000,
 		TCPPort:   13000,
@@ -249,7 +239,7 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 	if err != nil {
 		return nil
 	}
-	pubsub.WithSubscriptionFilter(pubsub.NewAllowlistSubscriptionFilter())
+	pubsub.WithSubscriptionFilter(pubsub.NewAllowlistSubscriptionFilter(p2p.ConsensusTopic))
 	p := svc.PubSub()
 
 	for _, s := range p.GetTopics() {
@@ -263,6 +253,7 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 func customTopicValidator(ctx context.Context, peerID peer.ID, msg *pubsub.Message) (pubsub.ValidationResult, error) {
 	// Perform custom validation
 	// Example: Check message size, content, etc.
+	fmt.Println("Validating consensus topic message", msg.ID)
 	if len(msg.Data) > 0 { // Simple validation for non-empty messages
 		return pubsub.ValidationAccept, nil
 	}
@@ -276,7 +267,6 @@ func doHandshake(
 	eventBus cmttypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {
-	fmt.Println("DO HANDSHAKE")
 	handshaker := consensus.NewHandshaker(c, genDoc)
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(ctx, proxyApp); err != nil {

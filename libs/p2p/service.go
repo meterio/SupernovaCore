@@ -6,6 +6,8 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -17,13 +19,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/meterio/supernova/libs/p2p/encoder"
+	"github.com/meterio/supernova/libs/p2p/peers"
+	"github.com/meterio/supernova/libs/p2p/peers/scorers"
+	"github.com/meterio/supernova/libs/p2p/types"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/async"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers/scorers"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/types"
 	"github.com/prysmaticlabs/prysm/v5/config/features"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	leakybucket "github.com/prysmaticlabs/prysm/v5/container/leaky-bucket"
@@ -87,6 +89,7 @@ type Service struct {
 // NewService initializes a new p2p service compatible with shared.Service interface. No
 // connections are made until the Start function is called during the service registry startup.
 func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRoot []byte, cfg *Config) (*Service, error) {
+	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop().
 
@@ -102,20 +105,20 @@ func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRo
 		return nil, err
 	}
 
-	addrFilter, err := configureFilter(cfg)
-	if err != nil {
-		log.WithError(err).Error("Failed to create address filter")
-		return nil, err
-	}
+	// addrFilter, err := configureFilter(cfg)
+	// if err != nil {
+	// 	log.WithError(err).Error("Failed to create address filter")
+	// 	return nil, err
+	// }
 
 	ipLimiter := leakybucket.NewCollector(ipLimit, ipBurst, 30*time.Second, true /* deleteEmptyBuckets */)
 
 	genesisTime := time.Unix(genesisTimestamp, 0)
 	s := &Service{
-		ctx:                   ctx,
-		cancel:                cancel,
-		cfg:                   cfg,
-		addrFilter:            addrFilter,
+		ctx:    ctx,
+		cancel: cancel,
+		cfg:    cfg,
+		// addrFilter:            addrFilter,
 		ipLimiter:             ipLimiter,
 		privKey:               privKey,
 		metaData:              metaData,
@@ -126,16 +129,17 @@ func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRo
 		genesisTime:           genesisTime,
 	}
 
-	ipAddr := prysmnetwork.IPAddr()
+	// ipAddr := prysmnetwork.IPAddr()
 
-	opts, err := s.buildOptions(ipAddr, s.privKey)
+	ip0 := net.ParseIP("0.0.0.0")
+	opts, err := s.buildOptions(ip0, s.privKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to build p2p options")
 	}
 
 	// Sets mplex timeouts
 	configureMplex()
-	h, err := libp2p.New(opts...)
+	h, err := libp2p.New(opts...) // libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/13000"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create p2p host")
 	}
@@ -481,9 +485,11 @@ func (s *Service) connectWithPeer(ctx context.Context, info peer.AddrInfo) error
 	ctx, cancel := context.WithTimeout(ctx, maxDialTimeout)
 	defer cancel()
 	if err := s.host.Connect(ctx, info); err != nil {
+		fmt.Println("libp2p can't connect with peer: ", info.ID, err)
 		s.Peers().Scorers().BadResponsesScorer().Increment(info.ID)
 		return err
 	}
+	fmt.Println("lib p2p connected with peer", info.ID)
 	return nil
 }
 

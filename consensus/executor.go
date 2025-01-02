@@ -70,7 +70,7 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(int64(blk.Timestamp()), 0),
 		Txs:                blk.Txs.Convert(),
-		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent),
+		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent, blk),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		ProposerAddress:    proposerAddr,
 		NextValidatorsHash: blk.NextValidatorsHash(),
@@ -134,7 +134,7 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		ProposerAddress:    proposerAddr,
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(int64(blk.Timestamp()), 0),
-		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent),
+		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent, blk),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,

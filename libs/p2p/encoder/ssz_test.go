@@ -10,8 +10,8 @@ import (
 
 	gogo "github.com/gogo/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"github.com/meterio/supernova/libs/p2p/encoder"
 	fastssz "github.com/prysmaticlabs/fastssz"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v5/testing/assert"

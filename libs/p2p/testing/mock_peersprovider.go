@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/meterio/supernova/libs/p2p/peers"
+	"github.com/meterio/supernova/libs/p2p/peers/scorers"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/peers/scorers"
 	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 )
