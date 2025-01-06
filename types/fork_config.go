@@ -7,8 +7,9 @@ package types
 
 import (
 	"fmt"
-	"math"
 )
+
+const MaxUint32 = 1<<32 - 1
 
 // ForkConfig config for a fork.
 type ForkConfig struct {
@@ -21,7 +22,7 @@ func (fc ForkConfig) String() string {
 
 // NoFork a special config without any forks.
 var NoFork = ForkConfig{
-	FixTransferLog: math.MaxUint32,
+	FixTransferLog: MaxUint32,
 }
 
 // for well-known networks

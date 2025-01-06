@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/gorilla/mux"
 	"github.com/meterio/supernova/api/utils"
 	"github.com/meterio/supernova/block"
@@ -19,6 +18,8 @@ import (
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
+
+const MaxUint32 = 1<<32 - 1
 
 type Blocks struct {
 	chain  *chain.Chain
@@ -95,7 +96,7 @@ func (b *Blocks) parseRevision(revision string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n > math.MaxUint32 {
+	if n > MaxUint32 {
 		return nil, errors.New("block number out of max uint32")
 	}
 	return uint32(n), err
@@ -106,7 +107,7 @@ func (b *Blocks) parseEpoch(epoch string) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if n > math.MaxUint32 {
+	if n > MaxUint32 {
 		return 0, errors.New("block number out of max uint32")
 	}
 	return uint32(n), err
