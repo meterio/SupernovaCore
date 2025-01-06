@@ -25,6 +25,7 @@ import (
 	"github.com/meterio/supernova/libs/p2p"
 
 	db "github.com/cometbft/cometbft-db"
+	cmtnode "github.com/cometbft/cometbft/node"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/event"
@@ -49,8 +50,8 @@ var (
 
 func LoadGenesisDoc(
 	mainDB db.DB,
-	genesisDocProvider GenesisDocProvider,
-) (*types.GenesisDoc, error) { // originally, LoadStateFromDBOrGenesisDocProvider
+	genesisDocProvider cmtnode.GenesisDocProvider,
+) (*cmttypes.GenesisDoc, error) { // originally, LoadStateFromDBOrGenesisDocProvider
 	// Get genesis doc hash
 	genDocHash, err := mainDB.Get(genesisDocHashKey)
 	if err != nil {
@@ -83,7 +84,7 @@ type Node struct {
 	goes          co.Goes
 	config        *cmtcfg.Config
 	ctx           context.Context
-	genesisDoc    *types.GenesisDoc      // initial validator set
+	genesisDoc    *cmttypes.GenesisDoc   // initial validator set
 	privValidator cmttypes.PrivValidator // local node's validator key
 
 	apiServer *api.APIServer
@@ -109,7 +110,7 @@ func NewNode(
 	privValidator *privval.FilePV,
 	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
-	genesisDocProvider GenesisDocProvider,
+	genesisDocProvider cmtnode.GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider,
 	logger log.Logger,
 ) *Node {
@@ -121,7 +122,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	privValidator *privval.FilePV,
 	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
-	genesisDocProvider GenesisDocProvider,
+	genesisDocProvider cmtnode.GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider, logger log.Logger) *Node {
 	InitLogger(config)
 
@@ -263,7 +264,7 @@ func customTopicValidator(ctx context.Context, peerID peer.ID, msg *pubsub.Messa
 func doHandshake(
 	ctx context.Context,
 	c *chain.Chain,
-	genDoc *types.GenesisDoc,
+	genDoc *cmttypes.GenesisDoc,
 	eventBus cmttypes.BlockEventPublisher,
 	proxyApp proxy.AppConns,
 ) error {

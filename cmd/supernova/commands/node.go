@@ -11,6 +11,7 @@ import (
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
 	cmtlog "github.com/cometbft/cometbft/libs/log"
+	cmtnode "github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	cmn "github.com/meterio/supernova/libs/common"
@@ -120,7 +121,7 @@ func RunNodeCmd() *cobra.Command {
 				privValidator,
 				nodeKey,
 				proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
-				node.DefaultGenesisDocProviderFunc(config),
+				cmtnode.DefaultGenesisDocProviderFunc(config),
 				cmtcfg.DefaultDBProvider,
 				logger,
 			)

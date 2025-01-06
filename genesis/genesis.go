@@ -28,7 +28,7 @@ type Genesis struct {
 	Name    string
 }
 
-func NewGenesis(gdoc *types.GenesisDoc) *Genesis {
+func NewGenesis(gdoc *cmttypes.GenesisDoc) *Genesis {
 	builder := &Builder{}
 	builder.GenesisDoc(gdoc)
 	id, err := builder.ComputeID()

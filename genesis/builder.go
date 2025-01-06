@@ -43,7 +43,7 @@ func (b *Builder) ComputeID() (types.Bytes32, error) {
 	return blk.ID(), nil
 }
 
-func (b *Builder) GenesisDoc(gdoc *types.GenesisDoc) *Builder {
+func (b *Builder) GenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
 	vs := make([]*cmttypes.Validator, 0)
 
 	for _, v := range gdoc.Validators {

@@ -13,19 +13,18 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/types"
 )
 
 type Handshaker struct {
 	chain    *chain.Chain
 	eventBus cmttypes.BlockEventPublisher
-	genDoc   *types.GenesisDoc
+	genDoc   *cmttypes.GenesisDoc
 	logger   log.Logger
 
 	nBlocks int // number of blocks applied to the state
 }
 
-func NewHandshaker(c *chain.Chain, genDoc *types.GenesisDoc,
+func NewHandshaker(c *chain.Chain, genDoc *cmttypes.GenesisDoc,
 ) *Handshaker {
 	return &Handshaker{
 		chain:    c,

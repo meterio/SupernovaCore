@@ -16,7 +16,9 @@ import (
 	cfg "github.com/cometbft/cometbft/config"
 	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
 	cmtlog "github.com/cometbft/cometbft/libs/log"
-	nm "github.com/meterio/supernova/node"
+	cmtnode "github.com/cometbft/cometbft/node"
+	node "github.com/meterio/supernova/node"
+
 	"github.com/meterio/supernova/types"
 	"github.com/spf13/viper"
 )
@@ -85,12 +87,12 @@ func main() {
 	}
 
 	// config.LogLevel = "debug" // default is info
-	node := nm.NewNode(
+	node := node.NewNode(
 		config,
 		pv,
 		nodeKey,
 		proxy.NewLocalClientCreator(app),
-		nm.DefaultGenesisDocProviderFunc(config),
+		cmtnode.DefaultGenesisDocProviderFunc(config),
 		cfg.DefaultDBProvider,
 		logger,
 	)
