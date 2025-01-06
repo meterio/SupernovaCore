@@ -106,31 +106,23 @@ type Node struct {
 }
 
 func NewNode(
+	ctx context.Context,
 	config *cmtcfg.Config,
 	privValidator *privval.FilePV,
 	nodeKey *types.NodeKey,
 	clientCreator cmtproxy.ClientCreator,
 	genesisDocProvider cmtnode.GenesisDocProvider,
 	dbProvider cmtcfg.DBProvider,
+	metricProvider cmtnode.MetricsProvider,
 	logger log.Logger,
-) *Node {
-	ctx := context.Background()
-	return NewNodeWithContext(ctx, config, privValidator, nodeKey, clientCreator, genesisDocProvider, dbProvider, logger)
-}
-
-func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
-	privValidator *privval.FilePV,
-	nodeKey *types.NodeKey,
-	clientCreator cmtproxy.ClientCreator,
-	genesisDocProvider cmtnode.GenesisDocProvider,
-	dbProvider cmtcfg.DBProvider, logger log.Logger) *Node {
+) (*Node, error) {
 	InitLogger(config)
 
 	mainDB, err := dbProvider(&cmtcfg.DBContext{ID: "maindb", Config: config})
 
 	genDoc, err := LoadGenesisDoc(mainDB, genesisDocProvider)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	gene := genesis.NewGenesis(genDoc)
 
@@ -150,7 +142,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp, err := createAndStartProxyAppConns(clientCreator, cmtproxy.NopMetrics())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	var BootstrapNodes []string
@@ -169,7 +161,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 
 	eventBus, err := createAndStartEventBus(logger)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	doHandshake(ctx, chain, genDoc, eventBus, proxyApp)
 	fmt.Printf(`Starting %v
@@ -201,7 +193,7 @@ func NewNodeWithContext(ctx context.Context, config *cmtcfg.Config,
 		proxyApp:      proxyApp,
 	}
 
-	return node
+	return node, nil
 }
 
 func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *cmtproxy.Metrics) (proxy.AppConns, error) {

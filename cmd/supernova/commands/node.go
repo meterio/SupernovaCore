@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -117,12 +118,14 @@ func RunNodeCmd() *cobra.Command {
 			logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cmtcfg.DefaultLogLevel)
 
 			privValidator, _ := privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), nil)
-			node := node.NewNode(config,
+			ctx := context.TODO()
+			node, err := node.NewNode(ctx, config,
 				privValidator,
 				nodeKey,
 				proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
 				cmtnode.DefaultGenesisDocProviderFunc(config),
 				cmtcfg.DefaultDBProvider,
+				cmtnode.DefaultMetricsProvider(config.Instrumentation),
 				logger,
 			)
 
