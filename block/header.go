@@ -99,12 +99,11 @@ func (h *Header) String() string {
 	return fmt.Sprintf(`
     ParentID:                 %v
     Timestamp:                %v
-	ProposerIndex:            %v
-    LastKBlock:               %v
     TxsRoot:                  %v
-	ValidatorsHash             %v
-	NextValidatorsHash         %v
-    Nonce:                    %v`, h.ParentID, h.Timestamp, h.ProposerIndex, h.LastKBlock, h.TxsRoot, h.ValidatorsHash.String(), h.NextValidatorsHash.String(), h.Nonce)
+    ValidatorsHash:           %v
+    NextValidatorsHash:       %v
+    LastKBlock:               %v
+    Nonce:                    %v`, h.ParentID, h.Timestamp, h.TxsRoot, h.ValidatorsHash.String(), h.NextValidatorsHash.String(), h.LastKBlock, h.Nonce)
 }
 
 // Number extract block number from block id.

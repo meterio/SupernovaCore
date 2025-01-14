@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/beevik/ntp"
@@ -33,7 +34,6 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
-	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/libs/comm"
@@ -124,9 +124,8 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	gene := genesis.NewGenesis(genDoc)
 
-	chain := InitChain(gene, mainDB)
+	chain := NewChain(mainDB)
 
 	// if flattern index start is not set, or pruning is not complete
 	// start the pruning routine right now
@@ -136,45 +135,55 @@ func NewNode(
 
 	slog.Info("Supernova start ...", "version", config.BaseConfig.Version)
 
-	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
-	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
-
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp, err := createAndStartProxyAppConns(clientCreator, cmtproxy.NopMetrics())
 	if err != nil {
 		return nil, err
 	}
 
+	eventBus, err := createAndStartEventBus(logger)
+	if err != nil {
+		return nil, err
+	}
+	err = doHandshake(ctx, chain, genDoc, eventBus, proxyApp)
+	if err != nil {
+		logger.Error("Handshake failed", "err", err)
+		return nil, err
+	}
+
+	txPool := txpool.New(chain, txpool.DefaultTxPoolOptions)
+	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
+
 	var BootstrapNodes []string
 	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLSevAAY9L6xt5_v4NWcycngCwqx9EwLMC2gkxJ5cvXkZWynzkLJHtpEX9ELyUDBsNM6pLboAoy1RDqWJ8kLyyaGAZQf2UcTh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQV6reJc2VjcDI1NmsxoQNJtgOonAuyML51MDv2iOAKdUPX8eryxGVlbbtrgQ_VVIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
 	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QKHeYBXCxMaZuDQfBmdPORCerUN0zEMCp03Rx_xJ7t4GCjmejxc_LvlfPF98lLjfVx7IlDbwv7yYFRJUALX1mlOGAZQf2UhGh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQW3hGJc2VjcDI1NmsxoQKKtWc2VkrGlwvW1XY7PvKIUAnOcC__CniDbSo0sT5uHYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A")
 
-	p2pSrv := newP2PService(ctx, config, BootstrapNodes, gene)
+	geneBlock, err := chain.GetTrunkBlock(0)
+	if err != nil {
+		return nil, err
+	}
+	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
 	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
 
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8670"
-	apiServer := api.NewAPIServer(apiAddr, gene.ChainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pSrv)
+	chainId, err := strconv.ParseUint(genDoc.ChainID, 10, 64)
+	apiServer := api.NewAPIServer(apiAddr, chainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pSrv)
 
 	bestBlock := chain.BestBlock()
 
-	eventBus, err := createAndStartEventBus(logger)
-	if err != nil {
-		return nil, err
-	}
-	doHandshake(ctx, chain, genDoc, eventBus, proxyApp)
 	fmt.Printf(`Starting %v
-    Network         [ %v %v ]    
+    Network         [ %v ]    
     Best block      [ %v #%v @%v ]
     Forks           [ %v ]
     PubKey          [ %v ]
     API portal      [ %v ]
 `,
 		types.MakeName("Supernova", config.BaseConfig.Version),
-		gene.ID(), gene.Name,
+		geneBlock.ID(),
 		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
-		types.GetForkConfig(gene.ID()),
+		types.GetForkConfig(geneBlock.ID()),
 		hex.EncodeToString(pubkey.Bytes()),
 		apiAddr)
 
@@ -204,8 +213,8 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, gene *genesis.Genesis) p2p.P2P {
-	svc, err := p2p.NewService(ctx, int64(time.Now().Unix()), gene.ValidatorSet().Hash()[:], &p2p.Config{
+func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, geneValidatorSetHash []byte) p2p.P2P {
+	svc, err := p2p.NewService(ctx, int64(time.Now().Unix()), geneValidatorSetHash, &p2p.Config{
 		NoDiscovery: false,
 		// StaticPeers:          slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.StaticPeers.Name)),
 		Discv5BootStrapAddrs: p2p.ParseBootStrapAddrs(bootstrapNodes),

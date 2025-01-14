@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"strconv"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
@@ -22,21 +23,22 @@ const (
 type Genesis struct {
 	builder *Builder
 	id      types.Bytes32
-	vset    *cmttypes.ValidatorSet
 
 	ChainId uint64
 	Name    string
 }
 
-func NewGenesis(gdoc *cmttypes.GenesisDoc) *Genesis {
+func NewGenesis(gdoc *cmttypes.GenesisDoc, validatorUpdate []v1.ValidatorUpdate) *Genesis {
 	builder := &Builder{}
-	builder.GenesisDoc(gdoc)
+	builder.SetGenesisDoc(gdoc)
+	builder.SetValidatorUpdate(validatorUpdate)
 	id, err := builder.ComputeID()
 	if err != nil {
 		panic(err)
 	}
 	chainId, err := strconv.ParseUint(gdoc.ChainID, 10, 64)
-	return &Genesis{builder, id, builder.ValidatorSet(), chainId, "Supernova"}
+
+	return &Genesis{builder, id, chainId, "Supernova"}
 }
 
 // Build build the genesis block.
@@ -57,7 +59,11 @@ func (g *Genesis) ID() types.Bytes32 {
 }
 
 func (g *Genesis) ValidatorSet() *cmttypes.ValidatorSet {
-	return g.vset
+	return g.builder.vset
+}
+
+func (g *Genesis) NextValidatorSet() *cmttypes.ValidatorSet {
+	return g.builder.nextVSet
 }
 
 func mustDecodeHex(str string) []byte {

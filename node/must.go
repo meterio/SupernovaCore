@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/fdlimit"
 	"github.com/lmittmann/tint"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/lvldb"
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -85,13 +84,9 @@ func OpenMainDB(ctx *cli.Context, dataDir string) *lvldb.LevelDB {
 	return db
 }
 
-func InitChain(gene *genesis.Genesis, mainDB db.DB) *chain.Chain {
-	genesisBlock, err := gene.Build()
-	if err != nil {
-		fatal("build genesis block: ", err)
-	}
+func NewChain(mainDB db.DB) *chain.Chain {
 
-	chain, err := chain.New(mainDB, genesisBlock, gene.ValidatorSet(), true)
+	chain, err := chain.New(mainDB, true)
 	if err != nil {
 		fatal("initialize block chain:", err)
 	}

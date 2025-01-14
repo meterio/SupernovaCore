@@ -12,7 +12,6 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	snbls "github.com/meterio/supernova/libs/bls"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 
@@ -46,15 +45,17 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey cmtcrypto.PubKey)
 		}
 	}
 
+	fmt.Println("load next validator set from ", kblk.Number())
 	vset := c.GetNextValidatorSet(kblk.Number())
 	if vset == nil {
 		slog.Error("Could not get next validator set", "num", kblk.Number())
 		return nil, errors.New("could not get next validator set")
 	}
+	fmt.Println("loaded next vset", vset.Size())
 	vsetAdapter := cmn.NewValidatorSetAdapter(vset)
 	vsetAdapter.SortWithNonce(kblk.Nonce())
 	committee := vsetAdapter.ToValidatorSet()
-	logger.Info("calc epoch state", "kblk", kblk.Number(), "vset", vset.Hash(), "committeeSize", committee.Size())
+	logger.Info("calc epoch state", "kblk", kblk.Number(), "vsetHash", hex.EncodeToString(vset.Hash()), "committeeSize", committee.Size())
 
 	// it is used for temp calculate committee set by a given nonce in the fly.
 	// also return the committee
@@ -92,7 +93,7 @@ func NewPendingEpochState(vset *cmttypes.ValidatorSet, myPubKey bls.PublicKey, c
 		return nil, errors.New("validator set is nil")
 	}
 	committee := vset
-	logger.Info("calc epoch state", "vset", vset.Hash(), "committeeSize", committee.Size())
+	logger.Info("calc epoch state", "vsetHash", hex.EncodeToString(vset.Hash()), "committeeSize", committee.Size())
 
 	// it is used for temp calculate committee set by a given nonce in the fly.
 	// also return the committee
@@ -126,7 +127,7 @@ func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.
 		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
 		return nil
 	}
-	cmnPubKey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+	cmnPubKey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
 	if err != nil {
 		es.logger.Warn("Invalid key", "err", err)
 		return nil
@@ -147,7 +148,7 @@ func (es *EpochState) AddTCVote(signerIndex uint32, round uint32, sig []byte, ha
 		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
 		return nil
 	}
-	cmnPubKey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+	cmnPubKey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
 	if err != nil {
 		es.logger.Warn("Invalid key", "err", err)
 		return nil

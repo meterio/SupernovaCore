@@ -1,5 +1,0 @@
-syntax = "proto3";
-
-message NewBlockID{
-    bytes block_id = 1;
-}

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	db "github.com/cometbft/cometbft-db"
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -18,11 +19,13 @@ import (
 )
 
 var (
-	blockPrefix         = []byte("b") // (prefix, block id) -> block
-	txMetaPrefix        = []byte("t") // (prefix, tx id) -> tx location
-	blockReceiptsPrefix = []byte("r") // (prefix, block id) -> receipts
-	indexTrieRootPrefix = []byte("i") // (prefix, block id) -> trie root
-	validatorPrefix     = []byte("v") // (prefix, validator set hash) -> validator set
+	blockPrefix         = []byte("b")    // (prefix, block id) -> block
+	txMetaPrefix        = []byte("t")    // (prefix, tx id) -> tx location
+	blockReceiptsPrefix = []byte("r")    // (prefix, block id) -> receipts
+	indexTrieRootPrefix = []byte("i")    // (prefix, block id) -> trie root
+	validatorPrefix     = []byte("v")    // (prefix, validator set hash) -> validator set
+	finalizeBlockPrefix = []byte("f")    // (prefix, block id) -> finalize block response
+	initChainPrefix     = []byte("init") // (prefix) -> init chain response
 
 	bestBlockKey = []byte("best")    // best block hash
 	bestQCKey    = []byte("best-qc") // best qc raw
@@ -248,5 +251,73 @@ func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
 	}
 
 	vsetProto.Unmarshal(vsetBytes)
-	return cmttypes.ValidatorSetFromProto(vsetProto)
+	vset, err := cmttypes.ValidatorSetFromProto(vsetProto)
+	if err != nil {
+		return nil, err
+	}
+	return vset, err
+}
+
+// saveInitChainResponse save the init chain response
+func saveInitChainResponse(w db.DB, res *v1.InitChainResponse) error {
+	batch := w.NewBatch()
+	key := append(initChainPrefix)
+
+	marshaled, err := res.Marshal()
+	if err != nil {
+		return err
+	}
+	err = batch.Set(key, marshaled)
+	if err != nil {
+		return err
+	}
+	return batch.Write()
+}
+
+// loadInitChainResponse load the init chain response
+func loadInitChainResponse(r db.DB) (*v1.InitChainResponse, error) {
+	res := new(v1.InitChainResponse)
+	key := append(initChainPrefix)
+	marshaled, err := r.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.Unmarshal(marshaled)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+// saveInitChainResponse save the init chain response
+func saveFinalizeBlockResponse(w db.DB, blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
+	batch := w.NewBatch()
+	key := append(finalizeBlockPrefix, blockID[:]...)
+
+	marshaled, err := res.Marshal()
+	if err != nil {
+		return err
+	}
+	err = batch.Set(key, marshaled)
+	if err != nil {
+		return err
+	}
+	return batch.Write()
+}
+
+// loadInitChainResponse load the init chain response
+func loadFinalizeBlockResponse(r db.DB, blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
+	res := new(v1.FinalizeBlockResponse)
+	key := append(finalizeBlockPrefix, blockID[:]...)
+	marshaled, err := r.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.Unmarshal(marshaled)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
 }

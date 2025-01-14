@@ -13,6 +13,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/genesis"
 )
 
 type Handshaker struct {
@@ -72,12 +73,12 @@ func (h *Handshaker) Handshake(ctx context.Context, proxyApp proxy.AppConns) err
 		"protocol-version", res.AppVersion,
 	)
 
-	best := h.chain.BestBlock()
+	// best := h.chain.BestBlock()
 
-	// Only set the version if there is no existing state.
-	if best.Number() == 0 {
-		// h. = res.AppVersion
-	}
+	// // Only set the version if there is no existing state.
+	// if best.Number() == 0 {
+	// 	// h. = res.AppVersion
+	// }
 
 	// Replay blocks up to the latest in the blockstore.
 	appHash, err = h.ReplayBlocks(ctx, appHash, blockHeight, proxyApp)
@@ -104,7 +105,10 @@ func (h *Handshaker) ReplayBlocks(
 ) ([]byte, error) {
 	best := h.chain.BestBlock()
 
-	storeBlockHeight := best.Number()
+	storeBlockHeight := uint32(0)
+	if best != nil {
+		storeBlockHeight = best.Number()
+	}
 	h.logger.Info(
 		"ABCI Replay Blocks",
 		"appHeight",
@@ -142,13 +146,32 @@ func (h *Handshaker) ReplayBlocks(
 		}
 
 		appHash = res.AppHash
-		fmt.Println("Validators updates: ", len(res.Validators), res.Validators)
-		for _, v := range res.Validators {
-			fmt.Println(v.PubKeyType, hex.EncodeToString(v.PubKeyBytes), v.Power)
+		fmt.Println("InitChain Response Validators: ", len(res.Validators))
+
+		gene := genesis.NewGenesis(h.genDoc, res.Validators)
+
+		err = h.chain.Initialize(gene)
+		if err != nil {
+			h.logger.Error("chain initialize failed", "err", err)
+		}
+
+		for i, v := range res.Validators {
+			fmt.Println(" ", i, ": ", v.PubKeyType, hex.EncodeToString(v.PubKeyBytes))
+		}
+		err = h.chain.SaveInitChainResponse(res)
+		if err != nil {
+			fmt.Println("Save InitChainResponse failed", err)
+		}
+	} else {
+		err := h.chain.Initialize(nil)
+		if err != nil {
+			return nil, err
 		}
 
 	}
 	fmt.Println("store block height", storeBlockHeight)
+	fmt.Println("after replay genesis ", h.chain.BestBlock())
+	fmt.Println("storeBlockHeight", storeBlockHeight, "appBlockHeight", appBlockHeight)
 
 	// First handle edge cases and constraints on the storeBlockHeight and storeBlockBase.
 	switch {

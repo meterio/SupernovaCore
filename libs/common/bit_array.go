@@ -26,9 +26,9 @@ type BitArray struct {
 // NewBitArray returns a new bit array.
 // It returns nil if the number of bits is zero.
 func NewBitArray(bits int) *BitArray {
-	if bits <= 0 {
-		return nil
-	}
+	// if bits <= 0 {
+	// 	return nil
+	// }
 	return &BitArray{
 		Bits:  uint32(bits),
 		Elems: make([]uint64, (bits+63)/64),

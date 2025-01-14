@@ -6,6 +6,7 @@
 package txpool
 
 import (
+	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"time"
@@ -87,6 +88,8 @@ func (p *TxPool) housekeeping() {
 	defer ticker.Stop()
 
 	// Hotstuff: Should change to after seem new proposal and do wash txs.
+	fmt.Println("bestblock: ", p.chain.BestBlock())
+	fmt.Println("header: ", p.chain.BestBlock().Header())
 	headBlock := p.chain.BestBlock().Header()
 
 	for {

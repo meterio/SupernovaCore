@@ -19,7 +19,7 @@ import (
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	snbls "github.com/meterio/supernova/libs/bls"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -92,7 +92,7 @@ func (b *Block) VerifyQC(escortQC *QuorumCert, blsMaster *types.BlsMaster, commi
 	for index, v := range committee.Validators {
 		if v.PubKey.Type() == "bls12_381" {
 			if escortQC.BitArray.GetIndex(index) {
-				cmnPubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+				cmnPubkey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
 				if err != nil {
 					// FIXME: implement this
 					panic("unsupported pubkey type")

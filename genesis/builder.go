@@ -6,6 +6,7 @@
 package genesis
 
 import (
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
@@ -19,6 +20,7 @@ type Builder struct {
 
 	extraData [28]byte
 	vset      *cmttypes.ValidatorSet
+	nextVSet  *cmttypes.ValidatorSet
 }
 
 // Timestamp set timestamp.
@@ -43,7 +45,7 @@ func (b *Builder) ComputeID() (types.Bytes32, error) {
 	return blk.ID(), nil
 }
 
-func (b *Builder) GenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
+func (b *Builder) SetGenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
 	vs := make([]*cmttypes.Validator, 0)
 
 	for _, v := range gdoc.Validators {
@@ -59,8 +61,9 @@ func (b *Builder) GenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
 	return b
 }
 
-func (b *Builder) ValidatorSet() *cmttypes.ValidatorSet {
-	return b.vset
+func (b *Builder) SetValidatorUpdate(validatorUpdate []v1.ValidatorUpdate) *Builder {
+	b.nextVSet = cmn.ApplyUpdatesToValidatorSet(b.vset, validatorUpdate)
+	return b
 }
 
 func (b *Builder) Build() (blk *block.Block, err error) {
@@ -74,9 +77,9 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 	return new(block.Builder).
 		ParentID(parentID).
 		Timestamp(b.timestamp).
-		ValidatorsHash([]byte{0x00}).
-		NextValidatorsHash(b.vset.Hash()).
+		ValidatorsHash(b.vset.Hash()).
+		NextValidatorsHash(b.nextVSet.Hash()).
 		Nonce(GenesisNonce).
-		QC(&block.QuorumCert{Round: 0, Epoch: 0, BlockID: types.Bytes32{}, AggSig: make([]byte, 0), BitArray: cmn.NewBitArray(1)}).
+		QC(&block.QuorumCert{Round: 0, Epoch: 0, BlockID: types.Bytes32{}, AggSig: make([]byte, 0), BitArray: cmn.NewBitArray(b.vset.Size())}).
 		Build(), nil
 }

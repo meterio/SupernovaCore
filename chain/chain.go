@@ -14,11 +14,13 @@ import (
 
 	db "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/co"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -56,7 +58,6 @@ type Chain struct {
 	genesisBlock *block.Block
 	bestBlock    *block.Block
 	bestQC       *block.QuorumCert
-	tag          byte
 	caches       caches
 	rw           sync.RWMutex
 	tick         co.Signal
@@ -74,80 +75,10 @@ type caches struct {
 var log = slog.With("pkg", "c")
 
 // New create an instance of Chain.
-func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.ValidatorSet, verbose bool) (*Chain, error) {
+func New(kv db.DB, verbose bool) (*Chain, error) {
 	prometheus.Register(bestQCHeightGauge)
 	prometheus.Register(bestHeightGauge)
 	logger := slog.With("pkg", "c")
-
-	if genesisBlock.Number() != 0 {
-		fmt.Println(genesisBlock.Number())
-		return nil, errors.New("genesis number != 0")
-	}
-	if len(genesisBlock.Transactions()) != 0 {
-		return nil, errors.New("genesis block should not have transactions")
-	}
-	var bestBlock *block.Block
-
-	if !bytes.Equal(genesisValidatorSet.Hash(), genesisBlock.NextValidatorsHash().Bytes()) {
-		panic(ErrInvalidGenesis)
-	}
-	if _, err := loadValidatorSet(kv, genesisValidatorSet.Hash()); err != nil {
-		logger.Info("saving genesis validator set", "hash", hex.EncodeToString(genesisValidatorSet.Hash()))
-		err = saveValidatorSet(kv, genesisValidatorSet)
-		if err != nil {
-			panic(err)
-		}
-	}
-	genesisID := genesisBlock.ID()
-
-	if bestBlockID, _ := loadBestBlockID(kv); bytes.Equal(bestBlockID.Bytes(), (&types.Bytes32{}).Bytes()) {
-
-		// no genesis yet
-		raw, err := rlp.EncodeToBytes(genesisBlock)
-		if err != nil {
-			return nil, err
-		}
-
-		batch := kv.NewBatch()
-		if err := saveBlockRaw(batch, genesisID, raw); err != nil {
-			return nil, err
-		}
-
-		if err := batchSaveBestBlockID(batch, genesisID); err != nil {
-			return nil, err
-		}
-		if err := saveBlockHash(batch, 0, genesisID); err != nil {
-			return nil, err
-		}
-
-		if err := batch.Write(); err != nil {
-			return nil, err
-		}
-
-		bestBlock = genesisBlock
-		bestHeightGauge.Set(float64(bestBlock.Number()))
-	} else {
-		existGenesisID, err := loadBlockHash(kv, 0)
-		if err != nil {
-			return nil, err
-		}
-		if existGenesisID != genesisID {
-			return nil, errors.New("genesis mismatch")
-		}
-		raw, err := loadBlockRaw(kv, bestBlockID)
-		if err != nil {
-			return nil, err
-		}
-		bestBlock, err = (&rawBlock{raw: raw}).Block()
-		if err != nil {
-			return nil, err
-		}
-		if bestBlock.Number() == 0 && bestBlock.QC == nil {
-			logger.Info("QC of best block is empty, set it to genesis QC")
-			saveBestQC(kv, block.GenesisEscortQC(bestBlock, len(genesisValidatorSet.Validators)))
-		}
-
-	}
 
 	rawBlocksCache := newCache(blockCacheLimit, func(key interface{}) (interface{}, error) {
 		raw, err := loadBlockRaw(kv, key.(types.Bytes32))
@@ -160,38 +91,10 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.Vali
 		return &rawBlock{raw: raw}, nil
 	})
 
-	bestQC, err := loadBestQC(kv)
-	if err != nil {
-		logger.Debug("BestQC is empty, set it to use genesisEscortQC")
-		bestQC = block.GenesisEscortQC(genesisBlock, len(genesisValidatorSet.Validators))
-		bestQCHeightGauge.Set(float64(bestQC.Number()))
-	}
-
-	if bestBlock.Number() > bestQC.Number() {
-		logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.Number())
-		matchBestBlockID := bestQC.BlockID
-
-		matchBestBlockRaw, err := loadBlockRaw(kv, matchBestBlockID)
-		if err != nil {
-			logger.Error("could not load raw for bestBlockBeforeFlattern", "err", err)
-		} else {
-			bestBlock, _ = (&rawBlock{raw: matchBestBlockRaw}).Block()
-			saveBestBlockID(kv, matchBestBlockID)
-		}
-	}
-
-	bestHeightGauge.Set(float64(bestBlock.Number()))
-	bestQCHeightGauge.Set(float64(bestQC.Number()))
-
-	if verbose {
-		slog.Info("Chain initialized", "genesis", genesisBlock.ID(), "best", bestBlock.CompactString(), "bestQC", bestQC.String(), "genesisVSetHash", hex.EncodeToString(genesisValidatorSet.Hash()))
-	}
 	c := &Chain{
-		kv:           kv,
-		genesisBlock: genesisBlock,
-		bestBlock:    bestBlock,
-		bestQC:       bestQC,
-		tag:          genesisBlock.ID()[31],
+		kv: kv,
+		// bestBlock: bestBlock,
+		// bestQC:    bestQC,
 		caches: caches{
 			rawBlocks: rawBlocksCache,
 		},
@@ -202,14 +105,145 @@ func New(kv db.DB, genesisBlock *block.Block, genesisValidatorSet *cmttypes.Vali
 	return c, nil
 }
 
-// Tag returns chain tag, which is the last byte of genesis id.
-func (c *Chain) Tag() byte {
-	return c.tag
+func (c *Chain) Initialize(gene *genesis.Genesis) error {
+	var bestBlock *block.Block
+
+	if bestBlockID, _ := loadBestBlockID(c.kv); bytes.Equal(bestBlockID.Bytes(), (&types.Bytes32{}).Bytes()) {
+		// could not load bestblock, usually this means chain is not initialized
+		genesisBlock, err := gene.Build()
+		if err != nil {
+			return err
+		}
+		fmt.Println("GENESIS BLOCK:", genesisBlock)
+		if genesisBlock.Number() != 0 {
+			fmt.Println(genesisBlock.Number())
+			return errors.New("genesis number != 0")
+		}
+		if len(genesisBlock.Transactions()) != 0 {
+			return errors.New("genesis block should not have transactions")
+		}
+
+		vset := gene.ValidatorSet()
+		nextVSet := gene.NextValidatorSet()
+		genesisEscortQC := block.GenesisEscortQC(genesisBlock, nextVSet.Size())
+
+		if _, err := loadValidatorSet(c.kv, vset.Hash()); err != nil {
+			c.logger.Info("saving genesis validator set", "hash", hex.EncodeToString(vset.Hash()), "size", vset.Size())
+			err = saveValidatorSet(c.kv, vset)
+			if err != nil {
+				return err
+			}
+		}
+
+		if _, err := loadValidatorSet(c.kv, nextVSet.Hash()); err != nil {
+			c.logger.Info("saving genesis next validator set", "hash", hex.EncodeToString(nextVSet.Hash()), "size", nextVSet.Size())
+			err = saveValidatorSet(c.kv, nextVSet)
+			if err != nil {
+				return err
+			}
+		}
+
+		var bestBlock *block.Block
+		genesisID := genesisBlock.ID()
+		// no genesis yet
+		raw, err := rlp.EncodeToBytes(genesisBlock)
+		if err != nil {
+			return err
+		}
+
+		batch := c.kv.NewBatch()
+		if err := saveBlockRaw(batch, genesisID, raw); err != nil {
+			return err
+		}
+
+		if err := batchSaveBestBlockID(batch, genesisID); err != nil {
+			return err
+		}
+		if err := saveBlockHash(batch, 0, genesisID); err != nil {
+			return err
+		}
+		if err := batchSaveBestQC(batch, genesisEscortQC); err != nil {
+			return err
+		}
+
+		if err := batch.Write(); err != nil {
+			return err
+		}
+
+		bestBlock = genesisBlock
+		bestHeightGauge.Set(float64(bestBlock.Number()))
+	} else {
+		// chain is initialized in db
+		// load them into chain object
+		fmt.Println("chain is initialized in db")
+
+		existGenesisID, err := loadBlockHash(c.kv, 0)
+		if err != nil {
+			return err
+		}
+		fmt.Println("exist genesis ID", existGenesisID.String())
+		geneRaw, err := loadBlockRaw(c.kv, existGenesisID)
+		if err != nil {
+			return err
+		}
+		geneBlock, err := block.BlockDecodeFromBytes(geneRaw)
+		if err != nil {
+			return err
+		}
+		nxtVSet, err := loadValidatorSet(c.kv, geneBlock.NextValidatorsHash())
+		if err != nil {
+			return err
+		}
+
+		geneEscortQC := block.GenesisEscortQC(geneBlock, nxtVSet.Size())
+
+		fmt.Println("load best block ID", bestBlockID.String())
+		raw, err := loadBlockRaw(c.kv, bestBlockID)
+		if err != nil {
+			return err
+		}
+		bestBlock, err = (&rawBlock{raw: raw}).Block()
+		if err != nil {
+			return err
+		}
+		if _, err = loadBestQC(c.kv); err != nil {
+			saveBestQC(c.kv, geneEscortQC)
+		}
+
+	}
+	bestQC, err := loadBestQC(c.kv)
+	if err != nil {
+		return err
+	}
+
+	if bestBlock.Number() > bestQC.Number() {
+		c.logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.Number())
+		matchBestBlockID := bestQC.BlockID
+
+		matchBestBlockRaw, err := loadBlockRaw(c.kv, matchBestBlockID)
+		if err != nil {
+			c.logger.Error("could not load raw for bestBlockBeforeFlattern", "err", err)
+		} else {
+			bestBlock, _ = (&rawBlock{raw: matchBestBlockRaw}).Block()
+			saveBestBlockID(c.kv, matchBestBlockID)
+		}
+	}
+	c.bestQC = bestQC
+	c.bestBlock = bestBlock
+	bestHeightGauge.Set(float64(bestBlock.Number()))
+	bestQCHeightGauge.Set(float64(bestQC.Number()))
+
+	c.logger.Info("Chain initialized", "best", bestBlock.CompactString(), "bestQC", bestQC.String())
+	return nil
 }
 
 // GenesisBlock returns genesis block.
 func (c *Chain) GenesisBlock() *block.Block {
-	return c.genesisBlock
+	genesisBlock, err := c.GetTrunkBlock(0)
+	if err != nil {
+		panic("could not find genesis")
+	}
+	return genesisBlock
 }
 
 // BestBlock returns the newest block on trunk.
@@ -867,6 +901,7 @@ func (c *Chain) GetValidatorSet(num uint32) *cmttypes.ValidatorSet {
 func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, hash)
 	if err != nil {
+		fmt.Println("ERROR: ", err)
 		return nil
 	}
 	return vset
@@ -881,6 +916,7 @@ func (c *Chain) GetNextValidatorSet(num uint32) *cmttypes.ValidatorSet {
 	if err != nil {
 		return nil
 	}
+	fmt.Println("load validator set from ", blk.Number(), blk.NextValidatorsHash())
 	vset, err := loadValidatorSet(c.kv, blk.NextValidatorsHash())
 	if err != nil {
 		return nil
@@ -893,6 +929,24 @@ func (c *Chain) SaveValidatorSet(vset *cmttypes.ValidatorSet) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (c *Chain) GetInitChainResponse() (*v1.InitChainResponse, error) {
+	fmt.Println("get init chain response")
+	return loadInitChainResponse(c.kv)
+}
+
+func (c *Chain) SaveInitChainResponse(res *v1.InitChainResponse) error {
+	fmt.Println("save init chain response")
+	return saveInitChainResponse(c.kv, res)
+}
+
+func (c *Chain) GetFinalizeBlockResponse(blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
+	return loadFinalizeBlockResponse(c.kv, blockID)
+}
+
+func (c *Chain) SaveFinalizeBlockResponse(blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
+	return saveFinalizeBlockResponse(c.kv, blockID, res)
 }
 
 func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
@@ -925,15 +979,20 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 // If you want to load the validator set from the store instead of providing it,
 // use buildLastCommitInfoFromStore.
 func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.CommitInfo {
+	fmt.Println("load next validator set for ", parent.Number(), parent.ValidatorsHash())
 	vset := c.GetValidatorsByHash(parent.ValidatorsHash())
-	if parent.Number() == 0 {
-		vset = c.GetValidatorsByHash(parent.NextValidatorsHash())
-	}
+	// if blk.Number() == 0 {
+	// 	fmt.Println("parent is genesis", parent.NextValidatorsHash())
+	// 	vset = c.GetValidatorsByHash(parent.NextValidatorsHash())
+	// }
+	qc := blk.QC
 	if vset == nil {
+		if parent.Number() == 0 {
+			// genesis
+			return abci.CommitInfo{Round: int32(qc.Round), Votes: make([]abci.VoteInfo, 0)}
+		}
 		panic("validator set is empty")
 	}
-
-	qc := blk.QC
 
 	var (
 		commiteeSize = vset.Size()
@@ -941,7 +1000,7 @@ func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.
 	)
 
 	if commiteeSize != votesSize {
-		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, parent.Number()))
+		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, blk.Number()))
 	}
 
 	votes := make([]abci.VoteInfo, vset.Size())
@@ -955,8 +1014,5 @@ func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.
 		}
 	}
 
-	return abci.CommitInfo{
-		Round: int32(qc.Round),
-		Votes: votes,
-	}
+	return abci.CommitInfo{Round: int32(qc.Round), Votes: votes}
 }

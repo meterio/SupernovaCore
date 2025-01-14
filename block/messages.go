@@ -14,7 +14,7 @@ import (
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
-	snbls "github.com/meterio/supernova/libs/bls"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	amino "github.com/tendermint/go-amino"
@@ -81,7 +81,7 @@ func EncodeMsg(msg ConsensusMessage) ([]byte, error) {
 }
 
 func verifyMsgSignature(cmtPubkey cmtcrypto.PubKey, msg []byte, signature []byte) bool {
-	blsPubKey, err := snbls.BlsPublicKeyFromCmtPubKey(cmtPubkey)
+	blsPubKey, err := cmn.BlsPublicKeyFromCmtPubKey(cmtPubkey)
 	if err != nil {
 		return false
 	}
@@ -141,6 +141,7 @@ func (m *PMProposalMessage) DecodeBlock() *Block {
 	}
 	blk, err := BlockDecodeFromBytes(m.RawBlock)
 	if err != nil {
+		fmt.Println("decode error: ", err)
 		m.decodedBlock = nil
 		return nil
 	}

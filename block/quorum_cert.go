@@ -27,7 +27,6 @@ type QuorumCert struct {
 
 func (qc *QuorumCert) String() string {
 	if qc != nil {
-		// bitArray := strings.ReplaceAll(qc.VoterBitArrayStr, "\"", "")
 		voted := qc.BitArray.CountYes()
 		unvoted := qc.BitArray.CountNo()
 		return fmt.Sprintf("QC(E:%v,R:%v, %v, BitArray:(%v/%v), AggSig:len(%v))",

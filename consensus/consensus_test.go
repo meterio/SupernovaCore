@@ -101,7 +101,6 @@ package consensus
 // 		pk:       proposer.PrivateKey,
 // 		parent:   parent,
 // 		original: original,
-// 		tag:      c.Tag(),
 // 	}
 // }
 

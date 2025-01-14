@@ -3,11 +3,14 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
+	cryptoencoding "github.com/cometbft/cometbft/crypto/encoding"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -93,4 +96,44 @@ func (vals *ValidatorSetAdapter) SortWithNonce(nonce uint64) *cmttypes.Validator
 
 func (vals *ValidatorSetAdapter) ToValidatorSet() *cmttypes.ValidatorSet {
 	return cmttypes.NewValidatorSet(vals.Validators)
+}
+
+func ApplyUpdatesToValidatorSet(vset *cmttypes.ValidatorSet, validatorUpdates []v1.ValidatorUpdate) *cmttypes.ValidatorSet {
+	vs := vset.Validators
+
+	addedIndex := make(map[int]bool)
+	for i, _ := range validatorUpdates {
+		addedIndex[i] = true
+	}
+	// delete/update existing validator
+	for i := 0; i < len(vs); {
+		v := vs[i]
+		for j, update := range validatorUpdates {
+			if bytes.Equal(v.PubKey.Bytes(), update.PubKeyBytes) {
+				if v.VotingPower == 0 {
+					vs = append(vs[:i], vs[i+1:]...)
+					delete(addedIndex, j)
+					break
+				} else {
+					vs[i].VotingPower = update.Power
+					i++
+					delete(addedIndex, j)
+					break
+				}
+			}
+		}
+	}
+
+	// add new validator
+	for i, _ := range addedIndex {
+		added := validatorUpdates[i]
+		pubKey, err := cryptoencoding.PubKeyFromTypeAndBytes(added.PubKeyType, added.PubKeyBytes)
+		if err != nil {
+			fmt.Errorf("can't decode public key: %w", err)
+			return cmttypes.NewValidatorSet(vs)
+		}
+		vs = append(vs, cmttypes.NewValidator(pubKey, added.Power))
+	}
+
+	return cmttypes.NewValidatorSet(vs)
 }

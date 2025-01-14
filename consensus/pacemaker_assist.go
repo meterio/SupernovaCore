@@ -15,7 +15,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	snbls "github.com/meterio/supernova/libs/bls"
+	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
@@ -134,7 +134,7 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 
 		// check signature
 		for index, v := range p.epochState.committee.Validators {
-			cmnPubkey, err := snbls.PublicKeyFromBytes(v.PubKey.Bytes())
+			cmnPubkey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
 			if err != nil {
 				// FIXME: better handling
 				continue

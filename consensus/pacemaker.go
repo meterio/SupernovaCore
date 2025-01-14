@@ -424,6 +424,7 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 		p.logger.Error("could not create leaf", "err", err)
 		return nil
 	}
+	fmt.Println("Proposed: ", bnew.ProposedBlock.String())
 	// proposedBlk := bnew.ProposedBlockInfo.ProposedBlock
 
 	if bnew.Height <= qc.QC.Number() {
