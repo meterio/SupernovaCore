@@ -143,7 +143,6 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 			}
 		}
 
-		var bestBlock *block.Block
 		genesisID := genesisBlock.ID()
 		// no genesis yet
 		raw, err := rlp.EncodeToBytes(genesisBlock)
@@ -216,6 +215,8 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 		return err
 	}
 
+	fmt.Println("Best Block: ", bestBlock)
+	fmt.Println("Best QC: ", bestQC)
 	if bestBlock.Number() > bestQC.Number() {
 		c.logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.Number())
 		matchBestBlockID := bestQC.BlockID

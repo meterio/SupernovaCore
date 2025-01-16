@@ -155,8 +155,8 @@ func NewNode(
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
 	var BootstrapNodes []string
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLSevAAY9L6xt5_v4NWcycngCwqx9EwLMC2gkxJ5cvXkZWynzkLJHtpEX9ELyUDBsNM6pLboAoy1RDqWJ8kLyyaGAZQf2UcTh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQV6reJc2VjcDI1NmsxoQNJtgOonAuyML51MDv2iOAKdUPX8eryxGVlbbtrgQ_VVIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QKHeYBXCxMaZuDQfBmdPORCerUN0zEMCp03Rx_xJ7t4GCjmejxc_LvlfPF98lLjfVx7IlDbwv7yYFRJUALX1mlOGAZQf2UhGh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCDQJLYAQAAAAAiAQAAAAAAgmlkgnY0gmlwhDQW3hGJc2VjcDI1NmsxoQKKtWc2VkrGlwvW1XY7PvKIUAnOcC__CniDbSo0sT5uHYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A")
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QOQzYBuKsestT0uZsQ2L7dDgD6EfE81oLfFflzurOHq7B4pY5r-8kozd9PRpE0Z3I994DxXmRc7mC8v23ABysCmGAZRsaVWnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLZ9EQkKk4n9OCfErexZJ6m-auSEcBdVngrAgh1UlWMp4hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLXP9wqWWwRhi4To_3TJ_8rEMYOwN1fZIPeHg7uH__O-K2jBnFYwRy7oFoLYfUYFyP7XlXn5Ibq3Ltqfuzl-VrqGAZRsacAUh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQO4P_0L80DH2OIc3pd9GfjqevVK0tV2Z9NZqZ6_qAxSMYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
 
 	geneBlock, err := chain.GetTrunkBlock(0)
 	if err != nil {
