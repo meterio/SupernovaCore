@@ -642,7 +642,7 @@ func (c *Chain) getBlock(id types.Bytes32) (*block.Block, error) {
 }
 
 func (c *Chain) hasTransactionMeta(txID []byte) (bool, error) {
-	return c.kv.Has(txID[:])
+	return c.kv.Has(append(txMetaPrefix, txID[:]...))
 }
 
 func (c *Chain) getTransactionMeta(txID []byte, headBlockID types.Bytes32) (*TxMeta, error) {
