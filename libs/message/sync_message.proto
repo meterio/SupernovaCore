@@ -4,24 +4,23 @@ package message;
 
 option go_package = "github.com/meterio/supernova/libs/message;message";
 
-message NewBlockEnvelope {
-    bytes rawBlock = 1;
+// enum MsgType {
+//   NewBlock = 0;
+//   NewBlockID = 1;
+//   NewTx = 2;
+//   GetBlockByID = 3;
+//   GetBlockFromNum = 4;
+//   GetTxs = 5;
+// }
+
+message RPCRequestEnvelope {
+  uint32 enum = 1;
+  bytes raw = 2;
 }
 
-message NewBlockIDEnvelope {
-    bytes blockID = 1;
-}
-
-message NewTxsEnvelope {
-    repeated bytes rawTxs = 1;
-}
-
-message GetBlockByIDRequest {
-    bytes hash = 1;
-}
-
-message GetBlockByIDResponse {
-    bytes rawBlock = 1;
+message RPCResponseEnvelope {
+  uint32 enum = 1;
+  bytes raw = 2;
 }
 
 
