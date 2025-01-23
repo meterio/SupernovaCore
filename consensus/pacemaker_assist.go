@@ -46,7 +46,12 @@ func (p *Pacemaker) ValidateProposal(b *block.DraftBlock) error {
 	blk := b.ProposedBlock
 
 	defer func() {
-		p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "err", b.ProcessError)
+		if b != nil && b.ProcessError != nil {
+			p.logger.Info(fmt.Sprintf("failed to validate proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)), "err", b.ProcessError)
+
+		} else {
+			p.logger.Info(fmt.Sprintf("validated proposal Block R:%v, %v, txs:%d", b.Round, blk.CompactString(), len(b.ProposedBlock.Transactions())), "elapsed", types.PrettyDuration(time.Since(start)))
+		}
 	}()
 
 	// avoid duplicate validation
@@ -150,7 +155,7 @@ func (p *Pacemaker) verifyTC(tc *types.TimeoutCert, round uint32) bool {
 		}
 		valid := aggrSig.FastAggregateVerify(pubkeys, tc.MsgHash)
 		if !valid {
-			p.logger.Warn("Invalid TC", "expected", fmt.Sprintf("E:%v,R:%v", tc.Epoch, tc.Round), "proposal", fmt.Sprintf("E:%v,R:%v", p.epochState.epoch, round))
+			p.logger.Warn("Invalid TC", "expected", fmt.Sprintf("E%v.R%v", tc.Epoch, tc.Round), "proposal", fmt.Sprintf("E%v.R%v", p.epochState.epoch, round))
 		}
 		return valid
 	}

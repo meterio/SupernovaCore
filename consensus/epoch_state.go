@@ -45,7 +45,6 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey cmtcrypto.PubKey)
 		}
 	}
 
-	fmt.Println("load next validator set from ", kblk.Number())
 	vset := c.GetNextValidatorSet(kblk.Number())
 	if vset == nil {
 		slog.Error("Could not get next validator set", "num", kblk.Number())
@@ -124,7 +123,7 @@ func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.
 	v := es.committee.Validators[signerIndex]
 	signature, err := bls.SignatureFromBytes(sig)
 	if err != nil {
-		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
+		es.logger.Warn(fmt.Sprintf("invalid signature in QC vote R%v", round), "sig", hex.EncodeToString(sig), "err", err)
 		return nil
 	}
 	cmnPubKey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
@@ -145,7 +144,7 @@ func (es *EpochState) AddTCVote(signerIndex uint32, round uint32, sig []byte, ha
 	v := es.committee.Validators[signerIndex]
 	signature, err := bls.SignatureFromBytes(sig)
 	if err != nil {
-		es.logger.Warn("invalid signature", "sig", hex.EncodeToString(sig), "err", err)
+		es.logger.Warn(fmt.Sprintf("invalid signature in TC vote R%v", round), "sig", hex.EncodeToString(sig), "err", err)
 		return nil
 	}
 	cmnPubKey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())

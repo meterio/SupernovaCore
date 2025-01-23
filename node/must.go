@@ -25,6 +25,10 @@ func InitLogger(config *cmtcfg.Config) {
 	lvl := config.BaseConfig.LogLevel
 	logLevel := slog.LevelDebug
 	switch lvl {
+	case "DEBUG":
+	case "debug":
+		logLevel = slog.LevelDebug
+		break
 	case "INFO":
 	case "info":
 		logLevel = slog.LevelInfo
@@ -37,8 +41,11 @@ func InitLogger(config *cmtcfg.Config) {
 	case "error":
 		logLevel = slog.LevelError
 		break
+	default:
+		logLevel = slog.LevelInfo
 	}
-	fmt.Println("slog level: ", logLevel)
+	fmt.Println("cmtlog level: ", lvl)
+	fmt.Println("slog   level: ", logLevel)
 	// set global logger with custom options
 	w := os.Stdout
 

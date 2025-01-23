@@ -1,11 +1,14 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
+	"github.com/meterio/supernova/libs/message"
 	"github.com/meterio/supernova/types"
 )
 
@@ -63,13 +66,31 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 
 	p.lastCommitted = blk
 	// broadcast the new block to all peers
-
 	// p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus
 
+	p.logger.Info("Check kblock")
 	if blk.IsKBlock() {
 		p.logger.Info("committed a KBlock, schedule regulate now", "blk", blk.ID().ToBlockShortID())
 		p.ScheduleRegulate()
+	}
+	p.logger.Info("Prepare to encode block")
+
+	raw, err := rlp.EncodeToBytes(blk)
+	if err != nil {
+		p.logger.Warn("can't encode block to bytes")
+		return nil
+	}
+	env := message.RPCRequestEnvelope{Raw: raw, Enum: 1}
+	envRaw, err := env.MarshalSSZ()
+	if err != nil {
+		p.logger.Warn("can't do marshalSSZ")
+		return nil
+	}
+
+	for _, pid := range p.p2pSrv.Peers().Active() {
+		p.logger.Warn("!!!! send to /block/sync to pid: ")
+		p.p2pSrv.Send(context.Background(), envRaw, "/block/sync", pid)
 	}
 
 	return nil

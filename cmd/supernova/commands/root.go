@@ -112,7 +112,7 @@ func InitLogger(config *cmtcfg.Config) {
 		logLevel = slog.LevelError
 		break
 	}
-	// fmt.Println("slog level: ", logLevel)
+	slog.Info(fmt.Sprintf("set slog default level: %v", logLevel))
 	// set global logger with custom options
 	w := os.Stdout
 

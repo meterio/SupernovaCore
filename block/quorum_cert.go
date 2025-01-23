@@ -29,16 +29,16 @@ func (qc *QuorumCert) String() string {
 	if qc != nil {
 		voted := qc.BitArray.CountYes()
 		unvoted := qc.BitArray.CountNo()
-		return fmt.Sprintf("QC(E:%v,R:%v, %v, BitArray:(%v/%v), AggSig:len(%v))",
-			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID(), voted, (voted + unvoted), len(qc.AggSig))
+		return fmt.Sprintf("QC(%v, E%v.R%v, BitArray:(%v/%v), AggSig:len(%v))",
+			qc.BlockID.ToBlockShortID(), qc.Epoch, qc.Round, voted, (voted + unvoted), len(qc.AggSig))
 	}
 	return "QC(nil)"
 }
 
 func (qc *QuorumCert) CompactString() string {
 	if qc != nil {
-		return fmt.Sprintf("QC(E:%v,R:%v -> %v %v/%v voted)",
-			qc.Epoch, qc.Round, qc.BlockID.ToBlockShortID(), qc.BitArray.CountYes(), qc.BitArray.Count())
+		return fmt.Sprintf("QC(%v, E%v.R%v, voted:%v/%v)",
+			qc.BlockID.ToBlockShortID(), qc.Epoch, qc.Round, qc.BitArray.CountYes(), qc.BitArray.Count())
 	}
 	return "QC(nil)"
 }

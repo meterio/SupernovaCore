@@ -19,11 +19,11 @@ func NewDraftQC(qc *QuorumCert, qcNode *DraftBlock) *DraftQC {
 func (qc *DraftQC) ToString() string {
 	if qc.QCNode != nil {
 		if qc.QCNode.ProposedBlock.ID() == qc.QC.BlockID && qc.QCNode.Round == qc.QC.Round {
-			return fmt.Sprintf("DraftQC(E:%v,R:%v -> %v)", qc.QC.Epoch, qc.QC.Round, qc.QCNode.ProposedBlock.ID().ToBlockShortID())
+			return fmt.Sprintf("DraftQC(E%v.R%v -> %v)", qc.QC.Epoch, qc.QC.Round, qc.QCNode.ProposedBlock.ID().ToBlockShortID())
 		} else {
-			return fmt.Sprintf("DraftQC(E:%v,R:%v, qcNode:(#%v,R:%v))", qc.QC.Epoch, qc.QC.Round, qc.QCNode.Height, qc.QCNode.Round)
+			return fmt.Sprintf("DraftQC(E%v.R%v, qcNode:(#%v,R:%v))", qc.QC.Epoch, qc.QC.Round, qc.QCNode.Height, qc.QCNode.Round)
 		}
 	} else {
-		return fmt.Sprintf("DraftQC(E:%v,R:%v, qcNode:nil)", qc.QC.Epoch, qc.QC.Round)
+		return fmt.Sprintf("DraftQC(E%v.R%v, qcNode:nil)", qc.QC.Epoch, qc.QC.Round)
 	}
 }

@@ -144,7 +144,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		return ErrInvalidRound, nil
 	}
 	err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs)
-	// p.logger.Info(fmt.Sprintf("proposing %v on R:%v with QCHigh(E:%v,R:%v), Parent(%v,R:%v)", draftBlock.ProposedBlock.CompactString(), round, justify.QC.Epoch, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
+	// p.logger.Info(fmt.Sprintf("proposing %v on R:%v with QCHigh(E%v.R%v), Parent(%v,R:%v)", draftBlock.ProposedBlock.CompactString(), round, justify.QC.Epoch, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
 	if time.Now().Before(targetTime) {
 		d := time.Until(targetTime)
 		p.logger.Info("sleep until", "targetTime", targetTime, "for", types.PrettyDuration(d))
@@ -424,8 +424,7 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 		p.logger.Error("could not create leaf", "err", err)
 		return nil
 	}
-	fmt.Println("Proposed: ", bnew.ProposedBlock.String())
-	// proposedBlk := bnew.ProposedBlockInfo.ProposedBlock
+	// fmt.Println("Proposed: ", bnew.ProposedBlock.String())
 
 	if bnew.Height <= qc.QC.Number() {
 		p.logger.Error("proposed block refers to an invalid qc", "proposedQC", qc.QC.Number(), "proposedHeight", bnew.Height)

@@ -123,9 +123,9 @@ func (b *Block) ID() types.Bytes32 {
 
 func (b *Block) CompactString() string {
 	if b != nil {
-		prefix := ""
+		prefix := "b"
 		if b.IsKBlock() {
-			prefix = "K"
+			prefix = "k"
 		}
 		return fmt.Sprintf("%v#%v..%x", prefix, b.Number(), b.ID().Bytes()[28:])
 	}
@@ -253,8 +253,12 @@ func (b *Block) String() string {
 }
 
 func (b *Block) Oneliner() string {
-	return fmt.Sprintf("%v[txs:%v, %v]",
-		b.CompactString(), len(b.Transactions()), b.QC.CompactString())
+	txs := ""
+	if len(b.Transactions()) > 0 {
+		txs = fmt.Sprintf(", txs:%v", len(b.Transactions()))
+	}
+	return fmt.Sprintf("%v[ %v%v ]",
+		b.CompactString(), b.QC.CompactString(), txs)
 }
 
 // -----------------

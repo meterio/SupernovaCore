@@ -26,14 +26,14 @@ func (pb *DraftBlock) ToString() string {
 		return "DraftBlock(nil)"
 	}
 	if pb.Committed {
-		return fmt.Sprintf("Block{(H:%v,R:%v), QC:(E:%v,R:%v), Parent:%v}",
+		return fmt.Sprintf("Block{(H:%v,R:%v), QC:(E%v.R%v), Parent:%v}",
 			pb.Height, pb.Round, pb.ProposedBlock.QC.Epoch, pb.ProposedBlock.QC.Round, pb.ProposedBlock.ParentID().ToBlockShortID())
 	}
 	if pb.Parent != nil {
-		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E:%v,R:%v), Parent:(H:%v, H:%v)}",
+		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E%v.R%v), Parent:(H:%v, H:%v)}",
 			pb.Height, pb.Round, pb.Justify.QC.Epoch, pb.Justify.QC.Round, pb.Parent.Height, pb.Parent.Round)
 	} else {
-		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E:%v,R:%v)}",
+		return fmt.Sprintf("DraftBlock{(H:%v,R:%v), QC:(E%v.R%v)}",
 			pb.Height, pb.Round, pb.Justify.QC.Epoch, pb.Justify.QC.Round)
 	}
 }

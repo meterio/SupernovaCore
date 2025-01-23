@@ -980,7 +980,6 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 // If you want to load the validator set from the store instead of providing it,
 // use buildLastCommitInfoFromStore.
 func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.CommitInfo {
-	fmt.Println("load next validator set for ", parent.Number(), parent.ValidatorsHash())
 	vset := c.GetValidatorsByHash(parent.ValidatorsHash())
 	// if blk.Number() == 0 {
 	// 	fmt.Println("parent is genesis", parent.NextValidatorsHash())

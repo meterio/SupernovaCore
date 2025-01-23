@@ -76,7 +76,7 @@ func (tc *TimeoutCert) DecodeRLP(s *rlp.Stream) error {
 
 func (tc *TimeoutCert) String() string {
 	if tc != nil {
-		return fmt.Sprintf("TC(E:%v,R:%v,Voted:%v/%v)", tc.Epoch, tc.Round, tc.BitArray.Count(), tc.BitArray.Size())
+		return fmt.Sprintf("TC(E%v.R%v, voted:%v/%v)", tc.Epoch, tc.Round, tc.BitArray.Count(), tc.BitArray.Size())
 	}
 	return "nil"
 }

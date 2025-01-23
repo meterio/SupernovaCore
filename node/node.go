@@ -22,6 +22,7 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p"
 
@@ -155,8 +156,9 @@ func NewNode(
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
 	var BootstrapNodes []string
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QOQzYBuKsestT0uZsQ2L7dDgD6EfE81oLfFflzurOHq7B4pY5r-8kozd9PRpE0Z3I994DxXmRc7mC8v23ABysCmGAZRsaVWnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLZ9EQkKk4n9OCfErexZJ6m-auSEcBdVngrAgh1UlWMp4hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLXP9wqWWwRhi4To_3TJ_8rEMYOwN1fZIPeHg7uH__O-K2jBnFYwRy7oFoLYfUYFyP7XlXn5Ibq3Ltqfuzl-VrqGAZRsacAUh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQO4P_0L80DH2OIc3pd9GfjqevVK0tV2Z9NZqZ6_qAxSMYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGZ6np5N03sJeQPI1ep3L_13ckTJQ5TXcj81mk_UV3oeA-mMtcw7JViYP3cgSBmvxQV74MRTTfUNM5TUqr_D2BiGAZRynhEfh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfWYOJc2VjcDI1NmsxoQMkZ9waUAVNMFXOY3B5VlDTqLZHqb4MqKOFXSvh-k4dUohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-3
+	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QOQzYBuKsestT0uZsQ2L7dDgD6EfE81oLfFflzurOHq7B4pY5r-8kozd9PRpE0Z3I994DxXmRc7mC8v23ABysCmGAZRsaVWnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLZ9EQkKk4n9OCfErexZJ6m-auSEcBdVngrAgh1UlWMp4hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
+	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLXP9wqWWwRhi4To_3TJ_8rEMYOwN1fZIPeHg7uH__O-K2jBnFYwRy7oFoLYfUYFyP7XlXn5Ibq3Ltqfuzl-VrqGAZRsacAUh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQO4P_0L80DH2OIc3pd9GfjqevVK0tV2Z9NZqZ6_qAxSMYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
 
 	geneBlock, err := chain.GetTrunkBlock(0)
 	if err != nil {
@@ -165,6 +167,9 @@ func NewNode(
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
 	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
 
+	p2pSrv.SetStreamHandler("/block/sync", func(s network.Stream) {
+		fmt.Println("!!!!!!!!! received: /block/sync")
+	})
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8670"

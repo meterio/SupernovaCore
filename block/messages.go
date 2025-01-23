@@ -157,7 +157,7 @@ func (m *PMProposalMessage) String() string {
 		tcStr = "TC:" + m.TimeoutCert.String()
 	}
 	blkStr := blk.Oneliner()
-	return fmt.Sprintf("Proposal(E:%v,R:%v) %v %v", m.Epoch, m.Round, blkStr, tcStr)
+	return fmt.Sprintf("Proposal(E%v.R%v) %v %v", m.Epoch, m.Round, blkStr, tcStr)
 }
 
 func (m *PMProposalMessage) SetMsgSignature(msgSignature []byte) {
@@ -303,9 +303,9 @@ func (m *PMTimeoutMessage) DecodeQCHigh() *QuorumCert {
 // String returns a string representation.
 func (m *PMTimeoutMessage) String() string {
 	qcHigh := m.DecodeQCHigh()
-	s := fmt.Sprintf("Timeout(E:%v,WR:%d)", m.Epoch, m.WishRound)
+	s := fmt.Sprintf("Timeout(E%v.WR%d)", m.Epoch, m.WishRound)
 	if qcHigh != nil {
-		s = s + " " + fmt.Sprintf("QCHigh(E:%d,R:%d)", qcHigh.BlockID, qcHigh.Round)
+		s = s + " " + fmt.Sprintf("QCHigh(E%d.R%d)", qcHigh.Epoch, qcHigh.Round)
 	}
 	if len(m.LastVoteSignature) > 0 {
 		s = s + " " + fmt.Sprintf("LastVote(R:%d, %v)", m.LastVoteRound, m.LastVoteBlockID.ToBlockShortID())
