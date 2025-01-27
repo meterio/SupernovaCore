@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package message;
+
+option go_package = "github.com/meterio/supernova/libs/message;message";
+
+message RPCEnvelope {
+  uint32 msgType = 1;
+  bytes raw = 2;
+  bool isResponse = 3;
+}
+
