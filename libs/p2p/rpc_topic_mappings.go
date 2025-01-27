@@ -3,6 +3,7 @@ package p2p
 import (
 	"reflect"
 
+	"github.com/meterio/supernova/libs/message"
 	p2ptypes "github.com/meterio/supernova/libs/p2p/types"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
@@ -44,6 +45,7 @@ const BlobSidecarsByRangeName = "/blob_sidecars_by_range"
 const BlobSidecarsByRootName = "/blob_sidecars_by_root"
 
 const (
+	RPCProtocolPrefix = "/supernova/rpc"
 	// V1 RPC Topics
 	// RPCStatusTopicV1 defines the v1 topic for the status rpc method.
 	RPCStatusTopicV1 = protocolPrefix + StatusMessageName + SchemaVersionV1
@@ -82,6 +84,7 @@ const (
 
 // RPCTopicMappings map the base message type to the rpc request.
 var RPCTopicMappings = map[string]interface{}{
+	RPCProtocolPrefix: new(message.RPCEnvelope),
 	// RPC Status Message
 	RPCStatusTopicV1: new(pb.Status),
 	// RPC Goodbye Message
@@ -105,7 +108,8 @@ var RPCTopicMappings = map[string]interface{}{
 
 // Maps all registered protocol prefixes.
 var protocolMapping = map[string]bool{
-	protocolPrefix: true,
+	protocolPrefix:    true,
+	RPCProtocolPrefix: true,
 }
 
 // Maps all the protocol message names for the different rpc

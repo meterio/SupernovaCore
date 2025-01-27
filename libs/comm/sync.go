@@ -23,10 +23,7 @@ func (c *Communicator) sync(peer *Peer, headNum uint32, handler HandleBlockStrea
 	if err != nil {
 		return errors.WithMessage(err, "find common ancestor")
 	}
-	return c.download(peer, ancestor+1, handler)
-}
-
-func (c *Communicator) download(peer *Peer, fromNum uint32, handler HandleBlockStream) error {
+	fromNum := ancestor + 1
 
 	// it's important to set cap to 2
 	errCh := make(chan error, 2)

@@ -2,13 +2,13 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kr/pretty"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/pkg/errors"
-	ssz "github.com/prysmaticlabs/fastssz"
+	snmsg "github.com/meterio/supernova/libs/message"
 	"github.com/prysmaticlabs/prysm/v5/monitoring/tracing"
 	"github.com/prysmaticlabs/prysm/v5/monitoring/tracing/trace"
 	"github.com/sirupsen/logrus"
@@ -36,24 +36,31 @@ func (s *Service) Send(ctx context.Context, message interface{}, baseTopic strin
 	ctx, cancel := context.WithTimeout(ctx, maxDialTimeout)
 	defer cancel()
 
+	fmt.Println("GET READY for stream")
 	stream, err := s.host.NewStream(ctx, pid, protocol.ID(topic))
 	if err != nil {
 		tracing.AnnotateError(span, err)
 		return nil, err
 	}
-	// do not encode anything if we are sending a metadata request
-	if baseTopic != RPCMetaDataTopicV1 && baseTopic != RPCMetaDataTopicV2 {
-		castedMsg, ok := message.(ssz.Marshaler)
-		if !ok {
-			return nil, errors.Errorf("%T does not support the ssz marshaller interface", message)
-		}
-		if _, err := s.Encoding().EncodeWithMaxLength(stream, castedMsg); err != nil {
-			tracing.AnnotateError(span, err)
-			_err := stream.Reset()
-			_ = _err
-			return nil, err
-		}
+	// // do not encode anything if we are sending a metadata request
+	// if baseTopic != RPCMetaDataTopicV1 && baseTopic != RPCMetaDataTopicV2 {
+	// 	castedMsg, ok := message.(ssz.Marshaler)
+	// 	if !ok {
+	// 		return nil, errors.Errorf("%T does not support the ssz marshaller interface", message)
+	// 	}
+	// 	if _, err := s.Encoding().EncodeWithMaxLength(stream, castedMsg); err != nil {
+	// 		tracing.AnnotateError(span, err)
+	// 		_err := stream.Reset()
+	// 		_ = _err
+	// 		return nil, err
+	// 	}
+	// }
+	bs, err := message.(*snmsg.RPCEnvelope).MarshalSSZ()
+	if err != nil {
+		fmt.Println("marshal error:", err)
 	}
+
+	_, err = stream.Write(bs)
 
 	// Close stream for writing.
 	if err := stream.CloseWrite(); err != nil {

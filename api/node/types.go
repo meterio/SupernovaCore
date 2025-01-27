@@ -8,61 +8,10 @@ package node
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/consensus"
-	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/types"
 )
-
-type Network interface {
-	PeersStats() []*comm.PeerStats
-}
-
-type Peer struct {
-	EnodeID    string `json:"enodeID"`
-	Name       string `json:"name"`
-	ID         string `json:"id"`
-	RemoteAddr string `json:"remoteAddr"`
-}
-
-func convertPeer(p *p2p.Peer) *Peer {
-	return &Peer{
-		EnodeID:    p.Info().Enode,
-		ID:         p.Info().ID,
-		Name:       p.Name(),
-		RemoteAddr: p.Info().Network.RemoteAddress,
-	}
-}
-
-type PeerStats struct {
-	Name         string        `json:"name"`
-	BestBlockID  types.Bytes32 `json:"bestBlockID"`
-	BestBlockNum uint32        `json:"bestBlockNum"`
-	PeerID       string        `json:"peerID"`
-	NetAddr      string        `json:"netAddr"`
-	Inbound      bool          `json:"inbound"`
-	Duration     uint64        `json:"duration"`
-}
-
-func ConvertPeersStats(ss []*comm.PeerStats) []*PeerStats {
-	if len(ss) == 0 {
-		return nil
-	}
-	peersStats := make([]*PeerStats, len(ss))
-	for i, peerStats := range ss {
-		peersStats[i] = &PeerStats{
-			Name:         peerStats.Name,
-			BestBlockID:  peerStats.BestBlockID,
-			BestBlockNum: peerStats.BestBlockNum,
-			PeerID:       peerStats.PeerID,
-			NetAddr:      peerStats.NetAddr,
-			Inbound:      peerStats.Inbound,
-			Duration:     peerStats.Duration,
-		}
-	}
-	return peersStats
-}
 
 // Block block
 type Block struct {

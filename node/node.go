@@ -22,9 +22,9 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p"
+	"github.com/meterio/supernova/libs/rpc"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtnode "github.com/cometbft/cometbft/node"
@@ -37,7 +37,6 @@ import (
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/cache"
 	"github.com/meterio/supernova/libs/co"
-	"github.com/meterio/supernova/libs/comm"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
@@ -97,7 +96,7 @@ type Node struct {
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
 	txStashPath string
-	comm        *comm.Communicator
+	rpc         *rpc.RPCServer
 	logger      *slog.Logger
 
 	mainDB db.DB
@@ -156,9 +155,9 @@ func NewNode(
 	defer func() { slog.Info("closing tx pool..."); txPool.Close() }()
 
 	var BootstrapNodes []string
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGZ6np5N03sJeQPI1ep3L_13ckTJQ5TXcj81mk_UV3oeA-mMtcw7JViYP3cgSBmvxQV74MRTTfUNM5TUqr_D2BiGAZRynhEfh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfWYOJc2VjcDI1NmsxoQMkZ9waUAVNMFXOY3B5VlDTqLZHqb4MqKOFXSvh-k4dUohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-3
-	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QOQzYBuKsestT0uZsQ2L7dDgD6EfE81oLfFflzurOHq7B4pY5r-8kozd9PRpE0Z3I994DxXmRc7mC8v23ABysCmGAZRsaVWnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLZ9EQkKk4n9OCfErexZJ6m-auSEcBdVngrAgh1UlWMp4hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
-	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLXP9wqWWwRhi4To_3TJ_8rEMYOwN1fZIPeHg7uH__O-K2jBnFYwRy7oFoLYfUYFyP7XlXn5Ibq3Ltqfuzl-VrqGAZRsacAUh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQO4P_0L80DH2OIc3pd9GfjqevVK0tV2Z9NZqZ6_qAxSMYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
+	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGZ6np5N03sJeQPI1ep3L_13ckTJQ5TXcj81mk_UV3oeA-mMtcw7JViYP3cgSBmvxQV74MRTTfUNM5TUqr_D2BiGAZRynhEfh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfWYOJc2VjcDI1NmsxoQMkZ9waUAVNMFXOY3B5VlDTqLZHqb4MqKOFXSvh-k4dUohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-3
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QOQzYBuKsestT0uZsQ2L7dDgD6EfE81oLfFflzurOHq7B4pY5r-8kozd9PRpE0Z3I994DxXmRc7mC8v23ABysCmGAZRsaVWnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLZ9EQkKk4n9OCfErexZJ6m-auSEcBdVngrAgh1UlWMp4hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QLXP9wqWWwRhi4To_3TJ_8rEMYOwN1fZIPeHg7uH__O-K2jBnFYwRy7oFoLYfUYFyP7XlXn5Ibq3Ltqfuzl-VrqGAZRsacAUh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQO4P_0L80DH2OIc3pd9GfjqevVK0tV2Z9NZqZ6_qAxSMYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
 
 	geneBlock, err := chain.GetTrunkBlock(0)
 	if err != nil {
@@ -167,9 +166,29 @@ func NewNode(
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
 	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
 
-	p2pSrv.SetStreamHandler("/block/sync", func(s network.Stream) {
-		fmt.Println("!!!!!!!!! received: /block/sync")
-	})
+	// p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", func(s network.Stream) {
+	// 	fmt.Println("!!!!!!!!! received: /block/sync")
+	// 	env := &message.RPCEnvelope{}
+	// 	bs := make([]byte, 120000)
+	// 	n, err := s.Read(bs)
+	// 	if err != nil {
+	// 		fmt.Println("Error reading")
+	// 	}
+	// 	err = env.UnmarshalSSZ(bs[:n])
+	// 	if err != nil {
+	// 		fmt.Println("Unmarshal error")
+	// 	}
+	// 	fmt.Println("env.MsgType", env.Enum)
+	// 	fmt.Println("env.Raw", hex.EncodeToString(env.Raw))
+	// 	newBlk := &block.Block{}
+	// 	err = rlp.DecodeBytes(env.Raw, newBlk)
+	// 	if err != nil {
+	// 		fmt.Println("rlp decode error")
+	// 	}
+	// 	fmt.Println("decoded block: ", newBlk.Number(), newBlk.ID())
+
+	// })
+
 	pubkey, err := privValidator.GetPubKey()
 
 	apiAddr := ":8670"
@@ -196,6 +215,7 @@ func NewNode(
 		ctx:           ctx,
 		config:        config,
 		genesisDoc:    genDoc,
+		rpc:           rpc.NewRPCServer(p2pSrv, chain, txPool),
 		privValidator: privValidator,
 		nodeKey:       nodeKey,
 		apiServer:     apiServer,
@@ -293,8 +313,8 @@ func createAndStartEventBus(logger log.Logger) (*cmttypes.EventBus, error) {
 
 func (n *Node) Start() error {
 	n.logger.Info("Node Start")
-	// n.comm.Start()
-	// n.comm.Sync(n.handleBlockStream)
+	n.rpc.Start(n.ctx)
+	n.rpc.Sync(n.handleBlockStream)
 
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
@@ -306,7 +326,7 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) Stop() error {
-	n.comm.Stop()
+	n.rpc.Stop()
 	return nil
 }
 
@@ -335,9 +355,10 @@ func (n *Node) handleBlockStream(ctx context.Context, stream <-chan *block.Escor
 			return err
 		} else {
 			// this processBlock happens after consensus SyncDone, need to broadcast
-			if n.comm.Synced {
-				n.comm.BroadcastBlock(blk)
-			}
+			// if n.comm.Synced {
+			// FIXME: skip broadcast blocks only if synced
+			// n.comm.BroadcastBlock(blk)
+			// }
 		}
 
 		if stats.processed > 0 &&
@@ -364,7 +385,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	var scope event.SubscriptionScope
 	defer scope.Close()
 
-	newBlockCh := make(chan *comm.NewBlockEvent)
+	newBlockCh := make(chan *rpc.NewBlockEvent)
 	// scope.Track(n.comm.SubscribeBlock(newBlockCh))
 
 	futureTicker := time.NewTicker(time.Duration(types.BlockInterval) * time.Second)
