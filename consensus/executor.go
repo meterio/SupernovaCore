@@ -139,6 +139,9 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,
 	})
+	if err != nil {
+		fmt.Println("Finalize block failed: ", err)
+	}
 	appHash = abciResponse.AppHash
 	e.logger.Info(
 		"Finalized block",

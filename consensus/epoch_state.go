@@ -50,7 +50,6 @@ func NewEpochState(c *chain.Chain, leaf *block.Block, myPubKey cmtcrypto.PubKey)
 		slog.Error("Could not get next validator set", "num", kblk.Number())
 		return nil, errors.New("could not get next validator set")
 	}
-	fmt.Println("loaded next vset", vset.Size())
 	vsetAdapter := cmn.NewValidatorSetAdapter(vset)
 	vsetAdapter.SortWithNonce(kblk.Nonce())
 	committee := vsetAdapter.ToValidatorSet()

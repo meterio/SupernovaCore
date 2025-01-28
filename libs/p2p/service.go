@@ -6,7 +6,7 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -84,6 +84,7 @@ type Service struct {
 	genesisTime           time.Time
 	genesisValidatorsRoot []byte
 	activeValidatorCount  uint64
+	logger                *slog.Logger
 }
 
 // NewService initializes a new p2p service compatible with shared.Service interface. No
@@ -127,6 +128,7 @@ func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRo
 		subnetsLock:           make(map[uint64]*sync.RWMutex),
 		genesisValidatorsRoot: genesisValidatorsRoot,
 		genesisTime:           genesisTime,
+		logger:                slog.With("pkg", "p2p"),
 	}
 
 	// ipAddr := prysmnetwork.IPAddr()
@@ -485,11 +487,11 @@ func (s *Service) connectWithPeer(ctx context.Context, info peer.AddrInfo) error
 	ctx, cancel := context.WithTimeout(ctx, maxDialTimeout)
 	defer cancel()
 	if err := s.host.Connect(ctx, info); err != nil {
-		fmt.Println("libp2p can't connect with peer: ", info.ID, err)
+		s.logger.Error("libp2p can't connect with peer", "peer", info.ID, "err", err)
 		s.Peers().Scorers().BadResponsesScorer().Increment(info.ID)
 		return err
 	}
-	fmt.Println("lib p2p connected with peer", info.ID)
+	s.logger.Debug("lib p2p connected with peer", "peer", info.ID)
 	return nil
 }
 

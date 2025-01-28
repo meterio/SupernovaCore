@@ -118,7 +118,6 @@ func (h *Handshaker) ReplayBlocks(
 
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain.
 	if appBlockHeight == 0 {
-		fmt.Println("app block height = 0")
 		validators := make([]*cmttypes.Validator, len(h.genDoc.Validators))
 		for i, val := range h.genDoc.Validators {
 			// Ensure that the public key type is supported.
@@ -139,9 +138,11 @@ func (h *Handshaker) ReplayBlocks(
 			Validators:      nextVals,
 			AppStateBytes:   h.genDoc.AppState,
 		}
+		fmt.Println("Consensus Params: ", pbparams)
+		fmt.Println("Consensus Params: ", pbparams.Version, pbparams.Block.MaxBytes, pbparams.Block.MaxBytes, pbparams.Evidence.MaxAgeDuration)
 		res, err := proxyApp.Consensus().InitChain(context.TODO(), req)
 		if err != nil {
-			fmt.Println("ERROR: ", err)
+			fmt.Println("InitChain failed: ", err)
 			return nil, err
 		}
 
@@ -169,9 +170,9 @@ func (h *Handshaker) ReplayBlocks(
 		}
 
 	}
-	fmt.Println("store block height", storeBlockHeight)
-	fmt.Println("after replay genesis ", h.chain.BestBlock())
-	fmt.Println("storeBlockHeight", storeBlockHeight, "appBlockHeight", appBlockHeight)
+	// fmt.Println("store block height", storeBlockHeight)
+	// fmt.Println("after replay genesis ", h.chain.BestBlock())
+	// fmt.Println("storeBlockHeight", storeBlockHeight, "appBlockHeight", appBlockHeight)
 
 	// First handle edge cases and constraints on the storeBlockHeight and storeBlockBase.
 	switch {

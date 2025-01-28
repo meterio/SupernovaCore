@@ -114,7 +114,7 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("GENESIS BLOCK:", genesisBlock)
+		// fmt.Println("GENESIS BLOCK:", genesisBlock)
 		if genesisBlock.Number() != 0 {
 			fmt.Println(genesisBlock.Number())
 			return errors.New("genesis number != 0")
@@ -215,7 +215,7 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 		return err
 	}
 
-	fmt.Println("Best Block: ", bestBlock)
+	fmt.Println("Best Block: ", bestBlock.Oneliner())
 	fmt.Println("Best QC: ", bestQC)
 	if bestBlock.Number() > bestQC.Number() {
 		c.logger.Warn("best block > best QC, start to correct best block", "bestBlock", bestBlock.Number(), "bestQC", bestQC.Number())
@@ -902,7 +902,7 @@ func (c *Chain) GetValidatorSet(num uint32) *cmttypes.ValidatorSet {
 func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, hash)
 	if err != nil {
-		fmt.Println("ERROR: ", err)
+		c.logger.Error("load validator set "+hex.EncodeToString(hash)+" failed", "err", err)
 		return nil
 	}
 	return vset
@@ -917,7 +917,7 @@ func (c *Chain) GetNextValidatorSet(num uint32) *cmttypes.ValidatorSet {
 	if err != nil {
 		return nil
 	}
-	fmt.Println("load validator set from ", blk.Number(), blk.NextValidatorsHash())
+	c.logger.Debug("load validator set from ", "num", blk.Number(), "hash", blk.NextValidatorsHash())
 	vset, err := loadValidatorSet(c.kv, blk.NextValidatorsHash())
 	if err != nil {
 		return nil

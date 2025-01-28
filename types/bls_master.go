@@ -35,7 +35,6 @@ func NewBlsMasterWithRandKey() *BlsMaster {
 }
 
 func NewBlsMasterWithCometKeys(cmtPrivKey cmtcrypto.PrivKey, cmtPubKey cmtcrypto.PubKey) *BlsMaster {
-	fmt.Println("Bytes", hex.EncodeToString(cmtPrivKey.Bytes()), "len", len(cmtPrivKey.Bytes()), "type", cmtPrivKey.Type())
 	secretBytes := cmtPrivKey.Bytes()
 	blsPrivKey, err := bls.SecretKeyFromBytes(secretBytes)
 	if err != nil {

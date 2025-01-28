@@ -72,7 +72,6 @@ func (s *RPCServer) Start(ctx context.Context) {
 	// Set a stream handler for the RPC protocol
 	s.p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", s.handleRPC)
 	s.goes.Go(s.announcementLoop)
-	fmt.Println("Server is listening on:")
 }
 
 func (s *RPCServer) Stop() {
@@ -245,7 +244,8 @@ func (s *RPCServer) handleRPC(stream network.Stream) {
 	if err != nil {
 		s.logger.Warn(fmt.Sprintf("failed to write %v response", msgName), "err", err)
 		stream.Close()
+	} else {
+		s.logger.Debug(fmt.Sprintf(`replied rpc call %v`, msgName))
 	}
 
-	fmt.Println("Response sent")
 }

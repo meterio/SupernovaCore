@@ -201,7 +201,7 @@ func (p *Pacemaker) Update(qc *block.QuorumCert) (lastCommitted *block.Block) {
 
 func (p *Pacemaker) OnCommit(commitReady []commitReadyBlock) (lastCommitted *block.Block) {
 	if len(commitReady) <= 0 {
-		p.logger.Info("nothing to commit")
+		p.logger.Debug("nothing to commit")
 		return nil
 	}
 	lastCommitted = commitReady[0].block.ProposedBlock
@@ -382,11 +382,11 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 
 	// drop outdated vote
 	if !(round == p.currentRound && round == 0) && round < p.currentRound-1 {
-		p.logger.Info("outdated vote, dropped ...", "currentRound", p.currentRound, "voteRound", round)
+		p.logger.Debug("outdated vote, dropped ...", "currentRound", p.currentRound, "voteRound", round)
 		return
 	}
 	if !p.amIRoundProproser(round + 1) {
-		p.logger.Info("skip handling vote, I'm not the expected next proposer ...", "round", round+1)
+		p.logger.Debug("skip handling vote, I'm not the expected next proposer ...", "round", round+1)
 		return
 	}
 
