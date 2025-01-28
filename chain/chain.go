@@ -902,7 +902,7 @@ func (c *Chain) GetValidatorSet(num uint32) *cmttypes.ValidatorSet {
 func (c *Chain) GetValidatorsByHash(hash cmtbytes.HexBytes) *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.kv, hash)
 	if err != nil {
-		c.logger.Error("load validator set "+hex.EncodeToString(hash)+" failed", "err", err)
+		c.logger.Warn("load validator set "+hex.EncodeToString(hash)+" failed", "err", err)
 		return nil
 	}
 	return vset

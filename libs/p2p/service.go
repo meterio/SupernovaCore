@@ -487,7 +487,7 @@ func (s *Service) connectWithPeer(ctx context.Context, info peer.AddrInfo) error
 	ctx, cancel := context.WithTimeout(ctx, maxDialTimeout)
 	defer cancel()
 	if err := s.host.Connect(ctx, info); err != nil {
-		s.logger.Error("libp2p can't connect with peer", "peer", info.ID, "err", err)
+		s.logger.Warn("libp2p can't connect with peer", "peer", info.ID, "err", err)
 		s.Peers().Scorers().BadResponsesScorer().Increment(info.ID)
 		return err
 	}
