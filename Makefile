@@ -15,7 +15,7 @@ export GO111MODULE=on
 
 supernova:| go_version_check
 	@echo "building $@..."
-	@go build -v -o $(CURDIR)/bin/$@ -ldflags "-X main.version=$(METER_VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.gitTag=$(GIT_TAG)" ./cmd/supernova
+	@go build -v -o $(CURDIR)/bin/$@ -ldflags "-X main.version=$(METER_VERSION) -X main.gitCommit=$(GIT_COMMIT) -X main.gitTag=$(GIT_TAG)"  -tags '$(BUILD_TAGS)' ./cmd/supernova
 	@echo "done. executable created at 'bin/$@'"
 
 mdb:| go_version_check
