@@ -9,19 +9,15 @@ import (
 	"math/big"
 	"testing"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
-	db "github.com/cosmos/cosmos-db"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/stretchr/testify/assert"
 )
 
-func newChain(kv db.DB) *chain.Chain {
-	gene := genesis.NewGenesis()
-	b0, _ := gene.Build()
-	chain, _ := chain.New(kv, b0, gene.ValidatorSet(), false)
+func newChain(db cmtdb.DB) *chain.Chain {
+	chain, _ := chain.New(db, false)
 	return chain
 }
 
@@ -43,8 +39,7 @@ func TestSort(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	acc := genesis.DevAccounts()[0]
-	tx := newTx(acc)
+	tx := newTx()
 
 	txObj, err := resolveTx(tx)
 	assert.Nil(t, err)
@@ -53,15 +48,14 @@ func TestResolve(t *testing.T) {
 }
 
 func TestExecutable(t *testing.T) {
-	acc := genesis.DevAccounts()[0]
 
-	kv, _ := lvldb.NewMem()
-	chain := newChain(kv)
+	db := cmtdb.NewMemDB()
+	chain := newChain(db)
 	b0 := chain.GenesisBlock()
 	b1 := new(block.Builder).ParentID(b0.Header().ID()).Build()
-	qc1 := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
+	qc1 := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc1)
-	escortQC := &block.QuorumCert{Height: b1.Number(), Round: b1.QC.Round + 1, Epoch: b1.QC.Epoch, VoterMsgHash: b1.VotingHash()}
+	escortQC := &block.QuorumCert{Round: b1.QC.Round + 1, Epoch: b1.QC.Epoch}
 	chain.AddBlock(b1, escortQC)
 
 	tests := []struct {
@@ -69,11 +63,11 @@ func TestExecutable(t *testing.T) {
 		expected    bool
 		expectedErr string
 	}{
-		{newTx(acc), true, ""},
-		{newTx(acc), false, "gas too large"},
-		{newTx(acc), true, "block ref out of schedule"},
-		{newTx(acc), true, "head block expired"},
-		{newTx(acc), false, ""},
+		{newTx(), true, ""},
+		{newTx(), false, "gas too large"},
+		{newTx(), true, "block ref out of schedule"},
+		{newTx(), true, "head block expired"},
+		{newTx(), false, ""},
 	}
 
 	for _, tt := range tests {

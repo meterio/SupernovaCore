@@ -9,26 +9,26 @@ import (
 	"container/list"
 	"log/slog"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/meterio/supernova/libs/kv"
 	"github.com/meterio/supernova/types"
 )
 
 // to stash non-executable txs.
 // it uses a FIFO queue to limit the size of stash.
 type txStash struct {
-	kv      kv.GetPutter
+	db      cmtdb.DB
 	fifo    *list.List
 	maxSize int
 }
 
-func newTxStash(kv kv.GetPutter, maxSize int) *txStash {
-	return &txStash{kv, list.New(), maxSize}
+func newTxStash(db cmtdb.DB, maxSize int) *txStash {
+	return &txStash{db, list.New(), maxSize}
 }
 
 func (ts *txStash) Save(tx cmttypes.Tx) error {
-	has, err := ts.kv.Has(tx.Hash())
+	has, err := ts.db.Has(tx.Hash())
 	if err != nil {
 		return err
 	}
@@ -41,13 +41,13 @@ func (ts *txStash) Save(tx cmttypes.Tx) error {
 		return err
 	}
 
-	if err := ts.kv.Put(tx.Hash(), data); err != nil {
+	if err := ts.db.Set(tx.Hash(), data); err != nil {
 		return err
 	}
 	ts.fifo.PushBack(tx.Hash())
 	for ts.fifo.Len() > ts.maxSize {
 		keyToDelete := ts.fifo.Remove(ts.fifo.Front()).(types.Bytes32).Bytes()
-		if err := ts.kv.Delete(keyToDelete); err != nil {
+		if err := ts.db.Delete(keyToDelete); err != nil {
 			return err
 		}
 	}
@@ -56,18 +56,19 @@ func (ts *txStash) Save(tx cmttypes.Tx) error {
 
 func (ts *txStash) LoadAll() types.Transactions {
 	var txs types.Transactions
-	iter := ts.kv.NewIterator(*kv.NewRangeWithBytesPrefix(nil))
-	for iter.Next() {
+	iter, _ := ts.db.Iterator([]byte{0x0}, []byte{0xff})
+	for iter.Valid() {
 		var tx cmttypes.Tx
 		if err := rlp.DecodeBytes(iter.Value(), &tx); err != nil {
 			slog.Warn("decode stashed tx", "err", err)
-			if err := ts.kv.Delete(iter.Key()); err != nil {
+			if err := ts.db.Delete(iter.Key()); err != nil {
 				slog.Warn("delete corrupted stashed tx", "err", err)
 			}
 		} else {
 			txs = append(txs, tx)
 			ts.fifo.PushBack(tx.Hash())
 		}
+		iter.Next()
 	}
 	return txs
 }

@@ -9,10 +9,9 @@ import (
 	"testing"
 	"time"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
-	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,8 +20,8 @@ func init() {
 }
 
 func newPool() *TxPool {
-	kv, _ := lvldb.NewMem()
-	chain := newChain(kv)
+	db := cmtdb.NewMemDB()
+	chain := newChain(db)
 	return New(chain, Options{
 		Limit:           10,
 		LimitPerAccount: 2,
@@ -41,7 +40,7 @@ func TestSubscribeNewTx(t *testing.T) {
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).Build()
-	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
+	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
 
@@ -49,7 +48,7 @@ func TestSubscribeNewTx(t *testing.T) {
 
 	pool.SubscribeTxEvent(txCh)
 
-	tx := newTx(genesis.DevAccounts()[0])
+	tx := newTx()
 	assert.Nil(t, pool.Add(tx))
 
 	v := true
@@ -64,7 +63,7 @@ func TestWashTxs(t *testing.T) {
 	assert.Zero(t, len(txs))
 	assert.Zero(t, len(pool.Executables()))
 
-	tx := newTx(genesis.DevAccounts()[0])
+	tx := newTx()
 	assert.Nil(t, pool.Add(tx))
 
 	txs, _, err = pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
@@ -75,7 +74,7 @@ func TestWashTxs(t *testing.T) {
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).
 		Build()
-	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
+	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
 
@@ -91,18 +90,17 @@ func TestAdd(t *testing.T) {
 		ParentID(pool.chain.GenesisBlock().ID()).
 		Timestamp(uint64(time.Now().Unix())).
 		Build()
-	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
+	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
-	acc := genesis.DevAccounts()[0]
 
-	dupTx := newTx(acc)
+	dupTx := newTx()
 
 	tests := []struct {
 		tx     cmttypes.Tx
 		errStr string
 	}{
-		{newTx(acc), "bad tx: chain tag mismatch"},
+		{newTx(), "bad tx: chain tag mismatch"},
 		{dupTx, ""},
 		{dupTx, ""},
 	}
@@ -120,8 +118,8 @@ func TestAdd(t *testing.T) {
 		tx     cmttypes.Tx
 		errStr string
 	}{
-		{newTx(acc), "tx rejected: tx is not executable"},
-		{newTx(acc), "tx rejected: tx is not executable"},
+		{newTx(), "tx rejected: tx is not executable"},
+		{newTx(), "tx rejected: tx is not executable"},
 	}
 
 	for _, tt := range tests {

@@ -16,11 +16,8 @@ func TestRawBlock(t *testing.T) {
 	priv, _ := crypto.GenerateKey()
 	_, err := crypto.Sign(b.Header().SigningHash().Bytes(), priv)
 	assert.Nil(t, err)
-	qc := block.QuorumCert{Height: 1, Round: 1, Epoch: 0}
+	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b.SetQC(&qc)
-	ci := make([]block.CommitteeInfo, 0)
-	b.SetCommitteeInfo(ci)
-
 	data, _ := rlp.EncodeToBytes(b)
 	raw := &rawBlock{raw: data}
 

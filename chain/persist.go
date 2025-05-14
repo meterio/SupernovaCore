@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 
-	db "github.com/cometbft/cometbft-db"
+	cmtdb "github.com/cometbft/cometbft-db"
 	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -51,7 +51,7 @@ type TxMeta struct {
 	Reverted bool
 }
 
-func saveRLP(w db.Batch, key []byte, val interface{}) error {
+func saveRLP(w cmtdb.Batch, key []byte, val interface{}) error {
 	data, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func saveRLP(w db.Batch, key []byte, val interface{}) error {
 	return w.Set(key, data)
 }
 
-func loadRLP(r db.DB, key []byte, val interface{}) error {
+func loadRLP(r cmtdb.DB, key []byte, val interface{}) error {
 	data, err := r.Get(key)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func loadRLP(r db.DB, key []byte, val interface{}) error {
 	return rlp.DecodeBytes(data, val)
 }
 
-func saveJSON(w db.Batch, key []byte, val interface{}) error {
+func saveJSON(w cmtdb.Batch, key []byte, val interface{}) error {
 	data, err := json.Marshal(val)
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func saveJSON(w db.Batch, key []byte, val interface{}) error {
 	return w.Set(key, data)
 }
 
-func loadJSON(r db.DB, key []byte, val interface{}) error {
+func loadJSON(r cmtdb.DB, key []byte, val interface{}) error {
 	data, err := r.Get(key)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func loadJSON(r db.DB, key []byte, val interface{}) error {
 }
 
 // loadBestBlockID returns the best block ID on trunk.
-func loadBestBlockID(r db.DB) (types.Bytes32, error) {
+func loadBestBlockID(r cmtdb.DB) (types.Bytes32, error) {
 	data, err := r.Get(bestBlockKey)
 	if err != nil || data == nil {
 		return types.Bytes32{}, err
@@ -93,22 +93,22 @@ func loadBestBlockID(r db.DB) (types.Bytes32, error) {
 }
 
 // saveBestBlockID save the best block ID on trunk.
-func batchSaveBestBlockID(w db.Batch, id types.Bytes32) error {
+func batchSaveBestBlockID(w cmtdb.Batch, id types.Bytes32) error {
 	return w.Set(bestBlockKey, id[:])
 }
 
 // saveBestBlockID save the best block ID on trunk.
-func saveBestBlockID(w db.DB, id types.Bytes32) error {
+func saveBestBlockID(w cmtdb.DB, id types.Bytes32) error {
 	return w.Set(bestBlockKey, id[:])
 }
 
-func deleteBlockHash(w db.Batch, num uint32) error {
+func deleteBlockHash(w cmtdb.Batch, num uint32) error {
 	numKey := numberAsKey(num)
 	return w.Delete(append(hashKeyPrefix, numKey...))
 }
 
 // loadBlockHash returns the block hash on trunk with num.
-func loadBlockHash(r db.DB, num uint32) (types.Bytes32, error) {
+func loadBlockHash(r cmtdb.DB, num uint32) (types.Bytes32, error) {
 	numKey := numberAsKey(num)
 	data, err := r.Get(append(hashKeyPrefix, numKey...))
 	if err != nil {
@@ -118,36 +118,36 @@ func loadBlockHash(r db.DB, num uint32) (types.Bytes32, error) {
 }
 
 // saveBlockHash save the block hash on trunk corresponding to a num.
-func saveBlockHash(w db.Batch, num uint32, id types.Bytes32) error {
+func saveBlockHash(w cmtdb.Batch, num uint32, id types.Bytes32) error {
 	numKey := numberAsKey(num)
 	return w.Set(append(hashKeyPrefix, numKey...), id[:])
 }
 
 // loadBlockRaw load rlp encoded block raw data.
-func loadBlockRaw(r db.DB, id types.Bytes32) (block.Raw, error) {
+func loadBlockRaw(r cmtdb.DB, id types.Bytes32) (block.Raw, error) {
 	return r.Get(append(blockPrefix, id[:]...))
 }
 
-func removeBlockRaw(w db.Batch, id types.Bytes32) error {
+func removeBlockRaw(w cmtdb.Batch, id types.Bytes32) error {
 	return w.Delete(append(blockPrefix, id[:]...))
 }
 
 // saveBlockRaw save rlp encoded block raw data.
-func saveBlockRaw(w db.Batch, id types.Bytes32, raw block.Raw) error {
+func saveBlockRaw(w cmtdb.Batch, id types.Bytes32, raw block.Raw) error {
 	return w.Set(append(blockPrefix, id[:]...), raw)
 }
 
-func deleteBlockRaw(w db.DB, id types.Bytes32) error {
+func deleteBlockRaw(w cmtdb.DB, id types.Bytes32) error {
 	return w.Delete(append(blockPrefix, id[:]...))
 }
 
 // saveBlockNumberIndexTrieRoot save the root of trie that contains number to id index.
-func saveBlockNumberIndexTrieRoot(w db.Batch, id types.Bytes32, root types.Bytes32) error {
+func saveBlockNumberIndexTrieRoot(w cmtdb.Batch, id types.Bytes32, root types.Bytes32) error {
 	return w.Set(append(indexTrieRootPrefix, id[:]...), root[:])
 }
 
 // loadBlockNumberIndexTrieRoot load trie root.
-func loadBlockNumberIndexTrieRoot(r db.DB, id types.Bytes32) (types.Bytes32, error) {
+func loadBlockNumberIndexTrieRoot(r cmtdb.DB, id types.Bytes32) (types.Bytes32, error) {
 	root, err := r.Get(append(indexTrieRootPrefix, id[:]...))
 	if err != nil {
 		return types.Bytes32{}, err
@@ -156,21 +156,21 @@ func loadBlockNumberIndexTrieRoot(r db.DB, id types.Bytes32) (types.Bytes32, err
 }
 
 // saveTxMeta save locations of a tx.
-func saveTxMeta(w db.Batch, txID []byte, meta []TxMeta) error {
+func saveTxMeta(w cmtdb.Batch, txID []byte, meta []TxMeta) error {
 	return saveRLP(w, append(txMetaPrefix, txID[:]...), meta)
 }
 
-func deleteTxMeta(w db.DB, txID []byte) error {
+func deleteTxMeta(w cmtdb.DB, txID []byte) error {
 	return w.Delete(append(txMetaPrefix, txID[:]...))
 }
 
 // loadTxMeta load tx meta info by tx id.
-func hasTxMeta(r db.DB, txID []byte) (bool, error) {
+func hasTxMeta(r cmtdb.DB, txID []byte) (bool, error) {
 	return r.Has(append(txMetaPrefix, txID[:]...))
 }
 
 // loadTxMeta load tx meta info by tx id.
-func loadTxMeta(r db.DB, txID []byte) ([]TxMeta, error) {
+func loadTxMeta(r cmtdb.DB, txID []byte) ([]TxMeta, error) {
 	var meta []TxMeta
 	if err := loadRLP(r, append(txMetaPrefix, txID[:]...), &meta); err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func loadTxMeta(r db.DB, txID []byte) ([]TxMeta, error) {
 	return meta, nil
 }
 
-func deleteBlock(rw db.DB, blockID types.Bytes32) (*block.Block, error) {
+func deleteBlock(rw cmtdb.DB, blockID types.Bytes32) (*block.Block, error) {
 	raw, err := loadBlockRaw(rw, blockID)
 	if err != nil {
 		return nil, err
@@ -201,19 +201,19 @@ func deleteBlock(rw db.DB, blockID types.Bytes32) (*block.Block, error) {
 }
 
 // saveBestQC save the best qc
-func saveBestQC(w db.DB, qc *block.QuorumCert) error {
+func saveBestQC(w cmtdb.DB, qc *block.QuorumCert) error {
 	bestQCHeightGauge.Set(float64(qc.Number()))
 	batch := w.NewBatch()
 	saveRLP(batch, bestQCKey, qc)
 	return batch.Write()
 }
 
-func batchSaveBestQC(w db.Batch, qc *block.QuorumCert) error {
+func batchSaveBestQC(w cmtdb.Batch, qc *block.QuorumCert) error {
 	return saveRLP(w, bestQCKey, qc)
 }
 
 // loadBestQC load the best qc
-func loadBestQC(r db.DB) (*block.QuorumCert, error) {
+func loadBestQC(r cmtdb.DB) (*block.QuorumCert, error) {
 	var qc block.QuorumCert
 	if err := loadRLP(r, bestQCKey, &qc); err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func loadBestQC(r db.DB) (*block.QuorumCert, error) {
 }
 
 // saveBestQC save the best qc
-func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
+func saveValidatorSet(w cmtdb.DB, vset *cmttypes.ValidatorSet) error {
 	batch := w.NewBatch()
 	key := append(validatorPrefix, vset.Hash()...)
 
@@ -242,7 +242,7 @@ func saveValidatorSet(w db.DB, vset *cmttypes.ValidatorSet) error {
 }
 
 // loadBestQC load the best qc
-func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
+func loadValidatorSet(r cmtdb.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
 	vsetProto := new(cmtproto.ValidatorSet)
 	key := append(validatorPrefix, vhash...)
 	vsetBytes, err := r.Get(key)
@@ -259,7 +259,7 @@ func loadValidatorSet(r db.DB, vhash []byte) (*cmttypes.ValidatorSet, error) {
 }
 
 // saveInitChainResponse save the init chain response
-func saveInitChainResponse(w db.DB, res *v1.InitChainResponse) error {
+func saveInitChainResponse(w cmtdb.DB, res *v1.InitChainResponse) error {
 	batch := w.NewBatch()
 	key := append(initChainPrefix)
 
@@ -275,7 +275,7 @@ func saveInitChainResponse(w db.DB, res *v1.InitChainResponse) error {
 }
 
 // loadInitChainResponse load the init chain response
-func loadInitChainResponse(r db.DB) (*v1.InitChainResponse, error) {
+func loadInitChainResponse(r cmtdb.DB) (*v1.InitChainResponse, error) {
 	res := new(v1.InitChainResponse)
 	key := append(initChainPrefix)
 	marshaled, err := r.Get(key)
@@ -291,7 +291,7 @@ func loadInitChainResponse(r db.DB) (*v1.InitChainResponse, error) {
 }
 
 // saveInitChainResponse save the init chain response
-func saveFinalizeBlockResponse(w db.DB, blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
+func saveFinalizeBlockResponse(w cmtdb.DB, blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
 	batch := w.NewBatch()
 	key := append(finalizeBlockPrefix, blockID[:]...)
 
@@ -307,7 +307,7 @@ func saveFinalizeBlockResponse(w db.DB, blockID types.Bytes32, res *v1.FinalizeB
 }
 
 // loadInitChainResponse load the init chain response
-func loadFinalizeBlockResponse(r db.DB, blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
+func loadFinalizeBlockResponse(r cmtdb.DB, blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
 	res := new(v1.FinalizeBlockResponse)
 	key := append(finalizeBlockPrefix, blockID[:]...)
 	marshaled, err := r.Get(key)

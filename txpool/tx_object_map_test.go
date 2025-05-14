@@ -9,16 +9,15 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTxObjMap(t *testing.T) {
 
-	tx1 := newTx(genesis.DevAccounts()[0])
-	tx2 := newTx(genesis.DevAccounts()[0])
-	tx3 := newTx(genesis.DevAccounts()[1])
+	tx1 := newTx()
+	tx2 := newTx()
+	tx3 := newTx()
 
 	txObj1, _ := resolveTx(tx1)
 	txObj2, _ := resolveTx(tx2)

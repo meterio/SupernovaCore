@@ -8,20 +8,17 @@ package chain_test
 import (
 	"testing"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/genesis"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func initChain() *chain.Chain {
-	kv, _ := lvldb.NewMem()
-	g := genesis.NewDevnet()
-	b0, _ := g.Build()
+	db := cmtdb.NewMemDB()
 
-	chain, err := chain.New(kv, b0, g.ValidatorSet(), false)
+	chain, err := chain.New(db, false)
 	if err != nil {
 		panic(err)
 	}
@@ -32,11 +29,11 @@ var blsMaster = types.NewBlsMasterWithRandKey()
 
 func newBlock(parent *block.Block, score uint64) (*block.Block, *block.QuorumCert) {
 	b := new(block.Builder).ParentID(parent.Header().ID()).Build()
-	qc := block.QuorumCert{Height: uint32(score), Round: uint32(score), Epoch: 0}
+	qc := block.QuorumCert{Epoch: 0, Round: uint32(score)}
 	b.SetQC(&qc)
-	sig := blsMaster.SignMessage(b.Header().SigningHash().Bytes())
-	b.WithSignature(sig)
-	escortQC := &block.QuorumCert{Height: b.Number(), Round: b.QC.Round + 1, Epoch: b.QC.Epoch, MsgHash: b.VotingHash()}
+	// sig := blsMaster.SignMessage(b.Header().SigningHash().Bytes())
+	// b.WithSignature(sig)
+	escortQC := &block.QuorumCert{Epoch: b.QC.Epoch, Round: b.QC.Round + 1}
 
 	return b, escortQC
 }

@@ -10,8 +10,8 @@ import (
 	"sort"
 	"testing"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +22,7 @@ func newTx() cmttypes.Tx {
 }
 
 func TestTxStash(t *testing.T) {
-	db, _ := lvldb.NewMem()
+	db := cmtdb.NewMemDB()
 	defer db.Close()
 
 	stash := newTxStash(db, 10)

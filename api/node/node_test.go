@@ -13,12 +13,11 @@ import (
 	"testing"
 	"time"
 
+	cmtdb "github.com/cometbft/cometbft-db"
 	"github.com/gorilla/mux"
 	"github.com/meterio/supernova/api/node"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/genesis"
 	"github.com/meterio/supernova/libs/comm"
-	"github.com/meterio/supernova/libs/lvldb"
 	"github.com/meterio/supernova/txpool"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,14 +35,9 @@ func TestNode(t *testing.T) {
 }
 
 func initCommServer(t *testing.T) {
-	db, _ := lvldb.NewMem()
-	gene := genesis.NewDevnet()
+	db := cmtdb.NewMemDB()
 
-	b, err := gene.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	chain, _ := chain.New(db, b, gene.ValidatorSet(), false)
+	chain, _ := chain.New(db, false)
 	comm := comm.New(context.Background(), chain, txpool.New(chain, txpool.Options{
 		Limit:           10000,
 		LimitPerAccount: 16,
