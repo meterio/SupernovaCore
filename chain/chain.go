@@ -529,11 +529,6 @@ func (c *Chain) GetTrunkTransaction(txID []byte) (cmttypes.Tx, *TxMeta, error) {
 	return tx, meta, nil
 }
 
-// NewSeeker returns a new seeker instance.
-func (c *Chain) NewSeeker(headBlockID types.Bytes32) *Seeker {
-	return newSeeker(c, headBlockID)
-}
-
 func (c *Chain) isTrunk(header *block.Header) bool {
 	bestHeader := c.bestBlock.Header()
 	// fmt.Println(fmt.Sprintf("IsTrunk: header: %s, bestHeader: %s", header.ID().String(), bestHeader.ID().String()))

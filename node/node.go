@@ -48,6 +48,12 @@ var (
 	genesisDocHashKey      = []byte("genesisDocHash")
 )
 
+var (
+	errFutureBlock   = errors.New("block in the future")
+	errParentMissing = errors.New("parent block is missing")
+	errKnownBlock    = errors.New("block already in the chain")
+)
+
 func LoadGenesisDoc(
 	mainDB db.DB,
 	genesisDocProvider cmtnode.GenesisDocProvider,
@@ -90,8 +96,8 @@ type Node struct {
 	apiServer *api.APIServer
 
 	// network
-	nodeKey *types.NodeKey // our node privkey
-	reactor *consensus.Reactor
+	nodeKey   *types.NodeKey // our node privkey
+	pacemaker *consensus.Pacemaker
 
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
@@ -167,7 +173,7 @@ func NewNode(
 		return nil, err
 	}
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
-	reactor := consensus.NewConsensusReactor(ctx, config, chain, p2pSrv, txPool, blsMaster, proxyApp)
+	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, p2pSrv, blsMaster, proxyApp)
 
 	// p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", func(s network.Stream) {
 	// 	fmt.Println("!!!!!!!!! received: /block/sync")
@@ -196,7 +202,7 @@ func NewNode(
 
 	apiAddr := ":8670"
 	chainId, err := strconv.ParseUint(genDoc.ChainID, 10, 64)
-	apiServer := api.NewAPIServer(apiAddr, chainId, config.BaseConfig.Version, chain, txPool, reactor, pubkey.Bytes(), p2pSrv)
+	apiServer := api.NewAPIServer(apiAddr, chainId, config.BaseConfig.Version, chain, txPool, pacemaker, pubkey.Bytes(), p2pSrv)
 
 	bestBlock := chain.BestBlock()
 
@@ -222,7 +228,6 @@ func NewNode(
 		privValidator: privValidator,
 		nodeKey:       nodeKey,
 		apiServer:     apiServer,
-		reactor:       reactor,
 		chain:         chain,
 		txPool:        txPool,
 		p2pSrv:        p2pSrv,
@@ -280,6 +285,7 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 	go svc.Start()
 	return svc
 }
+
 func customTopicValidator(ctx context.Context, peerID peer.ID, msg *pubsub.Message) (pubsub.ValidationResult, error) {
 	// Perform custom validation
 	// Example: Check message size, content, etc.
@@ -322,7 +328,7 @@ func (n *Node) Start() error {
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
 	// n.goes.Go(func() { n.txStashLoop(n.ctx) })
-	n.goes.Go(func() { n.reactor.Start(n.ctx) })
+	n.goes.Go(func() { n.pacemaker.Start() })
 
 	n.goes.Wait()
 	return nil
@@ -502,6 +508,12 @@ func (n *Node) houseKeeping(ctx context.Context) {
 // 	}
 // }
 
+type syncError string
+
+func (err syncError) Error() string {
+	return string(err)
+}
+
 func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats *blockStats) error {
 	now := uint64(time.Now().Unix())
 
@@ -510,13 +522,13 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		return errCantExtendBestBlock
 	}
 	if blk.Timestamp()+types.BlockInterval > now {
-		QCValid := n.reactor.Pacemaker.ValidateQC(blk, escortQC)
+		QCValid := n.pacemaker.ValidateQC(blk, escortQC)
 		if !QCValid {
 			return errors.New(fmt.Sprintf("invalid %s on Block %s", escortQC.String(), blk.ID().ToBlockShortID()))
 		}
 	}
 	start := time.Now()
-	err := n.reactor.ValidateSyncedBlock(blk, now)
+	err := n.ValidateSyncedBlock(blk, now)
 	if time.Since(start) > time.Millisecond*500 {
 		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", types.PrettyDuration(time.Since(start)))
 	}
@@ -536,7 +548,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 		return err
 	}
 	start = time.Now()
-	err = n.reactor.Pacemaker.CommitBlock(blk, escortQC)
+	err = n.pacemaker.CommitBlock(blk, escortQC)
 	if err != nil {
 		if !n.chain.IsBlockExist(err) {
 			n.logger.Error("failed to commit block", "err", err)
@@ -590,4 +602,70 @@ func checkClockOffset() {
 func (n *Node) IsRunning() bool {
 	// FIXME: set correct value
 	return true
+}
+
+// Process process a block.
+func (n *Node) ValidateSyncedBlock(blk *block.Block, nowTimestamp uint64) error {
+	header := blk.Header()
+
+	if _, err := n.chain.GetBlockHeader(header.ID()); err != nil {
+		if !n.chain.IsNotFound(err) {
+			return err
+		}
+	} else {
+		// we may already have this blockID. If it is after the best, still accept it
+		if header.Number() <= n.chain.BestBlock().Number() {
+			return errKnownBlock
+		} else {
+			n.logger.Debug("continue to process blk ...", "height", header.Number())
+		}
+	}
+
+	parent, err := n.chain.GetBlock(header.ParentID)
+	if err != nil {
+		if !n.chain.IsNotFound(err) {
+			return err
+		}
+		return errParentMissing
+	}
+
+	return n.validateBlock(blk, parent, nowTimestamp, true)
+}
+
+func (n *Node) validateBlock(
+	block *block.Block,
+	parent *block.Block,
+	nowTimestamp uint64,
+	forceValidate bool,
+) error {
+	header := block.Header()
+
+	start := time.Now()
+	if parent == nil {
+		return syncError("parent is nil")
+	}
+
+	if parent.ID() != block.QC.BlockID {
+		return syncError(fmt.Sprintf("parent.ID %v and QC.BlockID %v mismatch", parent.ID(), block.QC.BlockID))
+	}
+
+	if header.Timestamp <= parent.Timestamp() {
+		return syncError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp, header.Timestamp))
+	}
+
+	if header.Timestamp > nowTimestamp+types.BlockInterval {
+		return errFutureBlock
+	}
+
+	if header.LastKBlock < parent.LastKBlock() {
+		return syncError(fmt.Sprintf("block LastKBlock invalid: parent %v, current %v", parent.LastKBlock, header.LastKBlock))
+	}
+
+	proposedTxs := block.Transactions()
+	if !bytes.Equal(header.TxsRoot, proposedTxs.RootHash()) {
+		return syncError(fmt.Sprintf("block txs root mismatch: want %v, have %v", header.TxsRoot, proposedTxs.RootHash()))
+	}
+
+	n.logger.Debug("validated block", "id", block.CompactString(), "elapsed", types.PrettyDuration(time.Since(start)))
+	return nil
 }

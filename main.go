@@ -28,7 +28,7 @@ import (
 var homeDir string
 
 func init() {
-	flag.StringVar(&homeDir, "cmt-home", "", "Path to the CometBFT config directory (if empty, uses $HOME/.cometbft)")
+	flag.StringVar(&homeDir, "cmt-home", "", "Path to the CometBFT config directory (if empty, uses $HOME/.supernova)")
 }
 
 var (

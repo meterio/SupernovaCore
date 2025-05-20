@@ -8,22 +8,22 @@ import (
 	"github.com/meterio/supernova/types"
 )
 
+func drainChannel[T any](ch chan T) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
+}
+
 func (p *Pacemaker) scheduleBroadcast(proposalMsg *block.PMProposalMessage, d time.Duration) {
 	scheduleFunc := func() {
-	CleanBroadcastCh:
-		for {
-			select {
-			case <-p.broadcastCh:
-			default:
-				break CleanBroadcastCh
-			}
-		}
+		drainChannel(p.broadcastCh)
 		p.broadcastCh <- proposalMsg
 	}
 
-	p.cancelAllPendingBroadcast()
-	// p.lastVotingHeight = block.Number(voteMsg.VoteBlockID)
-	// p.lastVoteMsg = voteMsg
 	blk := proposalMsg.DecodeBlock()
 	if d <= 0 || d >= BroadcastTimeLimit {
 		p.logger.Info(fmt.Sprintf("schedule broadcast for %s(E:%d) with no delay", blk.CompactString(), proposalMsg.GetEpoch()))
@@ -34,24 +34,7 @@ func (p *Pacemaker) scheduleBroadcast(proposalMsg *block.PMProposalMessage, d ti
 	}
 }
 
-func (p *Pacemaker) cancelAllPendingBroadcast() {
-	p.logger.Debug("cancel all pending broadcast")
-	// stop voteTimer if not nil
-	if p.broadcastTimer != nil {
-		p.broadcastTimer.Stop()
-	}
-	// clean msg from voteCh
-CleanBroadcastCh:
-	for {
-		select {
-		case <-p.broadcastCh:
-		default:
-			break CleanBroadcastCh
-		}
-	}
-}
-
-func (p *Pacemaker) OnBroadcastProposal() {
+func (p *Pacemaker) broadcastCurProposal() {
 	if p.curProposal == nil {
 		p.logger.Warn("proposal is empty, skip broadcasting ...")
 		return
@@ -69,4 +52,18 @@ func (p *Pacemaker) OnBroadcastProposal() {
 	}
 
 	p.Broadcast(proposalMsg)
+}
+
+func (p *Pacemaker) scheduleRegulate() {
+	// schedule Regulate
+	// make sure this Regulate cmd is the very next cmd
+	drainChannel(p.cmdCh)
+	p.cmdCh <- PMCmdRegulate
+	p.logger.Info("regulate scheduled")
+}
+
+func (p *Pacemaker) scheduleOnBeat(epoch uint64, round uint32) {
+	// p.enterRound(round, IncRoundOnBeat)
+	drainChannel(p.beatCh)
+	p.beatCh <- PMBeatInfo{epoch, round}
 }

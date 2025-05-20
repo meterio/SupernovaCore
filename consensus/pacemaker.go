@@ -10,19 +10,20 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/cometbft/cometbft/privval"
 	cmtproxy "github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/libs/p2p"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -31,6 +32,15 @@ const (
 	ProposeTimeLimit     = 1300 * time.Millisecond
 	BroadcastTimeLimit   = 1400 * time.Millisecond
 )
+
+var (
+	validQCs, _ = lru.New(256)
+	inQueue     *IncomingQueue
+)
+
+func init() {
+	inQueue = NewIncomingQueue()
+}
 
 type Pacemaker struct {
 	ctx       context.Context
@@ -85,6 +95,11 @@ type Pacemaker struct {
 }
 
 func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *txpool.TxPool, p2pSrv p2p.P2P, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Pacemaker {
+	prometheus.Register(pmRoundGauge)
+	prometheus.Register(curEpochGauge)
+	prometheus.Register(inCommitteeGauge)
+	prometheus.Register(pmRoleGauge)
+
 	p := &Pacemaker{
 		ctx:       ctx,
 		logger:    slog.With("pkg", "pm"),
@@ -625,67 +640,44 @@ func (p *Pacemaker) Regulate() {
 	p.scheduleOnBeat(p.epochState.epoch, actualRound)
 }
 
-func (p *Pacemaker) scheduleOnBeat(epoch uint64, round uint32) {
-	// p.enterRound(round, IncRoundOnBeat)
-CleanBeatCh:
-	for {
-		select {
-		case <-p.beatCh:
-		default:
-			break CleanBeatCh
-		}
-	}
-	p.beatCh <- PMBeatInfo{epoch, round}
-}
-
-func (p *Pacemaker) ScheduleRegulate() {
-	// schedule Regulate
-	// make sure this Regulate cmd is the very next cmd
-CleanCMDCh:
-	for {
-		select {
-		case <-p.cmdCh:
-		default:
-			break CleanCMDCh
-		}
-	}
-
-	p.cmdCh <- PMCmdRegulate
-	p.logger.Info("regulate scheduled")
-}
-
 func (p *Pacemaker) mainLoop() {
-	interruptCh := make(chan os.Signal, 1)
-	// signal.Notify(interruptCh, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
 		bestBlock := p.chain.BestBlock()
 		if bestBlock.Number() > p.QCHigh.QC.Number() && p.epochState.InCommittee() {
 			p.logger.Info("bestBlock > QCHigh, schedule regulate", "best", bestBlock.Number(), "qcHigh", p.QCHigh.QC.Number())
-			p.ScheduleRegulate()
+			p.scheduleRegulate()
 		}
 		select {
+		case <-p.ctx.Done():
+			p.logger.Info("context done, exit now")
+			return
 
 		case cmd := <-p.cmdCh:
 			if cmd == PMCmdRegulate {
 				p.Regulate()
 			}
+
 		case ti := <-p.roundTimeoutCh:
 			if ti.epoch < p.epochState.epoch {
 				p.logger.Info("skip timeout handling due to epoch mismatch", "timeoutRound", ti.round, "timeoutEpoch", ti.epoch, "myEpoch", p.epochState.epoch)
 				continue
 			}
 			p.OnRoundTimeout(ti)
+
 		case newTxID := <-p.newTxCh:
 			if p.epochState.InCommittee() && p.amIRoundProproser(p.currentRound) && p.curProposal != nil && p.curProposal.ProposedBlock != nil && p.curProposal.ProposedBlock.BlockHeader != nil && p.curProposal.Round == p.currentRound {
 				if time.Since(p.roundStartedAt) < ProposeTimeLimit {
 					p.AddTxToCurProposal(newTxID)
 				}
 			}
+
 		case <-p.broadcastCh:
-			p.OnBroadcastProposal()
+			p.broadcastCurProposal()
+
 		case b := <-p.beatCh:
 			p.OnBeat(b.epoch, b.round)
+
 		case m := <-inQueue.queue:
 			// if not in committee, skip rcvd messages
 			if !(p.epochState.InCommittee() || p.nextEpochState != nil && p.nextEpochState.InCommittee()) {
@@ -712,11 +704,6 @@ func (p *Pacemaker) mainLoop() {
 			default:
 				p.logger.Warn("received an message in unknown type")
 			}
-
-		case <-interruptCh:
-			p.logger.Warn("interrupt by user, exit now")
-			return
-
 		}
 	}
 }

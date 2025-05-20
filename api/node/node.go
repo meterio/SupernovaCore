@@ -17,20 +17,20 @@ import (
 )
 
 type Node struct {
-	version string
-	chainId uint64
-	p2pSrv  p2p.P2P
-	Cons    *consensus.Reactor
-	Chain   *chain.Chain
-	pubkey  string
+	version   string
+	chainId   uint64
+	p2pSrv    p2p.P2P
+	Pacemaker *consensus.Pacemaker
+	Chain     *chain.Chain
+	pubkey    string
 }
 
-func New(version string, chainId uint64, p2pSrv p2p.P2P, cons *consensus.Reactor, c *chain.Chain, pubkey []byte) *Node {
+func New(version string, chainId uint64, p2pSrv p2p.P2P, pacemaker *consensus.Pacemaker, c *chain.Chain, pubkey []byte) *Node {
 	return &Node{
 		version,
 		chainId,
 		p2pSrv,
-		cons,
+		pacemaker,
 		c,
 		hex.EncodeToString(pubkey),
 	}
@@ -50,7 +50,7 @@ func (n *Node) handleProbe(w http.ResponseWriter, r *http.Request) error {
 
 	bestBlock, _ := convertBlock(n.Chain.BestBlock())
 	bestQC, _ := convertQC(n.Chain.BestQC())
-	pmProbe := n.Cons.Pacemaker.Probe()
+	pmProbe := n.Pacemaker.Probe()
 	pacemaker, _ := convertPacemakerProbe(pmProbe)
 	chainProbe := &ChainProbe{
 		BestBlock: bestBlock,

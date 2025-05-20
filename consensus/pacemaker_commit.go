@@ -59,7 +59,7 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 			out := fmt.Sprintf("Fork Happened ... fork(Ancestor=%s, Branch=%s), bestBlock=%s", fork.Ancestor.ID().String(), fork.Branch[0].ID().String(), p.chain.BestBlock().ID().String())
 			p.logger.Warn(out)
 			p.printFork(fork)
-			p.ScheduleRegulate()
+			p.scheduleRegulate()
 			return ErrForkHappened
 		}
 	}
@@ -74,7 +74,7 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 	p.logger.Info("Check kblock")
 	if blk.IsKBlock() {
 		p.logger.Info("committed a KBlock, schedule regulate now", "blk", blk.ID().ToBlockShortID())
-		p.ScheduleRegulate()
+		p.scheduleRegulate()
 	}
 	p.logger.Info("Prepare to encode block")
 
