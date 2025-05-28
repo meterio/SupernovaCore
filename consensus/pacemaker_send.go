@@ -33,16 +33,16 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 		return nil, err
 	}
 	msg := &block.PMProposalMessage{
-		Timestamp:   time.Now(),
-		Epoch:       p.epochState.epoch,
-		Round:       round,
-		RawBlock:    raw,
-		TimeoutCert: tc,
+		NanoTimestamp: uint64(time.Now().UnixNano()),
+		Epoch:         p.epochState.epoch,
+		Round:         round,
+		RawBlock:      raw,
+		TimeoutCert:   tc,
 	}
 
 	// sign message
 	p.SignMessage(msg)
-	p.logger.Debug("Built Proposal Message", "blk", bnew.ProposedBlock.ID().ToBlockShortID(), "msg", msg.String(), "timestamp", msg.Timestamp)
+	p.logger.Debug("Built Proposal Message", "blk", bnew.ProposedBlock.ID().ToBlockShortID(), "msg", msg.String(), "timestamp", msg.NanoTimestamp)
 
 	return msg, nil
 }
@@ -57,9 +57,9 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 	// p.logger.Debug("Built PMVoteMessage", "signMsg", signMsg)
 
 	msg := &block.PMVoteMessage{
-		Timestamp:   time.Now(),
-		Epoch:       p.epochState.epoch,
-		SignerIndex: uint32(p.epochState.CommitteeIndex()),
+		NanoTimestamp: uint64(time.Now().UnixNano()),
+		Epoch:         p.epochState.epoch,
+		SignerIndex:   uint32(p.epochState.CommitteeIndex()),
 
 		VoteRound:     proposalMsg.Round,
 		VoteBlockID:   proposedBlock.ID(),
@@ -91,9 +91,9 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 		return nil, err
 	}
 	msg := &block.PMTimeoutMessage{
-		Timestamp:   time.Now(),
-		Epoch:       ti.epoch,
-		SignerIndex: uint32(p.epochState.CommitteeIndex()),
+		NanoTimestamp: uint64(time.Now().UnixNano()),
+		Epoch:         ti.epoch,
+		SignerIndex:   uint32(p.epochState.CommitteeIndex()),
 
 		WishRound: ti.round,
 

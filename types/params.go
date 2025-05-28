@@ -17,7 +17,7 @@ const (
 	// minimum height for committee relay.
 
 	//  ------------------ Basics ----------------------------
-	BlockInterval uint64 = 10          // time interval between two consecutive blocks.
+	BlockInterval uint64 = 100000      // ns time interval between two consecutive blocks. ~100ms
 	BaseTxGas     uint64 = ParamsTxGas // 21000
 	TxGas         uint64 = 5000
 

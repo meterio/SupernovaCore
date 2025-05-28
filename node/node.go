@@ -22,9 +22,14 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmttypes "github.com/cometbft/cometbft/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p"
+	"github.com/meterio/supernova/libs/pb"
 	"github.com/meterio/supernova/libs/rpc"
+	"storj.io/drpc/drpcconn"
+	"storj.io/drpc/drpcmux"
+	"storj.io/drpc/drpcserver"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtnode "github.com/cometbft/cometbft/node"
@@ -172,7 +177,19 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
+
+	m := drpcmux.New()
+
+	server := drpcserver.New(m)
+	pb.DRPCRegisterEcho(m, NewEchoServer())
+
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
+	p2pSrv.Host().SetStreamHandler("", func(s network.Stream) {
+		conn := drpcconn.New(s)
+		defer conn.Close()
+
+		server.ServeOne(context.Background(), conn.Transport())
+	})
 	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, p2pSrv, blsMaster, proxyApp)
 
 	// p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", func(s network.Stream) {
@@ -215,7 +232,7 @@ func NewNode(
 `,
 		types.MakeName("Supernova", config.BaseConfig.Version),
 		geneBlock.ID(),
-		bestBlock.ID(), bestBlock.Number(), time.Unix(int64(bestBlock.Timestamp()), 0),
+		bestBlock.ID(), bestBlock.Number(), time.Unix(0, int64(bestBlock.NanoTimestamp())),
 		types.GetForkConfig(geneBlock.ID()),
 		hex.EncodeToString(pubkey.Bytes()),
 		apiAddr)
@@ -515,20 +532,20 @@ func (err syncError) Error() string {
 }
 
 func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats *blockStats) error {
-	now := uint64(time.Now().Unix())
+	nowNano := uint64(time.Now().UnixNano())
 
 	best := n.chain.BestBlock()
 	if !bytes.Equal(best.ID().Bytes(), blk.ParentID().Bytes()) {
 		return errCantExtendBestBlock
 	}
-	if blk.Timestamp()+types.BlockInterval > now {
+	if blk.NanoTimestamp()+types.BlockInterval > nowNano {
 		QCValid := n.pacemaker.ValidateQC(blk, escortQC)
 		if !QCValid {
 			return errors.New(fmt.Sprintf("invalid %s on Block %s", escortQC.String(), blk.ID().ToBlockShortID()))
 		}
 	}
 	start := time.Now()
-	err := n.ValidateSyncedBlock(blk, now)
+	err := n.ValidateSyncedBlock(blk, nowNano)
 	if time.Since(start) > time.Millisecond*500 {
 		n.logger.Debug("slow processed block", "blk", blk.Number(), "elapsed", types.PrettyDuration(time.Since(start)))
 	}
@@ -605,7 +622,7 @@ func (n *Node) IsRunning() bool {
 }
 
 // Process process a block.
-func (n *Node) ValidateSyncedBlock(blk *block.Block, nowTimestamp uint64) error {
+func (n *Node) ValidateSyncedBlock(blk *block.Block, nowNanoTimestamp uint64) error {
 	header := blk.Header()
 
 	if _, err := n.chain.GetBlockHeader(header.ID()); err != nil {
@@ -629,13 +646,13 @@ func (n *Node) ValidateSyncedBlock(blk *block.Block, nowTimestamp uint64) error 
 		return errParentMissing
 	}
 
-	return n.validateBlock(blk, parent, nowTimestamp, true)
+	return n.validateBlock(blk, parent, nowNanoTimestamp, true)
 }
 
 func (n *Node) validateBlock(
 	block *block.Block,
 	parent *block.Block,
-	nowTimestamp uint64,
+	nowNanoTimestamp uint64,
 	forceValidate bool,
 ) error {
 	header := block.Header()
@@ -649,11 +666,11 @@ func (n *Node) validateBlock(
 		return syncError(fmt.Sprintf("parent.ID %v and QC.BlockID %v mismatch", parent.ID(), block.QC.BlockID))
 	}
 
-	if header.Timestamp <= parent.Timestamp() {
-		return syncError(fmt.Sprintf("block timestamp behind parents: parent %v, current %v", parent.Timestamp, header.Timestamp))
+	if header.NanoTimestamp <= parent.NanoTimestamp() {
+		return syncError(fmt.Sprintf("block nano timestamp behind parents: parent %v, current %v", parent.NanoTimestamp, header.NanoTimestamp))
 	}
 
-	if header.Timestamp > nowTimestamp+types.BlockInterval {
+	if header.NanoTimestamp > nowNanoTimestamp+types.BlockInterval {
 		return errFutureBlock
 	}
 

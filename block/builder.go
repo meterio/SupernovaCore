@@ -37,8 +37,8 @@ func (b *Builder) Tx(tx cmttypes.Tx) *Builder {
 }
 
 // Timestamp set timestamp.
-func (b *Builder) Timestamp(ts uint64) *Builder {
-	b.header.Timestamp = ts
+func (b *Builder) NanoTimestamp(ts uint64) *Builder {
+	b.header.NanoTimestamp = ts
 	return b
 }
 

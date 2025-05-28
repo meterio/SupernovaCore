@@ -16,16 +16,16 @@ import (
 )
 
 type JSONBlockSummary struct {
-	Number     uint32            `json:"number"`
-	ID         types.Bytes32     `json:"id"`
-	Size       uint32            `json:"size"`
-	ParentID   types.Bytes32     `json:"parentID"`
-	Timestamp  uint64            `json:"timestamp"`
-	TxsRoot    cmtbytes.HexBytes `json:"txsRoot"`
-	LastKBlock uint32            `json:"lastKBlock"`
-	QC         *QC               `json:"qc"`
-	Nonce      uint64            `json:"nonce"`
-	Epoch      uint64            `json:"epoch"`
+	Number        uint32            `json:"number"`
+	ID            types.Bytes32     `json:"id"`
+	Size          uint32            `json:"size"`
+	ParentID      types.Bytes32     `json:"parentID"`
+	NanoTimestamp uint64            `json:"nanoTimestamp"`
+	TxsRoot       cmtbytes.HexBytes `json:"txsRoot"`
+	LastKBlock    uint32            `json:"lastKBlock"`
+	QC            *QC               `json:"qc"`
+	Nonce         uint64            `json:"nonce"`
+	Epoch         uint64            `json:"epoch"`
 }
 
 type JSONCollapsedBlock struct {
@@ -87,10 +87,10 @@ func buildJSONBlockSummary(blk *block.Block, isTrunk bool) *JSONBlockSummary {
 	header := blk.Header()
 
 	result := &JSONBlockSummary{
-		Number:    header.Number(),
-		ID:        header.ID(),
-		ParentID:  header.ParentID,
-		Timestamp: header.Timestamp,
+		Number:        header.Number(),
+		ID:            header.ID(),
+		ParentID:      header.ParentID,
+		NanoTimestamp: header.NanoTimestamp,
 
 		Size:       uint32(blk.Size()),
 		TxsRoot:    header.TxsRoot,

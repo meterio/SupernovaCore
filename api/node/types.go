@@ -15,14 +15,14 @@ import (
 
 // Block block
 type Block struct {
-	Number     uint32        `json:"number"`
-	ID         types.Bytes32 `json:"id"`
-	ParentID   types.Bytes32 `json:"parentID"`
-	QC         *QC           `json:"qc"`
-	Timestamp  uint64        `json:"timestamp"`
-	TxCount    int           `json:"txCount"`
-	LastKBlock uint32        `json:"lastKBlock"`
-	Nonce      uint64        `json:"nonce"`
+	Number        uint32        `json:"number"`
+	ID            types.Bytes32 `json:"id"`
+	ParentID      types.Bytes32 `json:"parentID"`
+	QC            *QC           `json:"qc"`
+	NanoTimestamp uint64        `json:"nanoTimestamp"`
+	TxCount       int           `json:"txCount"`
+	LastKBlock    uint32        `json:"lastKBlock"`
+	Nonce         uint64        `json:"nonce"`
 }
 
 type QC struct {
@@ -72,13 +72,13 @@ func convertBlock(b *block.Block) (*Block, error) {
 	header := b.Header()
 
 	result := &Block{
-		Number:     header.Number(),
-		ID:         header.ID(),
-		ParentID:   header.ParentID,
-		Timestamp:  header.Timestamp,
-		TxCount:    len(b.Transactions()),
-		LastKBlock: header.LastKBlock,
-		Nonce:      b.Nonce(),
+		Number:        header.Number(),
+		ID:            header.ID(),
+		ParentID:      header.ParentID,
+		NanoTimestamp: header.NanoTimestamp,
+		TxCount:       len(b.Transactions()),
+		LastKBlock:    header.LastKBlock,
+		Nonce:         b.Nonce(),
 	}
 	var err error
 	if b.QC != nil {

@@ -22,14 +22,14 @@ import (
 
 func TestSerialize(t *testing.T) {
 
-	now := uint64(time.Now().UnixNano())
+	nowNano := uint64(time.Now().UnixNano())
 
 	var (
 		emptyRoot types.Bytes32 = types.BytesToBytes32([]byte("0"))
 	)
 
 	block := new(Builder).
-		Timestamp(now).
+		NanoTimestamp(nowNano).
 		ParentID(emptyRoot).
 		Build()
 
@@ -41,7 +41,7 @@ func TestSerialize(t *testing.T) {
 
 	assert.Equal(t, body.Txs, txs)
 	assert.Equal(t, Compose(h, txs), block)
-	assert.Equal(t, now, h.Timestamp)
+	assert.Equal(t, nowNano, h.NanoTimestamp)
 
 	assert.Equal(t, emptyRoot, h.ParentID)
 	assert.Equal(t, txsRootHash, h.TxsRoot)

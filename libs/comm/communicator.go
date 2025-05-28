@@ -104,9 +104,9 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 		syncCount := 0
 
 		shouldSynced := func() bool {
-			bestBlockTime := c.chain.BestBlock().Timestamp()
-			now := uint64(time.Now().Unix())
-			if bestBlockTime+types.BlockInterval >= now && c.chain.BestQC().BlockID == c.chain.BestBlock().ID() {
+			bestBlockNano := c.chain.BestBlock().NanoTimestamp()
+			nowNano := uint64(time.Now().UnixNano())
+			if bestBlockNano+types.BlockInterval >= nowNano && c.chain.BestQC().BlockID == c.chain.BestBlock().ID() {
 				return true
 			}
 			if syncCount > 2 {

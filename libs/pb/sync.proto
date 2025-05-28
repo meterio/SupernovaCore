@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "supernova/pb";
+
+service Sync {
+  rpc GetStatus (GetStatusRequest) returns (GetStatusResponse);
+  rpc NotifyBlock (NotifyBlockRequest) returns (NotifyBlockResponse);
+  rpc NotifyBlockID (NotifyBlockIDRequest) returns (NotifyBlockIDResponse);
+  rpc NotifyTx (NotifyTxRequest) returns (NotifyTxResponse);
+  rpc GetBlockByID (GetBlockByIDRequest) returns (GetBlockByIDResponse);
+  rpc GetBlockIDByNumber(GetBlockIDByNumberRequest) returns (GetBlockIDByNumberResponse);
+  rpc GetBlocksFromNumber(GetBlocksFromNumberRequest) returns (GetBlocksFromNumberResponse);
+}
+
+message GetStatusRequest {
+}
+
+message GetStatusResponse {
+  bytes genesis_block_id = 1;
+  uint64 sys_nano_timestamp = 2;
+  bytes best_block_id = 3;
+  uint64 best_block_num = 4;
+}
+
+// NotifyBlock
+message NotifyBlockRequest {
+  bytes block_bytes = 1;
+}
+
+message NotifyBlockResponse {
+}
+
+// NotifyBlockID
+message NotifyBlockIDRequest {
+  bytes block_id = 1;
+}
+
+message NotifyBlockIDResponse {
+}
+
+// NotifyTx
+message NotifyTxRequest {
+  bytes tx_bytes = 1;
+}
+
+message NotifyTxResponse {
+}
+
+// GetBlockByID
+message GetBlockByIDRequest {
+  bytes tx_bytes = 1;
+}
+
+message GetBlockByIDResponse {
+  bytes block_bytes = 1;
+}
+
+// GetBlockIDByNumber
+message GetBlockIDByNumberRequest {
+  uint64 block_num = 1;
+}
+
+message GetBlockIDByNumberResponse {
+  bytes block_id = 1;
+}
+
+// GetBlocksFromNumber
+message GetBlocksFromNumberRequest {
+  uint64 block_num = 1;
+}
+
+message GetBlocksFromNumberResponse {
+  repeated bytes block_bytes_list = 1;
+}
+
+
+
+
+
+
+
+
+

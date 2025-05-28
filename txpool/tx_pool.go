@@ -98,7 +98,7 @@ func (p *TxPool) housekeeping() {
 				headBlock = newHeadBlock
 				headBlockChanged = true
 			}
-			if !isChainSynced(uint64(time.Now().Unix()), headBlock.Timestamp) {
+			if !isChainSynced(uint64(time.Now().UnixNano()), headBlock.NanoTimestamp) {
 				// skip washing txs if not synced
 				continue
 			}
@@ -160,7 +160,7 @@ func (p *TxPool) add(newTx cmttypes.Tx, rejectNonexecutable bool) error {
 	}
 
 	headBlock := p.chain.BestBlock().Header()
-	if isChainSynced(uint64(time.Now().Unix()), headBlock.Timestamp) {
+	if isChainSynced(uint64(time.Now().UnixNano()), headBlock.NanoTimestamp) {
 		executable, err := txObj.Executable(p.chain, headBlock)
 		if err != nil {
 			return txRejectedError{err.Error()}

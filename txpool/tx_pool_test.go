@@ -39,7 +39,7 @@ func TestSubscribeNewTx(t *testing.T) {
 
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
-		Timestamp(uint64(time.Now().Unix())).Build()
+		NanoTimestamp(uint64(time.Now().UnixNano())).Build()
 	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)
 	pool.chain.AddBlock(b1, nil)
@@ -72,7 +72,7 @@ func TestWashTxs(t *testing.T) {
 
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
-		Timestamp(uint64(time.Now().Unix())).
+		NanoTimestamp(uint64(time.Now().UnixNano())).
 		Build()
 	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)
@@ -88,7 +88,7 @@ func TestAdd(t *testing.T) {
 	defer pool.Close()
 	b1 := new(block.Builder).
 		ParentID(pool.chain.GenesisBlock().ID()).
-		Timestamp(uint64(time.Now().Unix())).
+		NanoTimestamp(uint64(time.Now().UnixNano())).
 		Build()
 	qc := block.QuorumCert{Epoch: 0, Round: 1}
 	b1.SetQC(&qc)

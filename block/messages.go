@@ -94,11 +94,11 @@ func verifyMsgSignature(cmtPubkey cmtcrypto.PubKey, msg []byte, signature []byte
 
 // PMProposalMessage is sent when a new block is proposed
 type PMProposalMessage struct {
-	Timestamp   time.Time
-	Epoch       uint64
-	Round       uint32
-	RawBlock    []byte
-	TimeoutCert *types.TimeoutCert
+	NanoTimestamp uint64
+	Epoch         uint64
+	Round         uint32
+	RawBlock      []byte
+	TimeoutCert   *types.TimeoutCert
 
 	MsgSignature []byte
 
@@ -124,7 +124,7 @@ func (m *PMProposalMessage) GetRound() uint32 {
 
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMProposalMessage) GetMsgHash() types.Bytes32 {
-	data := []interface{}{m.Timestamp, m.Epoch, m.Round, m.RawBlock}
+	data := []interface{}{m.NanoTimestamp, m.Epoch, m.Round, m.RawBlock}
 	if m.TimeoutCert != nil {
 		data = append(data, m.TimeoutCert)
 	}
@@ -170,7 +170,7 @@ func (m *PMProposalMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool 
 
 // PMVoteMessage is sent when voting for a proposal (or lack thereof).
 type PMVoteMessage struct {
-	Timestamp     time.Time
+	NanoTimestamp uint64
 	Epoch         uint64
 	SignerIndex   uint32
 	VoteRound     uint32
@@ -199,7 +199,7 @@ func (m *PMVoteMessage) GetRound() uint32 {
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMVoteMessage) GetMsgHash() types.Bytes32 {
 	bs, err := rlp.EncodeToBytes([]interface{}{
-		m.Timestamp,
+		m.NanoTimestamp,
 		m.Epoch,
 		m.SignerIndex,
 		m.VoteRound,
@@ -228,10 +228,10 @@ func (m *PMVoteMessage) VerifyMsgSignature(cmtPubKey cmtcrypto.PubKey) bool {
 
 // PMTimeoutMessage is sent to the next leader in these two senarios
 type PMTimeoutMessage struct {
-	Timestamp   time.Time
-	Epoch       uint64
-	SignerIndex uint32
-	WishRound   uint32
+	NanoTimestamp uint64
+	Epoch         uint64
+	SignerIndex   uint32
+	WishRound     uint32
 
 	// local QCHigh
 	QCHigh []byte
@@ -270,7 +270,7 @@ func (m *PMTimeoutMessage) GetRound() uint32 {
 // GetMsgHash computes hash of all header fields excluding signature.
 func (m *PMTimeoutMessage) GetMsgHash() types.Bytes32 {
 	bs, err := rlp.EncodeToBytes([]interface{}{
-		m.Timestamp,
+		m.NanoTimestamp,
 		m.Epoch,
 		m.SignerIndex,
 		m.WishRound,

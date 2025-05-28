@@ -95,5 +95,9 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 		}
 	}
 
+	for _, pid := range p.p2pSrv.Peers().All() {
+
+	}
+
 	return nil
 }

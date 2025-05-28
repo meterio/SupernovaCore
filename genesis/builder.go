@@ -16,7 +16,7 @@ import (
 
 // Builder helper to build genesis block.
 type Builder struct {
-	timestamp uint64
+	nanoTimestamp uint64
 
 	extraData [28]byte
 	vset      *cmttypes.ValidatorSet
@@ -24,8 +24,8 @@ type Builder struct {
 }
 
 // Timestamp set timestamp.
-func (b *Builder) Timestamp(t uint64) *Builder {
-	b.timestamp = t
+func (b *Builder) NanoTimestamp(t uint64) *Builder {
+	b.nanoTimestamp = t
 	return b
 }
 
@@ -57,7 +57,7 @@ func (b *Builder) SetGenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
 		})
 	}
 	b.vset = cmttypes.NewValidatorSet(vs)
-	b.timestamp = uint64(gdoc.GenesisTime.Unix())
+	b.nanoTimestamp = uint64(gdoc.GenesisTime.UnixNano())
 	return b
 }
 
@@ -76,7 +76,7 @@ func (b *Builder) Build() (blk *block.Block, err error) {
 
 	return new(block.Builder).
 		ParentID(parentID).
-		Timestamp(b.timestamp).
+		NanoTimestamp(b.nanoTimestamp).
 		ValidatorsHash(b.vset.Hash()).
 		NextValidatorsHash(b.nextVSet.Hash()).
 		Nonce(GenesisNonce).

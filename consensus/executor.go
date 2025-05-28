@@ -68,7 +68,7 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{
 		Hash:               blk.ID().Bytes(),
 		Height:             int64(blk.Number()),
-		Time:               time.Unix(int64(blk.Timestamp()), 0),
+		Time:               time.Unix(0, int64(blk.NanoTimestamp())),
 		Txs:                blk.Txs.Convert(),
 		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent, blk),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
@@ -133,7 +133,7 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		NextValidatorsHash: blk.Header().NextValidatorsHash,
 		ProposerAddress:    proposerAddr,
 		Height:             int64(blk.Number()),
-		Time:               time.Unix(int64(blk.Timestamp()), 0),
+		Time:               time.Unix(0, int64(blk.NanoTimestamp())),
 		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent, blk),
 		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Txs:                blk.Transactions().Convert(),

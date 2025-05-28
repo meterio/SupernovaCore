@@ -161,8 +161,8 @@ func (b *Block) IsKBlock() bool {
 }
 
 // Timestamp returns timestamp of this block.
-func (b *Block) Timestamp() uint64 {
-	return b.BlockHeader.Timestamp
+func (b *Block) NanoTimestamp() uint64 {
+	return b.BlockHeader.NanoTimestamp
 }
 
 func (b *Block) AppHash() cmtbytes.HexBytes {

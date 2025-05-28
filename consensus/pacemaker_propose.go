@@ -22,7 +22,7 @@ var (
 )
 
 // Build MBlock
-func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs types.Transactions) (error, *block.DraftBlock) {
+func (p *Pacemaker) buildBlock(nanoTimestamp uint64, parent *block.DraftBlock, justify *block.DraftQC, round uint32, nonce uint64, txs types.Transactions) (error, *block.DraftBlock) {
 	parentBlock := parent.ProposedBlock
 	qc := justify.QC
 
@@ -43,7 +43,7 @@ func (p *Pacemaker) buildBlock(timestamp uint64, parent *block.DraftBlock, justi
 	}
 	builder := new(block.Builder).
 		ParentID(parentBlock.ID()).
-		Timestamp(timestamp).
+		NanoTimestamp(nanoTimestamp).
 		Nonce(nonce).
 		ValidatorsHash(parent.ProposedBlock.NextValidatorsHash()).
 		NextValidatorsHash(nextValidatorHash).

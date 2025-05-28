@@ -24,7 +24,7 @@ import (
 // It's immutable.
 type Header struct {
 	ParentID      types.Bytes32
-	Timestamp     uint64
+	NanoTimestamp uint64
 	ProposerIndex uint32
 	TxsRoot       cmtbytes.HexBytes
 	LastKBlock    uint32
@@ -78,7 +78,7 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 
 	bs, err := rlp.EncodeToBytes([]interface{}{
 		h.ParentID,
-		h.Timestamp,
+		h.NanoTimestamp,
 
 		h.TxsRoot,
 
@@ -98,12 +98,12 @@ func (h *Header) SigningHash() (hash types.Bytes32) {
 func (h *Header) String() string {
 	return fmt.Sprintf(`
     ParentID:                 %v
-    Timestamp:                %v
+    NanoTimestamp:            %v
     TxsRoot:                  %v
     ValidatorsHash:           %v
     NextValidatorsHash:       %v
     LastKBlock:               %v
-    Nonce:                    %v`, h.ParentID, h.Timestamp, h.TxsRoot, h.ValidatorsHash.String(), h.NextValidatorsHash.String(), h.LastKBlock, h.Nonce)
+    Nonce:                    %v`, h.ParentID, h.NanoTimestamp, h.TxsRoot, h.ValidatorsHash.String(), h.NextValidatorsHash.String(), h.LastKBlock, h.Nonce)
 }
 
 // Number extract block number from block id.

@@ -134,7 +134,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		return ErrParentBlockEmpty, nil
 	}
 
-	targetTime := time.Unix(int64(parentBlock.Timestamp()+1), 0)
+	targetTime := time.Unix(0, int64(parentBlock.NanoTimestamp()+200))
 	now := time.Now()
 	if now.After(targetTime) {
 		targetTime = now
@@ -158,7 +158,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		p.logger.Warn("Invalid round to propose", "round", round, "parentRound", parent.Round)
 		return ErrInvalidRound, nil
 	}
-	err, draftBlock := p.buildBlock(uint64(targetTime.Unix()), parent, justify, round, 0, txs)
+	err, draftBlock := p.buildBlock(uint64(targetTime.UnixNano()), parent, justify, round, 0, txs)
 	// p.logger.Info(fmt.Sprintf("proposing %v on R:%v with QCHigh(E%v.R%v), Parent(%v,R:%v)", draftBlock.ProposedBlock.CompactString(), round, justify.QC.Epoch, justify.QC.Round, parent.ProposedBlock.ID().ToBlockShortID(), parent.Round))
 	if time.Now().Before(targetTime) {
 		d := time.Until(targetTime)
