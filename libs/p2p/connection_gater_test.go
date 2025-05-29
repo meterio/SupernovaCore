@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	leakybucket "github.com/OffchainLabs/prysm/v6/container/leaky-bucket"
+	ethpb "github.com/OffchainLabs/prysm/v6/proto/eth/v1"
+	"github.com/OffchainLabs/prysm/v6/testing/assert"
+	"github.com/OffchainLabs/prysm/v6/testing/require"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p/peers"
@@ -13,10 +17,6 @@ import (
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
 	mockp2p "github.com/meterio/supernova/libs/p2p/testing"
 	ma "github.com/multiformats/go-multiaddr"
-	leakybucket "github.com/prysmaticlabs/prysm/v5/container/leaky-bucket"
-	ethpb "github.com/prysmaticlabs/prysm/v5/proto/eth/v1"
-	"github.com/prysmaticlabs/prysm/v5/testing/assert"
-	"github.com/prysmaticlabs/prysm/v5/testing/require"
 )
 
 func TestPeer_AtMaxLimit(t *testing.T) {

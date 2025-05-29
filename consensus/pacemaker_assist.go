@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 // This is part of pacemaker that in charge of:
@@ -190,4 +190,3 @@ branch:   %v  %v`, fork.Ancestor,
 			branchLen, fork.Branch[branchLen-1]))
 	}
 }
-

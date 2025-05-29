@@ -3,6 +3,8 @@ package p2p
 import (
 	"context"
 
+	ethpb "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
+	"github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1/metadata"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/connmgr"
@@ -12,8 +14,6 @@ import (
 	"github.com/meterio/supernova/libs/p2p/encoder"
 	"github.com/meterio/supernova/libs/p2p/peers"
 	"github.com/multiformats/go-multiaddr"
-	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1/metadata"
 	"google.golang.org/protobuf/proto"
 )
 

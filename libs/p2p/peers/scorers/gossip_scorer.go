@@ -1,10 +1,10 @@
 package scorers
 
 import (
+	pbrpc "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p/peers/peerdata"
 	"github.com/pkg/errors"
-	pbrpc "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 var _ Scorer = (*GossipScorer)(nil)

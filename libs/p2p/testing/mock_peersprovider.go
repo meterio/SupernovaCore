@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	pb "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -12,7 +13,6 @@ import (
 	"github.com/meterio/supernova/libs/p2p/peers"
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
 	ma "github.com/multiformats/go-multiaddr"
-	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	log "github.com/sirupsen/logrus"
 )
 

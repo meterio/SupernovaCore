@@ -25,7 +25,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p"
-	"github.com/meterio/supernova/libs/pb"
 	"github.com/meterio/supernova/libs/rpc"
 	"storj.io/drpc/drpcconn"
 	"storj.io/drpc/drpcmux"
@@ -181,7 +180,6 @@ func NewNode(
 	m := drpcmux.New()
 
 	server := drpcserver.New(m)
-	pb.DRPCRegisterEcho(m, NewEchoServer())
 
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
 	p2pSrv.Host().SetStreamHandler("", func(s network.Stream) {

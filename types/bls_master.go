@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 type BlsMaster struct {

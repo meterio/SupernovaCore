@@ -5,19 +5,19 @@ import (
 	"io"
 	"sync"
 
+	"github.com/OffchainLabs/prysm/v6/config/params"
+	"github.com/OffchainLabs/prysm/v6/math"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/pkg/errors"
 	fastssz "github.com/prysmaticlabs/fastssz"
-	"github.com/prysmaticlabs/prysm/v5/config/params"
-	"github.com/prysmaticlabs/prysm/v5/math"
 )
 
 var _ NetworkEncoding = (*SszNetworkEncoder)(nil)
 
 // MaxGossipSize allowed for gossip messages.
-var MaxGossipSize = params.BeaconConfig().GossipMaxSize // 10 Mib.
-var MaxChunkSize = params.BeaconConfig().MaxChunkSize   // 10 Mib.
+var MaxGossipSize = params.BeaconConfig().MaxPayloadSize // 10 Mib.
+var MaxChunkSize = params.BeaconConfig().MaxPayloadSize  // 10 Mib.
 
 // This pool defines the sync pool for our buffered snappy writers, so that they
 // can be constantly reused.

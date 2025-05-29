@@ -5,11 +5,11 @@ import (
 	"math"
 	"time"
 
+	"github.com/OffchainLabs/prysm/v6/consensus-types/primitives"
+	pb "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p/peers/peerdata"
 	p2ptypes "github.com/meterio/supernova/libs/p2p/types"
-	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
-	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 var _ Scorer = (*PeerStatusScorer)(nil)

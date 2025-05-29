@@ -3,12 +3,12 @@ package p2p
 import (
 	"reflect"
 
+	"github.com/OffchainLabs/prysm/v6/config/params"
+	"github.com/OffchainLabs/prysm/v6/consensus-types/primitives"
+	pb "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
 	"github.com/meterio/supernova/libs/message"
 	p2ptypes "github.com/meterio/supernova/libs/p2p/types"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v5/config/params"
-	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
-	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 // SchemaVersionV1 specifies the schema version for our rpc protocol ID.

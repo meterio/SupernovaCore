@@ -12,6 +12,11 @@ import (
 	"path"
 	"time"
 
+	"github.com/OffchainLabs/prysm/v6/consensus-types/wrapper"
+	ecdsaprysm "github.com/OffchainLabs/prysm/v6/crypto/ecdsa"
+	"github.com/OffchainLabs/prysm/v6/io/file"
+	pb "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
+	"github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1/metadata"
 	"github.com/btcsuite/btcd/btcec/v2"
 	gCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -20,12 +25,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/go-bitfield"
-	"github.com/prysmaticlabs/prysm/v5/config/params"
-	"github.com/prysmaticlabs/prysm/v5/consensus-types/wrapper"
-	ecdsaprysm "github.com/prysmaticlabs/prysm/v5/crypto/ecdsa"
-	"github.com/prysmaticlabs/prysm/v5/io/file"
-	pb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1/metadata"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 )
@@ -78,7 +77,7 @@ func privKey(cfg *Config) (*ecdsa.PrivateKey, error) {
 	}
 
 	// If the StaticPeerID flag is not set and if peerDAS is not enabled, return the private key.
-	if !(cfg.StaticPeerID || params.PeerDASEnabled()) {
+	if !(cfg.StaticPeerID) {
 		return ecdsaprysm.ConvertFromInterfacePrivKey(priv)
 	}
 

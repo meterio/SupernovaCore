@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto"
 
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 func init() {

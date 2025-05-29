@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	pbrpc "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
+	"github.com/OffchainLabs/prysm/v6/testing/assert"
 	"github.com/meterio/supernova/libs/p2p/peers"
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
-	pbrpc "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v5/testing/assert"
 )
 
 func TestScorers_Gossip_Score(t *testing.T) {

@@ -16,12 +16,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 const (

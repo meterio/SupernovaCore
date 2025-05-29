@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 )
 
 type timeoutVoteKey struct {

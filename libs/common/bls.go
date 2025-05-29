@@ -3,10 +3,10 @@ package common
 import (
 	"errors"
 
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls/common"
+	"github.com/OffchainLabs/prysm/v6/crypto/bls/common"
 
+	prysmbls "github.com/OffchainLabs/prysm/v6/crypto/bls"
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
-	prysmbls "github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	blst "github.com/supranational/blst/bindings/go"
 )
 

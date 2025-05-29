@@ -15,7 +15,7 @@ import (
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"
 
-	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
+	"github.com/OffchainLabs/prysm/v6/crypto/bls"
 )
 
 type EpochState struct {

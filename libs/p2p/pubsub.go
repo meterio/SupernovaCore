@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/OffchainLabs/prysm/v6/cmd/beacon-chain/flags"
+	"github.com/OffchainLabs/prysm/v6/config/params"
+	"github.com/OffchainLabs/prysm/v6/encoding/bytesutil"
+	pbrpc "github.com/OffchainLabs/prysm/v6/proto/prysm/v1alpha1"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v5/cmd/beacon-chain/flags"
-	"github.com/prysmaticlabs/prysm/v5/config/params"
-	"github.com/prysmaticlabs/prysm/v5/encoding/bytesutil"
-	pbrpc "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 const (
@@ -142,7 +142,7 @@ func (s *Service) pubsubOptions() []pubsub.Option {
 		// }),
 		pubsub.WithSubscriptionFilter(s),
 		pubsub.WithPeerOutboundQueueSize(int(s.cfg.QueueSize)),
-		pubsub.WithMaxMessageSize(int(params.BeaconConfig().GossipMaxSize)),
+		pubsub.WithMaxMessageSize(int(params.BeaconConfig().MaxPayloadSize)),
 		pubsub.WithValidateQueueSize(int(s.cfg.QueueSize)),
 		// pubsub.WithPeerScore(peerScoringParams()),
 		// pubsub.WithPeerScoreInspect(s.peerInspector, time.Minute),
