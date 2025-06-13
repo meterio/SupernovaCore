@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/v2/crypto"
+	"github.com/cometbft/cometbft/v2/crypto/ed25519"
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	cmn "github.com/meterio/supernova/libs/common"
 )
 

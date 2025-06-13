@@ -10,7 +10,7 @@ import (
 	"log/slog"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/types"
 )

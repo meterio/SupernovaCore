@@ -13,8 +13,8 @@ import (
 	"io"
 
 	"github.com/OffchainLabs/prysm/v6/crypto/bls"
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/bls12381"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
+	"github.com/cometbft/cometbft/v2/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/common"
 )
 

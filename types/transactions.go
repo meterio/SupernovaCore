@@ -6,9 +6,9 @@
 package types
 
 import (
-	"github.com/cometbft/cometbft/crypto/merkle"
-	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/v2/crypto/merkle"
+	cmtbytes "github.com/cometbft/cometbft/v2/libs/bytes"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 )
 
 // Transactions a slice of transactions.

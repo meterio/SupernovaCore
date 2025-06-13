@@ -5,9 +5,9 @@ import (
 	"crypto"
 
 	"github.com/OffchainLabs/prysm/v6/crypto/bls"
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
-	cmtjson "github.com/cometbft/cometbft/libs/json"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 

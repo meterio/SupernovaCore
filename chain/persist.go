@@ -10,9 +10,9 @@ import (
 	"encoding/json"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
-	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
-	cmttypes "github.com/cometbft/cometbft/types"
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v2"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"

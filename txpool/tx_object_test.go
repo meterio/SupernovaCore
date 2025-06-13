@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/stretchr/testify/assert"

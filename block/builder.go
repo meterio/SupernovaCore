@@ -6,7 +6,7 @@
 package block
 
 import (
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/types"
 )
 

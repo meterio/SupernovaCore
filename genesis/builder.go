@@ -6,8 +6,8 @@
 package genesis
 
 import (
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
-	cmttypes "github.com/cometbft/cometbft/types"
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/types"

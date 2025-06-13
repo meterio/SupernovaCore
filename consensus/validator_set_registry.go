@@ -4,9 +4,9 @@ import (
 	"errors"
 	"log/slog"
 
-	abcitypes "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto/bls12381"
-	cmttypes "github.com/cometbft/cometbft/types"
+	abcitypes "github.com/cometbft/cometbft/v2/abci/types"
+	"github.com/cometbft/cometbft/v2/crypto/bls12381"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"

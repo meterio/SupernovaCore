@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"strings"
 
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"

@@ -12,9 +12,9 @@ import (
 
 	_ "net/http/pprof"
 
-	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	"github.com/cometbft/cometbft/cmd/cometbft/commands/debug"
-	"github.com/cometbft/cometbft/libs/cli"
+	cmtcmd "github.com/cometbft/cometbft/v2/cmd/cometbft/commands"
+	"github.com/cometbft/cometbft/v2/cmd/cometbft/commands/debug"
+	"github.com/cometbft/cometbft/v2/libs/cli"
 	"github.com/meterio/supernova/cmd/supernova/commands"
 	"github.com/meterio/supernova/txpool"
 )

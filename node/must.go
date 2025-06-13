@@ -12,7 +12,7 @@ import (
 	"time"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	cmtcfg "github.com/cometbft/cometbft/config"
+	cmtcfg "github.com/cometbft/cometbft/v2/config"
 	"github.com/lmittmann/tint"
 	"github.com/meterio/supernova/chain"
 )

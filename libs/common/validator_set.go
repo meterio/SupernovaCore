@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v1"
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
-	cryptoencoding "github.com/cometbft/cometbft/crypto/encoding"
-	cmttypes "github.com/cometbft/cometbft/types"
+	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
+	cryptoencoding "github.com/cometbft/cometbft/v2/crypto/encoding"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 

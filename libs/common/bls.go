@@ -6,7 +6,7 @@ import (
 	"github.com/OffchainLabs/prysm/v6/crypto/bls/common"
 
 	prysmbls "github.com/OffchainLabs/prysm/v6/crypto/bls"
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
 	blst "github.com/supranational/blst/bindings/go"
 )
 

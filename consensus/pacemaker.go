@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cometbft/cometbft/privval"
-	cmtproxy "github.com/cometbft/cometbft/proxy"
-	cmttypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/v2/privval"
+	cmtproxy "github.com/cometbft/cometbft/v2/proxy"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"

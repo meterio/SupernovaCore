@@ -13,7 +13,7 @@ import (
 	"github.com/meterio/supernova/libs/comm/proto"
 	"github.com/meterio/supernova/types"
 
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"

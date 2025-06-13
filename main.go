@@ -11,14 +11,14 @@ import (
 	"syscall"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/cometbft/cometbft/privval"
-	"github.com/cometbft/cometbft/proxy"
+	"github.com/cometbft/cometbft/v2/privval"
+	"github.com/cometbft/cometbft/v2/proxy"
 	"golang.org/x/sync/errgroup"
 
-	cfg "github.com/cometbft/cometbft/config"
-	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
-	cmtlog "github.com/cometbft/cometbft/libs/log"
-	cmtnode "github.com/cometbft/cometbft/node"
+	cfg "github.com/cometbft/cometbft/v2/config"
+	cmtflags "github.com/cometbft/cometbft/v2/libs/cli/flags"
+	cmtlog "github.com/cometbft/cometbft/v2/libs/log"
+	cmtnode "github.com/cometbft/cometbft/v2/node"
 	node "github.com/meterio/supernova/node"
 
 	"github.com/meterio/supernova/types"

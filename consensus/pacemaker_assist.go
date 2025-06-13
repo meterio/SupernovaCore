@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/OffchainLabs/prysm/v6/crypto/bls"
-	cmttypes "github.com/cometbft/cometbft/types"
+	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"

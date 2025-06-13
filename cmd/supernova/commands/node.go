@@ -9,12 +9,12 @@ import (
 	"log/slog"
 	"os"
 
-	cmtcfg "github.com/cometbft/cometbft/config"
-	cmtflags "github.com/cometbft/cometbft/libs/cli/flags"
-	cmtlog "github.com/cometbft/cometbft/libs/log"
-	cmtnode "github.com/cometbft/cometbft/node"
-	"github.com/cometbft/cometbft/privval"
-	"github.com/cometbft/cometbft/proxy"
+	cmtcfg "github.com/cometbft/cometbft/v2/config"
+	cmtflags "github.com/cometbft/cometbft/v2/libs/cli/flags"
+	cmtlog "github.com/cometbft/cometbft/v2/libs/log"
+	cmtnode "github.com/cometbft/cometbft/v2/node"
+	"github.com/cometbft/cometbft/v2/privval"
+	"github.com/cometbft/cometbft/v2/proxy"
 	cmn "github.com/meterio/supernova/libs/common"
 	"github.com/meterio/supernova/node"
 	"github.com/meterio/supernova/types"
@@ -114,7 +114,7 @@ func RunNodeCmd() *cobra.Command {
 			}
 
 			InitLogger(config)
-			logger := cmtlog.NewTMLogger(cmtlog.NewSyncWriter(os.Stdout))
+			logger := cmtlog.NewLogger(os.Stdout)
 			logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cmtcfg.DefaultLogLevel)
 
 			privValidator, _ := privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), nil)

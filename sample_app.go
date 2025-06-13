@@ -8,7 +8,7 @@ import (
 	"log"
 
 	"github.com/cockroachdb/pebble"
-	abcitypes "github.com/cometbft/cometbft/abci/types"
+	abcitypes "github.com/cometbft/cometbft/v2/abci/types"
 )
 
 type KVStoreApplication struct {

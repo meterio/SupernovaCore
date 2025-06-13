@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/OffchainLabs/prysm/v6/crypto/bls"
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
+	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/rlp"
 	cmn "github.com/meterio/supernova/libs/common"
