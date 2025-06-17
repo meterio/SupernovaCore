@@ -601,6 +601,8 @@ func (p *Pacemaker) Start() {
 
 // Committee Leader triggers
 func (p *Pacemaker) Regulate() {
+	fmt.Println("p", p)
+	fmt.Println("c", p.chain)
 	bestQC := p.chain.BestQC()
 	best := p.chain.BestBlock()
 	if p.QCHigh != nil && p.QCHigh.QC.Number() > bestQC.Number() {

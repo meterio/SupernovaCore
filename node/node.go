@@ -237,6 +237,7 @@ func NewNode(
 
 	node := &Node{
 		ctx:           ctx,
+		pacemaker:     pacemaker,
 		config:        config,
 		genesisDoc:    genDoc,
 		rpc:           rpc.NewRPCServer(p2pSrv, chain, txPool),
@@ -343,7 +344,11 @@ func (n *Node) Start() error {
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
 	// n.goes.Go(func() { n.txStashLoop(n.ctx) })
-	n.goes.Go(func() { n.pacemaker.Start() })
+	n.goes.Go(func() {
+
+		fmt.Println("n.pacemaker", n.pacemaker)
+		n.pacemaker.Start()
+	})
 
 	n.goes.Wait()
 	return nil

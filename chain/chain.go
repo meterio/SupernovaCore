@@ -869,10 +869,19 @@ func (c *Chain) GetBestNextValidatorSet() *cmttypes.ValidatorSet {
 }
 
 func (c *Chain) GetBestValidatorSet() *cmttypes.ValidatorSet {
-	vset, err := loadValidatorSet(c.db, c.bestBlock.ValidatorsHash())
-	if err != nil {
-		c.logger.Warn("could not load vset", "hash", c.bestBlock.ValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
-		return nil
+	var vset *cmttypes.ValidatorSet
+	var err error
+	if c.bestBlock.Number() != 0 {
+		vset, err = loadValidatorSet(c.db, c.bestBlock.ValidatorsHash())
+		if err != nil {
+			c.logger.Warn("could not load vset", "hash", c.bestBlock.ValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
+			return nil
+		}
+	} else {
+		vset, err = loadValidatorSet(c.db, c.bestBlock.NextValidatorsHash())
+		if err != nil {
+			c.logger.Warn("could not load genesis vest", "hash", c.bestBlock.NextValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
+		}
 	}
 	return vset
 }
