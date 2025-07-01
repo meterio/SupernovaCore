@@ -140,7 +140,7 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		targetTime = now
 	}
 
-	res, err := p.executor.PrepareProposal(parent, p.epochState.index)
+	res, err := p.executor.PrepareProposal(parent, p.epochState.index, int32(p.currentRound))
 	if err != nil {
 		return err, nil
 	}

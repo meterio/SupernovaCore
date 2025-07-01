@@ -6,7 +6,7 @@
 package genesis
 
 import (
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	cmn "github.com/meterio/supernova/libs/common"
@@ -61,7 +61,7 @@ func (b *Builder) SetGenesisDoc(gdoc *cmttypes.GenesisDoc) *Builder {
 	return b
 }
 
-func (b *Builder) SetValidatorUpdate(validatorUpdate []v1.ValidatorUpdate) *Builder {
+func (b *Builder) SetValidatorUpdate(validatorUpdate []v2.ValidatorUpdate) *Builder {
 	b.nextVSet = cmn.ApplyUpdatesToValidatorSet(b.vset, validatorUpdate)
 	return b
 }

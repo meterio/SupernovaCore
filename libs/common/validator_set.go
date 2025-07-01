@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
 	cryptoencoding "github.com/cometbft/cometbft/v2/crypto/encoding"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
@@ -98,7 +98,7 @@ func (vals *ValidatorSetAdapter) ToValidatorSet() *cmttypes.ValidatorSet {
 	return cmttypes.NewValidatorSet(vals.Validators)
 }
 
-func ApplyUpdatesToValidatorSet(vset *cmttypes.ValidatorSet, validatorUpdates []v1.ValidatorUpdate) *cmttypes.ValidatorSet {
+func ApplyUpdatesToValidatorSet(vset *cmttypes.ValidatorSet, validatorUpdates []v2.ValidatorUpdate) *cmttypes.ValidatorSet {
 	vs := vset.Validators
 
 	addedIndex := make(map[int]bool)

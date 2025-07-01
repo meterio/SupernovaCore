@@ -103,39 +103,28 @@ func (h *Handshaker) ReplayBlocks(
 	appBlockHeight int64,
 	proxyApp proxy.AppConns,
 ) ([]byte, error) {
-	best := h.chain.BestBlock()
-
-	storeBlockHeight := uint32(0)
-	if best != nil {
-		storeBlockHeight = best.Number()
-	}
-	h.logger.Info(
-		"ABCI Replay Blocks",
-		"appHeight",
-		appBlockHeight,
-		"storeHeight",
-		storeBlockHeight)
 
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain.
 	if appBlockHeight == 0 {
-		validators := make([]*cmttypes.Validator, len(h.genDoc.Validators))
+		geneValidators := make([]*cmttypes.Validator, len(h.genDoc.Validators))
 		for i, val := range h.genDoc.Validators {
 			// Ensure that the public key type is supported.
 			if _, ok := cmttypes.ABCIPubKeyTypesToNames[val.PubKey.Type()]; !ok {
 				fmt.Println("ERROR:! unspported key type ", val.PubKey.Type(), val.Name)
 				return nil, fmt.Errorf("unsupported public key type %s (validator name: %s)", val.PubKey.Type(), val.Name)
 			}
-			validators[i] = cmttypes.NewValidator(val.PubKey, val.Power)
+			geneValidators[i] = cmttypes.NewValidator(val.PubKey, val.Power)
 		}
-		validatorSet := cmttypes.NewValidatorSet(validators)
-		nextVals := cmttypes.TM2PB.ValidatorUpdates(validatorSet)
+		geneVSet := cmttypes.NewValidatorSet(geneValidators)
+		geneVUpdates := cmttypes.TM2PB.ValidatorUpdates(geneVSet)
+
 		pbparams := h.genDoc.ConsensusParams.ToProto()
 		req := &abci.InitChainRequest{
 			Time:            h.genDoc.GenesisTime,
 			ChainId:         h.genDoc.ChainID,
 			InitialHeight:   h.genDoc.InitialHeight,
 			ConsensusParams: &pbparams,
-			Validators:      nextVals,
+			Validators:      geneVUpdates,
 			AppStateBytes:   h.genDoc.AppState,
 		}
 		fmt.Println("Consensus Params: ", pbparams)
@@ -163,12 +152,32 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			fmt.Println("Save InitChainResponse failed", err)
 		}
+
+		initChainRes, err := h.chain.GetInitChainResponse()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Init Chain RESPONSE Validators: ", len(initChainRes.Validators))
 	} else {
-		err := h.chain.Initialize(nil)
+		initChainRes, err := h.chain.GetInitChainResponse()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("InitChain Response Validators: ", len(initChainRes.Validators))
+		gene := genesis.NewGenesis(h.genDoc, initChainRes.Validators)
+
+		err = h.chain.Initialize(gene)
 		if err != nil {
 			return nil, err
 		}
 
+	}
+
+	best := h.chain.BestBlock()
+
+	storeBlockHeight := uint32(0)
+	if best != nil {
+		storeBlockHeight = best.Number()
 	}
 	// fmt.Println("store block height", storeBlockHeight)
 	// fmt.Println("after replay genesis ", h.chain.BestBlock())

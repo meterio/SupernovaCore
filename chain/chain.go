@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v2"
 	abci "github.com/cometbft/cometbft/v2/abci/types"
 	cmtbytes "github.com/cometbft/cometbft/v2/libs/bytes"
@@ -936,21 +936,21 @@ func (c *Chain) SaveValidatorSet(vset *cmttypes.ValidatorSet) {
 	}
 }
 
-func (c *Chain) GetInitChainResponse() (*v1.InitChainResponse, error) {
+func (c *Chain) GetInitChainResponse() (*v2.InitChainResponse, error) {
 	fmt.Println("get init chain response")
 	return loadInitChainResponse(c.db)
 }
 
-func (c *Chain) SaveInitChainResponse(res *v1.InitChainResponse) error {
+func (c *Chain) SaveInitChainResponse(res *v2.InitChainResponse) error {
 	fmt.Println("save init chain response")
 	return saveInitChainResponse(c.db, res)
 }
 
-func (c *Chain) GetFinalizeBlockResponse(blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
+func (c *Chain) GetFinalizeBlockResponse(blockID types.Bytes32) (*v2.FinalizeBlockResponse, error) {
 	return loadFinalizeBlockResponse(c.db, blockID)
 }
 
-func (c *Chain) SaveFinalizeBlockResponse(blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
+func (c *Chain) SaveFinalizeBlockResponse(blockID types.Bytes32, res *v2.FinalizeBlockResponse) error {
 	return saveFinalizeBlockResponse(c.db, blockID, res)
 }
 

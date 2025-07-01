@@ -87,6 +87,7 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 	env := &message.RPCEnvelope{Raw: raw, MsgType: rpc.NEW_BLOCK}
 	msgName := rpc.MsgName(env.MsgType)
 
+	start = time.Now()
 	for _, pid := range p.p2pSrv.Peers().All() {
 		p.logger.Debug("rpc call", "protocol", p2p.RPCProtocolPrefix, "toPeer", pid, "msg", msgName)
 		_, err := p.p2pSrv.Send(context.Background(), env, p2p.RPCProtocolPrefix, pid)
@@ -94,6 +95,7 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 			p.logger.Error("cant send ", "err", err)
 		}
 	}
+	p.logger.Info("broadcast elapsed", "elapsed", time.Since(start))
 
 	// for _, pid := range p.p2pSrv.Peers().All() {
 

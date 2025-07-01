@@ -166,8 +166,10 @@ func NewNode(
 
 	var BootstrapNodes []string
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGZ6np5N03sJeQPI1ep3L_13ckTJQ5TXcj81mk_UV3oeA-mMtcw7JViYP3cgSBmvxQV74MRTTfUNM5TUqr_D2BiGAZRynhEfh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfWYOJc2VjcDI1NmsxoQMkZ9waUAVNMFXOY3B5VlDTqLZHqb4MqKOFXSvh-k4dUohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-3
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QM98ZZL8E3Bx64wPtz49hJ8paIFH8Rv5QCvPTOLJeBYfSobjpjqMfrLODfwiB5_SoWh9Yo_5dvBZ2NLNilgEI9mGAZXZi7yHh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLQJYjiRjexHE-A2FdO0PHyZUhaFYpHhDef1XVZZC5qaohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGaHtB-0kwFShAZ3lfLx0HxM-gUX3pPwS6UQkOh98dZyJopO9xFfRXLJpeg-NVVgEDjIcHOMDo2w2usa1sA2qXaGAZXZi7uFh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQPxAUSjJt5Vza3kwhv_XtDmQKCrI2SSjjQFrFkaB_ZskohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
+	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QM98ZZL8E3Bx64wPtz49hJ8paIFH8Rv5QCvPTOLJeBYfSobjpjqMfrLODfwiB5_SoWh9Yo_5dvBZ2NLNilgEI9mGAZXZi7yHh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLQJYjiRjexHE-A2FdO0PHyZUhaFYpHhDef1XVZZC5qaohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
+	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGaHtB-0kwFShAZ3lfLx0HxM-gUX3pPwS6UQkOh98dZyJopO9xFfRXLJpeg-NVVgEDjIcHOMDo2w2usa1sA2qXaGAZXZi7uFh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQPxAUSjJt5Vza3kwhv_XtDmQKCrI2SSjjQFrFkaB_ZskohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QMTTIc8yLE87KlB8rZu5-RutdmTBuFNZHDDGXys-CxNWZ1vqtrktUUFDkaI5f_Mkz_HHNdFU0R9agPIasK6XkNqGAZfDOph6h2F0dG5ldHOIAAAAAAAAAACEZXRoMpCR0elIAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_eJc2VjcDI1NmsxoQLGfp3pBUkvxpdaFOzUgARlFXy4KXEJPgTjrKyFr7uDtIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-1
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QKt5gctukGysIHqy5cOMyGflya8KoLAf80RPqr8ZNN9qGC4Eti8fsDUCPaRUdY4pr1zil9pLg6U9q6S3qWVUKguGAZfDOn7Th2F0dG5ldHOIAAAAAAAMAACEZXRoMpCR0elIAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_iJc2VjcDI1NmsxoQKfjpkMQm9CuuRLkE_r2VoH7wtlz2HQwr4h7t6rt2gt84hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-2
 
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QMWkLjGkpPB2iP84pdrBqyB-SjJiodPu0oLYQLVLXhgmPMeqN8Nk24Al9mElveJXJFaZUkjwWHAsz1oJN_A-hYeGAZSlsvkzh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQMog1olklG4kSkaiGepYTRoy0OseZus8-cOKqzsOqlkBIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // simd nova2
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGD2XTHBtQ_r17bA3MHvUqrhVfKvKKqIeDN3sD-YVhkSM2j6oiv2fKHTK_5lvCn6OPa-WHZ3m9Ao1C6oz9P6i9KGAZSlsvidh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQOucvYee5KxdMkhPqF4W8KGJGSuOhqzk59ZJiPyogCn6ohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // simd nova1
@@ -345,8 +347,6 @@ func (n *Node) Start() error {
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
 	// n.goes.Go(func() { n.txStashLoop(n.ctx) })
 	n.goes.Go(func() {
-
-		fmt.Println("n.pacemaker", n.pacemaker)
 		n.pacemaker.Start()
 	})
 

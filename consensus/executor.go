@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	abci "github.com/cometbft/cometbft/v2/abci/types"
 	abcitypes "github.com/cometbft/cometbft/v2/abci/types"
 	"github.com/cometbft/cometbft/v2/crypto/bls12381"
@@ -40,18 +40,20 @@ func (e *Executor) InitChain(req *abcitypes.InitChainRequest) (*abcitypes.InitCh
 	return e.proxyApp.InitChain(context.TODO(), req)
 }
 
-func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int) (*abcitypes.PrepareProposalResponse, error) {
+func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, round int32) (*abcitypes.PrepareProposalResponse, error) {
 	maxBytes := int64(cmttypes.MaxBlockSizeBytes)
 
 	evSize := int64(0)
 	vset := e.chain.GetValidatorsByHash(parent.ProposedBlock.NextValidatorsHash())
 	maxDataBytes := cmttypes.MaxDataBytes(maxBytes, evSize, vset.Size())
-	proposerAddr, _ := vset.GetByIndex(int32(proposerIndex))
-	return e.proxyApp.PrepareProposal(context.TODO(), &v1.PrepareProposalRequest{
+	proposerAddr, validator := vset.GetByIndex(int32(proposerIndex))
+	return e.proxyApp.PrepareProposal(context.TODO(), &v2.PrepareProposalRequest{
 		MaxTxBytes:         maxDataBytes,
+		Txs:                make([][]byte, 0),
+		LocalLastCommit:    v2.ExtendedCommitInfo{Round: round, Votes: []v2.ExtendedVoteInfo{{Validator: cmttypes.TM2PB.Validator(validator)}}},
+		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Height:             int64(parent.Height) + 1,
 		Time:               time.Now(),
-		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		NextValidatorsHash: parent.ProposedBlock.NextValidatorsHash(),
 		ProposerAddress:    proposerAddr,
 	})
@@ -65,13 +67,13 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 		parent = parentDraft.ProposedBlock
 	}
 	proposerAddr, _ := vset.GetByIndex(int32(blk.ProposerIndex()))
-	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v1.ProcessProposalRequest{
+	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &v2.ProcessProposalRequest{
 		Hash:               blk.ID().Bytes(),
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(0, int64(blk.NanoTimestamp())),
 		Txs:                blk.Txs.Convert(),
 		ProposedLastCommit: e.chain.BuildLastCommitInfo(parent, blk),
-		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
+		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		ProposerAddress:    proposerAddr,
 		NextValidatorsHash: blk.NextValidatorsHash(),
 	})
@@ -135,7 +137,7 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(0, int64(blk.NanoTimestamp())),
 		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent, blk),
-		Misbehavior:        make([]v1.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
+		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,
 	})
@@ -151,6 +153,11 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		"block_app_hash", fmt.Sprintf("%X", abciResponse.AppHash),
 		"syncing_to_height", syncingToHeight,
 	)
+	commitResponse, err := e.proxyApp.Commit(context.TODO())
+	if err != nil {
+		fmt.Println("Commit failed: ", err)
+	}
+	e.logger.Info("Commit", "retainHeight", commitResponse.RetainHeight)
 
 	// Assert that the application correctly returned tx results for each of the transactions provided in the block
 	if len(blk.Txs) != len(abciResponse.TxResults) {

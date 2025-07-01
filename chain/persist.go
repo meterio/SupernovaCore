@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 
 	cmtdb "github.com/cometbft/cometbft-db"
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v2"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -259,7 +259,7 @@ func loadValidatorSet(r cmtdb.DB, vhash []byte) (*cmttypes.ValidatorSet, error) 
 }
 
 // saveInitChainResponse save the init chain response
-func saveInitChainResponse(w cmtdb.DB, res *v1.InitChainResponse) error {
+func saveInitChainResponse(w cmtdb.DB, res *v2.InitChainResponse) error {
 	batch := w.NewBatch()
 	key := append(initChainPrefix)
 
@@ -275,8 +275,8 @@ func saveInitChainResponse(w cmtdb.DB, res *v1.InitChainResponse) error {
 }
 
 // loadInitChainResponse load the init chain response
-func loadInitChainResponse(r cmtdb.DB) (*v1.InitChainResponse, error) {
-	res := new(v1.InitChainResponse)
+func loadInitChainResponse(r cmtdb.DB) (*v2.InitChainResponse, error) {
+	res := new(v2.InitChainResponse)
 	key := append(initChainPrefix)
 	marshaled, err := r.Get(key)
 	if err != nil {
@@ -291,7 +291,7 @@ func loadInitChainResponse(r cmtdb.DB) (*v1.InitChainResponse, error) {
 }
 
 // saveInitChainResponse save the init chain response
-func saveFinalizeBlockResponse(w cmtdb.DB, blockID types.Bytes32, res *v1.FinalizeBlockResponse) error {
+func saveFinalizeBlockResponse(w cmtdb.DB, blockID types.Bytes32, res *v2.FinalizeBlockResponse) error {
 	batch := w.NewBatch()
 	key := append(finalizeBlockPrefix, blockID[:]...)
 
@@ -307,8 +307,8 @@ func saveFinalizeBlockResponse(w cmtdb.DB, blockID types.Bytes32, res *v1.Finali
 }
 
 // loadInitChainResponse load the init chain response
-func loadFinalizeBlockResponse(r cmtdb.DB, blockID types.Bytes32) (*v1.FinalizeBlockResponse, error) {
-	res := new(v1.FinalizeBlockResponse)
+func loadFinalizeBlockResponse(r cmtdb.DB, blockID types.Bytes32) (*v2.FinalizeBlockResponse, error) {
+	res := new(v2.FinalizeBlockResponse)
 	key := append(finalizeBlockPrefix, blockID[:]...)
 	marshaled, err := r.Get(key)
 	if err != nil {

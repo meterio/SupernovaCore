@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	v1 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/types"
@@ -28,7 +28,7 @@ type Genesis struct {
 	Name    string
 }
 
-func NewGenesis(gdoc *cmttypes.GenesisDoc, validatorUpdate []v1.ValidatorUpdate) *Genesis {
+func NewGenesis(gdoc *cmttypes.GenesisDoc, validatorUpdate []v2.ValidatorUpdate) *Genesis {
 	builder := &Builder{}
 	builder.SetGenesisDoc(gdoc)
 	builder.SetValidatorUpdate(validatorUpdate)
