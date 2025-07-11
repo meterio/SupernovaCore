@@ -20,7 +20,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
-	"github.com/meterio/supernova/libs/p2p"
+	"github.com/meterio/supernova/libs/rpc"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -43,14 +43,14 @@ func init() {
 }
 
 type Pacemaker struct {
-	ctx       context.Context
-	version   string
-	chain     *chain.Chain
-	blsMaster *types.BlsMaster
-	logger    *slog.Logger
-	executor  *Executor
-	txpool    *txpool.TxPool
-	p2pSrv    p2p.P2P
+	ctx          context.Context
+	version      string
+	chain        *chain.Chain
+	blsMaster    *types.BlsMaster
+	logger       *slog.Logger
+	executor     *Executor
+	txpool       *txpool.TxPool
+	communicator *rpc.Communicator
 
 	// Current round (current_round - highest_qc_round determines the timeout).
 	// Current round is basically max(highest_qc_round, highest_received_tc, highest_local_tc) + 1
@@ -94,21 +94,21 @@ type Pacemaker struct {
 	validatorSetRegistry *ValidatorSetRegistry
 }
 
-func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *txpool.TxPool, p2pSrv p2p.P2P, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Pacemaker {
+func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *txpool.TxPool, communicator *rpc.Communicator, blsMaster *types.BlsMaster, proxyApp cmtproxy.AppConns) *Pacemaker {
 	prometheus.Register(pmRoundGauge)
 	prometheus.Register(curEpochGauge)
 	prometheus.Register(inCommitteeGauge)
 	prometheus.Register(pmRoleGauge)
 
 	p := &Pacemaker{
-		ctx:       ctx,
-		logger:    slog.With("pkg", "pm"),
-		chain:     c,
-		blsMaster: blsMaster,
-		version:   version,
-		txpool:    txpool,
-		p2pSrv:    p2pSrv,
-		executor:  NewExecutor(proxyApp.Consensus(), c),
+		ctx:          ctx,
+		logger:       slog.With("pkg", "pm"),
+		chain:        c,
+		blsMaster:    blsMaster,
+		version:      version,
+		txpool:       txpool,
+		communicator: communicator,
+		executor:     NewExecutor(proxyApp.Consensus(), c),
 
 		cmdCh:           make(chan PMCmd, 2),
 		beatCh:          make(chan PMBeatInfo, 2),
@@ -601,8 +601,7 @@ func (p *Pacemaker) Start() {
 
 // Committee Leader triggers
 func (p *Pacemaker) Regulate() {
-	fmt.Println("p", p)
-	fmt.Println("c", p.chain)
+	fmt.Println("in Regulate")
 	bestQC := p.chain.BestQC()
 	best := p.chain.BestBlock()
 	if p.QCHigh != nil && p.QCHigh.QC.Number() > bestQC.Number() {

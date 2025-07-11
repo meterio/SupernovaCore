@@ -937,7 +937,6 @@ func (c *Chain) SaveValidatorSet(vset *cmttypes.ValidatorSet) {
 }
 
 func (c *Chain) GetInitChainResponse() (*v2.InitChainResponse, error) {
-	fmt.Println("get init chain response")
 	return loadInitChainResponse(c.db)
 }
 

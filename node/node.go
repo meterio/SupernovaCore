@@ -22,13 +22,9 @@ import (
 	"github.com/cometbft/cometbft/v2/proxy"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p"
 	"github.com/meterio/supernova/libs/rpc"
-	"storj.io/drpc/drpcconn"
-	"storj.io/drpc/drpcmux"
-	"storj.io/drpc/drpcserver"
 
 	db "github.com/cometbft/cometbft-db"
 	cmtnode "github.com/cometbft/cometbft/v2/node"
@@ -96,6 +92,7 @@ type Node struct {
 	ctx           context.Context
 	genesisDoc    *cmttypes.GenesisDoc   // initial validator set
 	privValidator cmttypes.PrivValidator // local node's validator key
+	communicator  *rpc.Communicator
 
 	apiServer *api.APIServer
 
@@ -106,7 +103,7 @@ type Node struct {
 	chain       *chain.Chain
 	txPool      *txpool.TxPool
 	txStashPath string
-	rpc         *rpc.RPCServer
+	rpcServer   *rpc.RPCServer
 	logger      *slog.Logger
 
 	mainDB db.DB
@@ -179,18 +176,24 @@ func NewNode(
 		return nil, err
 	}
 
-	m := drpcmux.New()
-
-	server := drpcserver.New(m)
-
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
-	p2pSrv.Host().SetStreamHandler("", func(s network.Stream) {
-		conn := drpcconn.New(s)
-		defer conn.Close()
+	// p2pSrv.Host().SetStreamHandler("sync", func(s network.Stream) {
+	// 	fmt.Println("received sync stream call")
+	// 	// buf := make([]byte, 1024)
+	// 	// s.Read(buf)
+	// 	// fmt.Println("received: ", hex.EncodeToString(buf))
+	// 	// s.Write([]byte{0x04, 0x3, 0x2, 0x1})
+	// 	// s.Close()
+	// 	server.ServeOne(context.Background(), s)
+	// 	fmt.Println("served one")
+	// 	s.Close()
+	// })
+	rpcServer := rpc.NewRPCServer(p2pSrv, chain, txPool)
+	rpcServer.Start(ctx)
 
-		server.ServeOne(context.Background(), conn.Transport())
-	})
-	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, p2pSrv, blsMaster, proxyApp)
+	communicator := rpc.NewCommunicator(ctx, chain, txPool, p2pSrv)
+
+	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, communicator, blsMaster, proxyApp)
 
 	// p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", func(s network.Stream) {
 	// 	fmt.Println("!!!!!!!!! received: /block/sync")
@@ -242,7 +245,8 @@ func NewNode(
 		pacemaker:     pacemaker,
 		config:        config,
 		genesisDoc:    genDoc,
-		rpc:           rpc.NewRPCServer(p2pSrv, chain, txPool),
+		rpcServer:     rpcServer,
+		communicator:  communicator,
 		privValidator: privValidator,
 		nodeKey:       nodeKey,
 		apiServer:     apiServer,
@@ -264,7 +268,7 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, geneValidatorSetHash []byte) p2p.P2P {
+func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, geneValidatorSetHash []byte) *p2p.Service {
 	svc, err := p2p.NewService(ctx, int64(time.Now().Unix()), geneValidatorSetHash, &p2p.Config{
 		NoDiscovery: false,
 		// StaticPeers:          slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.StaticPeers.Name)),
@@ -300,7 +304,7 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 	}
 	p.RegisterTopicValidator(p2p.ConsensusTopic, customTopicValidator)
 
-	go svc.Start()
+	svc.Start()
 	return svc
 }
 
@@ -340,8 +344,8 @@ func createAndStartEventBus(logger log.Logger) (*cmttypes.EventBus, error) {
 
 func (n *Node) Start() error {
 	n.logger.Info("Node Start")
-	n.rpc.Start(n.ctx)
-	n.rpc.Sync(n.handleBlockStream)
+	// n.rpc.Start(n.ctx)
+	n.communicator.Sync(n.handleBlockStream)
 
 	n.goes.Go(func() { n.apiServer.Start(n.ctx) })
 	n.goes.Go(func() { n.houseKeeping(n.ctx) })
@@ -355,7 +359,7 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) Stop() error {
-	n.rpc.Stop()
+	n.rpcServer.Stop()
 	return nil
 }
 

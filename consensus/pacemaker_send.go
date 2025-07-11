@@ -163,13 +163,13 @@ func (p *Pacemaker) Broadcast(msg block.ConsensusMessage) {
 	// 	return
 	// }
 
-	p.logger.Debug("broadcast msg", "topic", p2p.ConsensusTopic, "msg", msg.String(), "peersCount", len(p.p2pSrv.Peers().All()))
+	p.logger.Debug("broadcast msg", "topic", p2p.ConsensusTopic, "msg", msg.String())
 	sszBytes, err := pbMsg.MarshalSSZ()
 	if err != nil {
 		p.logger.Error("marshal failed", "err", err)
 		return
 	}
-	topic, err := p.p2pSrv.JoinTopic(p2p.ConsensusTopic)
+	topic, err := p.communicator.JoinTopic(p2p.ConsensusTopic)
 	// err = p.p2pSrv.PublishToTopic(p.ctx, p2p.ConsensusTopic, sszBytes)
 	if err != nil {
 		p.logger.Error("Broadcast failed", "err", err)
@@ -240,7 +240,7 @@ func (p *Pacemaker) AddIncoming(mi IncomingMsg) {
 
 func (p *Pacemaker) subscribeToConsensusMessage() {
 	p.logger.Debug("subscribe to topic", "topic", p2p.ConsensusTopic)
-	sub, err := p.p2pSrv.SubscribeToTopic(p2p.ConsensusTopic)
+	sub, err := p.communicator.SubscribeToTopic(p2p.ConsensusTopic)
 
 	if err != nil {
 		p.logger.Warn("subscribe to topic failed", "err", err)

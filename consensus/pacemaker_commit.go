@@ -1,16 +1,11 @@
 package consensus
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/libs/message"
-	"github.com/meterio/supernova/libs/p2p"
-	"github.com/meterio/supernova/libs/rpc"
 	"github.com/meterio/supernova/types"
 )
 
@@ -78,28 +73,9 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 	}
 	p.logger.Info("Prepare to encode block")
 
-	raw, err := rlp.EncodeToBytes(blk)
-	if err != nil {
-		p.logger.Warn("can't encode block to bytes")
-		return nil
-	}
-
-	env := &message.RPCEnvelope{Raw: raw, MsgType: rpc.NEW_BLOCK}
-	msgName := rpc.MsgName(env.MsgType)
-
 	start = time.Now()
-	for _, pid := range p.p2pSrv.Peers().All() {
-		p.logger.Debug("rpc call", "protocol", p2p.RPCProtocolPrefix, "toPeer", pid, "msg", msgName)
-		_, err := p.p2pSrv.Send(context.Background(), env, p2p.RPCProtocolPrefix, pid)
-		if err != nil {
-			p.logger.Error("cant send ", "err", err)
-		}
-	}
+	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	p.logger.Info("broadcast elapsed", "elapsed", time.Since(start))
-
-	// for _, pid := range p.p2pSrv.Peers().All() {
-
-	// }
 
 	return nil
 }
