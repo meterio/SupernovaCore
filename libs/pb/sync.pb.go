@@ -23,6 +23,7 @@ const (
 
 type GetStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Num           uint64                 `protobuf:"varint,1,opt,name=num,proto3" json:"num,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -55,6 +56,13 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetStatusRequest) GetNum() uint64 {
+	if x != nil {
+		return x.Num
+	}
+	return 0
 }
 
 type GetStatusResponse struct {
@@ -209,7 +217,7 @@ func (*NotifyBlockResponse) Descriptor() ([]byte, []int) {
 // NotifyBlockID
 type NotifyBlockIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockId       []byte                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	BlockIdBytes  []byte                 `protobuf:"bytes,1,opt,name=block_id_bytes,json=blockIdBytes,proto3" json:"block_id_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -244,9 +252,9 @@ func (*NotifyBlockIDRequest) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *NotifyBlockIDRequest) GetBlockId() []byte {
+func (x *NotifyBlockIDRequest) GetBlockIdBytes() []byte {
 	if x != nil {
-		return x.BlockId
+		return x.BlockIdBytes
 	}
 	return nil
 }
@@ -368,17 +376,98 @@ func (*NotifyTxResponse) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{7}
 }
 
+// GetTxs
+type GetTxsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTxsRequest) Reset() {
+	*x = GetTxsRequest{}
+	mi := &file_sync_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTxsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTxsRequest) ProtoMessage() {}
+
+func (x *GetTxsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sync_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTxsRequest.ProtoReflect.Descriptor instead.
+func (*GetTxsRequest) Descriptor() ([]byte, []int) {
+	return file_sync_proto_rawDescGZIP(), []int{8}
+}
+
+type GetTxsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TxsBytesList  [][]byte               `protobuf:"bytes,1,rep,name=txs_bytes_list,json=txsBytesList,proto3" json:"txs_bytes_list,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTxsResponse) Reset() {
+	*x = GetTxsResponse{}
+	mi := &file_sync_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTxsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTxsResponse) ProtoMessage() {}
+
+func (x *GetTxsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sync_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTxsResponse.ProtoReflect.Descriptor instead.
+func (*GetTxsResponse) Descriptor() ([]byte, []int) {
+	return file_sync_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetTxsResponse) GetTxsBytesList() [][]byte {
+	if x != nil {
+		return x.TxsBytesList
+	}
+	return nil
+}
+
 // GetBlockByID
 type GetBlockByIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TxBytes       []byte                 `protobuf:"bytes,1,opt,name=tx_bytes,json=txBytes,proto3" json:"tx_bytes,omitempty"`
+	BlockIdBytes  []byte                 `protobuf:"bytes,1,opt,name=block_id_bytes,json=blockIdBytes,proto3" json:"block_id_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBlockByIDRequest) Reset() {
 	*x = GetBlockByIDRequest{}
-	mi := &file_sync_proto_msgTypes[8]
+	mi := &file_sync_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -390,7 +479,7 @@ func (x *GetBlockByIDRequest) String() string {
 func (*GetBlockByIDRequest) ProtoMessage() {}
 
 func (x *GetBlockByIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[8]
+	mi := &file_sync_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -403,12 +492,12 @@ func (x *GetBlockByIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockByIDRequest.ProtoReflect.Descriptor instead.
 func (*GetBlockByIDRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{8}
+	return file_sync_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *GetBlockByIDRequest) GetTxBytes() []byte {
+func (x *GetBlockByIDRequest) GetBlockIdBytes() []byte {
 	if x != nil {
-		return x.TxBytes
+		return x.BlockIdBytes
 	}
 	return nil
 }
@@ -422,7 +511,7 @@ type GetBlockByIDResponse struct {
 
 func (x *GetBlockByIDResponse) Reset() {
 	*x = GetBlockByIDResponse{}
-	mi := &file_sync_proto_msgTypes[9]
+	mi := &file_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -434,7 +523,7 @@ func (x *GetBlockByIDResponse) String() string {
 func (*GetBlockByIDResponse) ProtoMessage() {}
 
 func (x *GetBlockByIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[9]
+	mi := &file_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -447,7 +536,7 @@ func (x *GetBlockByIDResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockByIDResponse.ProtoReflect.Descriptor instead.
 func (*GetBlockByIDResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{9}
+	return file_sync_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetBlockByIDResponse) GetBlockBytes() []byte {
@@ -467,7 +556,7 @@ type GetBlockIDByNumberRequest struct {
 
 func (x *GetBlockIDByNumberRequest) Reset() {
 	*x = GetBlockIDByNumberRequest{}
-	mi := &file_sync_proto_msgTypes[10]
+	mi := &file_sync_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +568,7 @@ func (x *GetBlockIDByNumberRequest) String() string {
 func (*GetBlockIDByNumberRequest) ProtoMessage() {}
 
 func (x *GetBlockIDByNumberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[10]
+	mi := &file_sync_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +581,7 @@ func (x *GetBlockIDByNumberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockIDByNumberRequest.ProtoReflect.Descriptor instead.
 func (*GetBlockIDByNumberRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{10}
+	return file_sync_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetBlockIDByNumberRequest) GetBlockNum() uint64 {
@@ -504,14 +593,14 @@ func (x *GetBlockIDByNumberRequest) GetBlockNum() uint64 {
 
 type GetBlockIDByNumberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockId       []byte                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	BlockIdBytes  []byte                 `protobuf:"bytes,1,opt,name=block_id_bytes,json=blockIdBytes,proto3" json:"block_id_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBlockIDByNumberResponse) Reset() {
 	*x = GetBlockIDByNumberResponse{}
-	mi := &file_sync_proto_msgTypes[11]
+	mi := &file_sync_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +612,7 @@ func (x *GetBlockIDByNumberResponse) String() string {
 func (*GetBlockIDByNumberResponse) ProtoMessage() {}
 
 func (x *GetBlockIDByNumberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[11]
+	mi := &file_sync_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,12 +625,12 @@ func (x *GetBlockIDByNumberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockIDByNumberResponse.ProtoReflect.Descriptor instead.
 func (*GetBlockIDByNumberResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{11}
+	return file_sync_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *GetBlockIDByNumberResponse) GetBlockId() []byte {
+func (x *GetBlockIDByNumberResponse) GetBlockIdBytes() []byte {
 	if x != nil {
-		return x.BlockId
+		return x.BlockIdBytes
 	}
 	return nil
 }
@@ -556,7 +645,7 @@ type GetBlocksFromNumberRequest struct {
 
 func (x *GetBlocksFromNumberRequest) Reset() {
 	*x = GetBlocksFromNumberRequest{}
-	mi := &file_sync_proto_msgTypes[12]
+	mi := &file_sync_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +657,7 @@ func (x *GetBlocksFromNumberRequest) String() string {
 func (*GetBlocksFromNumberRequest) ProtoMessage() {}
 
 func (x *GetBlocksFromNumberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[12]
+	mi := &file_sync_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +670,7 @@ func (x *GetBlocksFromNumberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksFromNumberRequest.ProtoReflect.Descriptor instead.
 func (*GetBlocksFromNumberRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{12}
+	return file_sync_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetBlocksFromNumberRequest) GetBlockNum() uint64 {
@@ -600,7 +689,7 @@ type GetBlocksFromNumberResponse struct {
 
 func (x *GetBlocksFromNumberResponse) Reset() {
 	*x = GetBlocksFromNumberResponse{}
-	mi := &file_sync_proto_msgTypes[13]
+	mi := &file_sync_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +701,7 @@ func (x *GetBlocksFromNumberResponse) String() string {
 func (*GetBlocksFromNumberResponse) ProtoMessage() {}
 
 func (x *GetBlocksFromNumberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[13]
+	mi := &file_sync_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +714,7 @@ func (x *GetBlocksFromNumberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksFromNumberResponse.ProtoReflect.Descriptor instead.
 func (*GetBlocksFromNumberResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{13}
+	return file_sync_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetBlocksFromNumberResponse) GetBlockBytesList() [][]byte {
@@ -640,8 +729,9 @@ var File_sync_proto protoreflect.FileDescriptor
 const file_sync_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"sync.proto\x12\x02pb\"\x12\n" +
-	"\x10GetStatusRequest\"\xb5\x01\n" +
+	"sync.proto\x12\x02pb\"$\n" +
+	"\x10GetStatusRequest\x12\x10\n" +
+	"\x03num\x18\x01 \x01(\x04R\x03num\"\xb5\x01\n" +
 	"\x11GetStatusResponse\x12(\n" +
 	"\x10genesis_block_id\x18\x01 \x01(\fR\x0egenesisBlockId\x12,\n" +
 	"\x12sys_nano_timestamp\x18\x02 \x01(\x04R\x10sysNanoTimestamp\x12\"\n" +
@@ -650,34 +740,38 @@ const file_sync_proto_rawDesc = "" +
 	"\x12NotifyBlockRequest\x12\x1f\n" +
 	"\vblock_bytes\x18\x01 \x01(\fR\n" +
 	"blockBytes\"\x15\n" +
-	"\x13NotifyBlockResponse\"1\n" +
-	"\x14NotifyBlockIDRequest\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\fR\ablockId\"\x17\n" +
+	"\x13NotifyBlockResponse\"<\n" +
+	"\x14NotifyBlockIDRequest\x12$\n" +
+	"\x0eblock_id_bytes\x18\x01 \x01(\fR\fblockIdBytes\"\x17\n" +
 	"\x15NotifyBlockIDResponse\",\n" +
 	"\x0fNotifyTxRequest\x12\x19\n" +
 	"\btx_bytes\x18\x01 \x01(\fR\atxBytes\"\x12\n" +
-	"\x10NotifyTxResponse\"0\n" +
-	"\x13GetBlockByIDRequest\x12\x19\n" +
-	"\btx_bytes\x18\x01 \x01(\fR\atxBytes\"7\n" +
+	"\x10NotifyTxResponse\"\x0f\n" +
+	"\rGetTxsRequest\"6\n" +
+	"\x0eGetTxsResponse\x12$\n" +
+	"\x0etxs_bytes_list\x18\x01 \x03(\fR\ftxsBytesList\";\n" +
+	"\x13GetBlockByIDRequest\x12$\n" +
+	"\x0eblock_id_bytes\x18\x01 \x01(\fR\fblockIdBytes\"7\n" +
 	"\x14GetBlockByIDResponse\x12\x1f\n" +
 	"\vblock_bytes\x18\x01 \x01(\fR\n" +
 	"blockBytes\"8\n" +
 	"\x19GetBlockIDByNumberRequest\x12\x1b\n" +
-	"\tblock_num\x18\x01 \x01(\x04R\bblockNum\"7\n" +
-	"\x1aGetBlockIDByNumberResponse\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\fR\ablockId\"9\n" +
+	"\tblock_num\x18\x01 \x01(\x04R\bblockNum\"B\n" +
+	"\x1aGetBlockIDByNumberResponse\x12$\n" +
+	"\x0eblock_id_bytes\x18\x01 \x01(\fR\fblockIdBytes\"9\n" +
 	"\x1aGetBlocksFromNumberRequest\x12\x1b\n" +
 	"\tblock_num\x18\x01 \x01(\x04R\bblockNum\"G\n" +
 	"\x1bGetBlocksFromNumberResponse\x12(\n" +
-	"\x10block_bytes_list\x18\x01 \x03(\fR\x0eblockBytesList2\xed\x03\n" +
+	"\x10block_bytes_list\x18\x01 \x03(\fR\x0eblockBytesList2\x9e\x04\n" +
 	"\x04Sync\x128\n" +
 	"\tGetStatus\x12\x14.pb.GetStatusRequest\x1a\x15.pb.GetStatusResponse\x12>\n" +
 	"\vNotifyBlock\x12\x16.pb.NotifyBlockRequest\x1a\x17.pb.NotifyBlockResponse\x12D\n" +
 	"\rNotifyBlockID\x12\x18.pb.NotifyBlockIDRequest\x1a\x19.pb.NotifyBlockIDResponse\x125\n" +
-	"\bNotifyTx\x12\x13.pb.NotifyTxRequest\x1a\x14.pb.NotifyTxResponse\x12A\n" +
+	"\bNotifyTx\x12\x13.pb.NotifyTxRequest\x1a\x14.pb.NotifyTxResponse\x12/\n" +
+	"\x06GetTxs\x12\x11.pb.GetTxsRequest\x1a\x12.pb.GetTxsResponse\x12A\n" +
 	"\fGetBlockByID\x12\x17.pb.GetBlockByIDRequest\x1a\x18.pb.GetBlockByIDResponse\x12S\n" +
 	"\x12GetBlockIDByNumber\x12\x1d.pb.GetBlockIDByNumberRequest\x1a\x1e.pb.GetBlockIDByNumberResponse\x12V\n" +
-	"\x13GetBlocksFromNumber\x12\x1e.pb.GetBlocksFromNumberRequest\x1a\x1f.pb.GetBlocksFromNumberResponseB\x0eZ\fsupernova/pbb\x06proto3"
+	"\x13GetBlocksFromNumber\x12\x1e.pb.GetBlocksFromNumberRequest\x1a\x1f.pb.GetBlocksFromNumberResponseB)Z'github.com/meterio/supernova/libs/pb;pbb\x06proto3"
 
 var (
 	file_sync_proto_rawDescOnce sync.Once
@@ -691,7 +785,7 @@ func file_sync_proto_rawDescGZIP() []byte {
 	return file_sync_proto_rawDescData
 }
 
-var file_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_sync_proto_goTypes = []any{
 	(*GetStatusRequest)(nil),            // 0: pb.GetStatusRequest
 	(*GetStatusResponse)(nil),           // 1: pb.GetStatusResponse
@@ -701,30 +795,34 @@ var file_sync_proto_goTypes = []any{
 	(*NotifyBlockIDResponse)(nil),       // 5: pb.NotifyBlockIDResponse
 	(*NotifyTxRequest)(nil),             // 6: pb.NotifyTxRequest
 	(*NotifyTxResponse)(nil),            // 7: pb.NotifyTxResponse
-	(*GetBlockByIDRequest)(nil),         // 8: pb.GetBlockByIDRequest
-	(*GetBlockByIDResponse)(nil),        // 9: pb.GetBlockByIDResponse
-	(*GetBlockIDByNumberRequest)(nil),   // 10: pb.GetBlockIDByNumberRequest
-	(*GetBlockIDByNumberResponse)(nil),  // 11: pb.GetBlockIDByNumberResponse
-	(*GetBlocksFromNumberRequest)(nil),  // 12: pb.GetBlocksFromNumberRequest
-	(*GetBlocksFromNumberResponse)(nil), // 13: pb.GetBlocksFromNumberResponse
+	(*GetTxsRequest)(nil),               // 8: pb.GetTxsRequest
+	(*GetTxsResponse)(nil),              // 9: pb.GetTxsResponse
+	(*GetBlockByIDRequest)(nil),         // 10: pb.GetBlockByIDRequest
+	(*GetBlockByIDResponse)(nil),        // 11: pb.GetBlockByIDResponse
+	(*GetBlockIDByNumberRequest)(nil),   // 12: pb.GetBlockIDByNumberRequest
+	(*GetBlockIDByNumberResponse)(nil),  // 13: pb.GetBlockIDByNumberResponse
+	(*GetBlocksFromNumberRequest)(nil),  // 14: pb.GetBlocksFromNumberRequest
+	(*GetBlocksFromNumberResponse)(nil), // 15: pb.GetBlocksFromNumberResponse
 }
 var file_sync_proto_depIdxs = []int32{
 	0,  // 0: pb.Sync.GetStatus:input_type -> pb.GetStatusRequest
 	2,  // 1: pb.Sync.NotifyBlock:input_type -> pb.NotifyBlockRequest
 	4,  // 2: pb.Sync.NotifyBlockID:input_type -> pb.NotifyBlockIDRequest
 	6,  // 3: pb.Sync.NotifyTx:input_type -> pb.NotifyTxRequest
-	8,  // 4: pb.Sync.GetBlockByID:input_type -> pb.GetBlockByIDRequest
-	10, // 5: pb.Sync.GetBlockIDByNumber:input_type -> pb.GetBlockIDByNumberRequest
-	12, // 6: pb.Sync.GetBlocksFromNumber:input_type -> pb.GetBlocksFromNumberRequest
-	1,  // 7: pb.Sync.GetStatus:output_type -> pb.GetStatusResponse
-	3,  // 8: pb.Sync.NotifyBlock:output_type -> pb.NotifyBlockResponse
-	5,  // 9: pb.Sync.NotifyBlockID:output_type -> pb.NotifyBlockIDResponse
-	7,  // 10: pb.Sync.NotifyTx:output_type -> pb.NotifyTxResponse
-	9,  // 11: pb.Sync.GetBlockByID:output_type -> pb.GetBlockByIDResponse
-	11, // 12: pb.Sync.GetBlockIDByNumber:output_type -> pb.GetBlockIDByNumberResponse
-	13, // 13: pb.Sync.GetBlocksFromNumber:output_type -> pb.GetBlocksFromNumberResponse
-	7,  // [7:14] is the sub-list for method output_type
-	0,  // [0:7] is the sub-list for method input_type
+	8,  // 4: pb.Sync.GetTxs:input_type -> pb.GetTxsRequest
+	10, // 5: pb.Sync.GetBlockByID:input_type -> pb.GetBlockByIDRequest
+	12, // 6: pb.Sync.GetBlockIDByNumber:input_type -> pb.GetBlockIDByNumberRequest
+	14, // 7: pb.Sync.GetBlocksFromNumber:input_type -> pb.GetBlocksFromNumberRequest
+	1,  // 8: pb.Sync.GetStatus:output_type -> pb.GetStatusResponse
+	3,  // 9: pb.Sync.NotifyBlock:output_type -> pb.NotifyBlockResponse
+	5,  // 10: pb.Sync.NotifyBlockID:output_type -> pb.NotifyBlockIDResponse
+	7,  // 11: pb.Sync.NotifyTx:output_type -> pb.NotifyTxResponse
+	9,  // 12: pb.Sync.GetTxs:output_type -> pb.GetTxsResponse
+	11, // 13: pb.Sync.GetBlockByID:output_type -> pb.GetBlockByIDResponse
+	13, // 14: pb.Sync.GetBlockIDByNumber:output_type -> pb.GetBlockIDByNumberResponse
+	15, // 15: pb.Sync.GetBlocksFromNumber:output_type -> pb.GetBlocksFromNumberResponse
+	8,  // [8:16] is the sub-list for method output_type
+	0,  // [0:8] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -741,7 +839,7 @@ func file_sync_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sync_proto_rawDesc), len(file_sync_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

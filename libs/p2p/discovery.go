@@ -500,6 +500,7 @@ func (s *Service) startDiscoveryV5(
 	addr net.IP,
 	privKey *ecdsa.PrivateKey,
 ) (*listenerWrapper, error) {
+	fmt.Println("start discovery V5")
 	createListener := func() (*discover.UDPv5, error) {
 		return s.createListener(addr, privKey)
 	}

@@ -42,6 +42,7 @@ type DRPCSyncClient interface {
 	NotifyBlock(ctx context.Context, in *NotifyBlockRequest) (*NotifyBlockResponse, error)
 	NotifyBlockID(ctx context.Context, in *NotifyBlockIDRequest) (*NotifyBlockIDResponse, error)
 	NotifyTx(ctx context.Context, in *NotifyTxRequest) (*NotifyTxResponse, error)
+	GetTxs(ctx context.Context, in *GetTxsRequest) (*GetTxsResponse, error)
 	GetBlockByID(ctx context.Context, in *GetBlockByIDRequest) (*GetBlockByIDResponse, error)
 	GetBlockIDByNumber(ctx context.Context, in *GetBlockIDByNumberRequest) (*GetBlockIDByNumberResponse, error)
 	GetBlocksFromNumber(ctx context.Context, in *GetBlocksFromNumberRequest) (*GetBlocksFromNumberResponse, error)
@@ -93,6 +94,15 @@ func (c *drpcSyncClient) NotifyTx(ctx context.Context, in *NotifyTxRequest) (*No
 	return out, nil
 }
 
+func (c *drpcSyncClient) GetTxs(ctx context.Context, in *GetTxsRequest) (*GetTxsResponse, error) {
+	out := new(GetTxsResponse)
+	err := c.cc.Invoke(ctx, "/pb.Sync/GetTxs", drpcEncoding_File_sync_proto{}, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *drpcSyncClient) GetBlockByID(ctx context.Context, in *GetBlockByIDRequest) (*GetBlockByIDResponse, error) {
 	out := new(GetBlockByIDResponse)
 	err := c.cc.Invoke(ctx, "/pb.Sync/GetBlockByID", drpcEncoding_File_sync_proto{}, in, out)
@@ -125,6 +135,7 @@ type DRPCSyncServer interface {
 	NotifyBlock(context.Context, *NotifyBlockRequest) (*NotifyBlockResponse, error)
 	NotifyBlockID(context.Context, *NotifyBlockIDRequest) (*NotifyBlockIDResponse, error)
 	NotifyTx(context.Context, *NotifyTxRequest) (*NotifyTxResponse, error)
+	GetTxs(context.Context, *GetTxsRequest) (*GetTxsResponse, error)
 	GetBlockByID(context.Context, *GetBlockByIDRequest) (*GetBlockByIDResponse, error)
 	GetBlockIDByNumber(context.Context, *GetBlockIDByNumberRequest) (*GetBlockIDByNumberResponse, error)
 	GetBlocksFromNumber(context.Context, *GetBlocksFromNumberRequest) (*GetBlocksFromNumberResponse, error)
@@ -148,6 +159,10 @@ func (s *DRPCSyncUnimplementedServer) NotifyTx(context.Context, *NotifyTxRequest
 	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
 }
 
+func (s *DRPCSyncUnimplementedServer) GetTxs(context.Context, *GetTxsRequest) (*GetTxsResponse, error) {
+	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
+}
+
 func (s *DRPCSyncUnimplementedServer) GetBlockByID(context.Context, *GetBlockByIDRequest) (*GetBlockByIDResponse, error) {
 	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
 }
@@ -162,7 +177,7 @@ func (s *DRPCSyncUnimplementedServer) GetBlocksFromNumber(context.Context, *GetB
 
 type DRPCSyncDescription struct{}
 
-func (DRPCSyncDescription) NumMethods() int { return 7 }
+func (DRPCSyncDescription) NumMethods() int { return 8 }
 
 func (DRPCSyncDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, interface{}, bool) {
 	switch n {
@@ -203,6 +218,15 @@ func (DRPCSyncDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, 
 					)
 			}, DRPCSyncServer.NotifyTx, true
 	case 4:
+		return "/pb.Sync/GetTxs", drpcEncoding_File_sync_proto{},
+			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
+				return srv.(DRPCSyncServer).
+					GetTxs(
+						ctx,
+						in1.(*GetTxsRequest),
+					)
+			}, DRPCSyncServer.GetTxs, true
+	case 5:
 		return "/pb.Sync/GetBlockByID", drpcEncoding_File_sync_proto{},
 			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
 				return srv.(DRPCSyncServer).
@@ -211,7 +235,7 @@ func (DRPCSyncDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, 
 						in1.(*GetBlockByIDRequest),
 					)
 			}, DRPCSyncServer.GetBlockByID, true
-	case 5:
+	case 6:
 		return "/pb.Sync/GetBlockIDByNumber", drpcEncoding_File_sync_proto{},
 			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
 				return srv.(DRPCSyncServer).
@@ -220,7 +244,7 @@ func (DRPCSyncDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, 
 						in1.(*GetBlockIDByNumberRequest),
 					)
 			}, DRPCSyncServer.GetBlockIDByNumber, true
-	case 6:
+	case 7:
 		return "/pb.Sync/GetBlocksFromNumber", drpcEncoding_File_sync_proto{},
 			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
 				return srv.(DRPCSyncServer).
@@ -296,6 +320,22 @@ type drpcSync_NotifyTxStream struct {
 }
 
 func (x *drpcSync_NotifyTxStream) SendAndClose(m *NotifyTxResponse) error {
+	if err := x.MsgSend(m, drpcEncoding_File_sync_proto{}); err != nil {
+		return err
+	}
+	return x.CloseSend()
+}
+
+type DRPCSync_GetTxsStream interface {
+	drpc.Stream
+	SendAndClose(*GetTxsResponse) error
+}
+
+type drpcSync_GetTxsStream struct {
+	drpc.Stream
+}
+
+func (x *drpcSync_GetTxsStream) SendAndClose(m *GetTxsResponse) error {
 	if err := x.MsgSend(m, drpcEncoding_File_sync_proto{}); err != nil {
 		return err
 	}

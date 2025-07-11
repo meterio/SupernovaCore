@@ -2,19 +2,21 @@ syntax = "proto3";
 
 package pb;
 
-option go_package = "supernova/pb";
+option go_package = "github.com/meterio/supernova/libs/pb;pb";
 
 service Sync {
   rpc GetStatus (GetStatusRequest) returns (GetStatusResponse);
   rpc NotifyBlock (NotifyBlockRequest) returns (NotifyBlockResponse);
   rpc NotifyBlockID (NotifyBlockIDRequest) returns (NotifyBlockIDResponse);
   rpc NotifyTx (NotifyTxRequest) returns (NotifyTxResponse);
+  rpc GetTxs (GetTxsRequest) returns (GetTxsResponse);
   rpc GetBlockByID (GetBlockByIDRequest) returns (GetBlockByIDResponse);
   rpc GetBlockIDByNumber(GetBlockIDByNumberRequest) returns (GetBlockIDByNumberResponse);
   rpc GetBlocksFromNumber(GetBlocksFromNumberRequest) returns (GetBlocksFromNumberResponse);
 }
 
 message GetStatusRequest {
+  uint64 num = 1;
 }
 
 message GetStatusResponse {
@@ -34,7 +36,7 @@ message NotifyBlockResponse {
 
 // NotifyBlockID
 message NotifyBlockIDRequest {
-  bytes block_id = 1;
+  bytes block_id_bytes = 1;
 }
 
 message NotifyBlockIDResponse {
@@ -48,9 +50,17 @@ message NotifyTxRequest {
 message NotifyTxResponse {
 }
 
+// GetTxs
+message GetTxsRequest {
+}
+
+message GetTxsResponse {
+  repeated bytes txs_bytes_list = 1;
+}
+
 // GetBlockByID
 message GetBlockByIDRequest {
-  bytes tx_bytes = 1;
+  bytes block_id_bytes = 1;
 }
 
 message GetBlockByIDResponse {
@@ -63,7 +73,7 @@ message GetBlockIDByNumberRequest {
 }
 
 message GetBlockIDByNumberResponse {
-  bytes block_id = 1;
+  bytes block_id_bytes = 1;
 }
 
 // GetBlocksFromNumber

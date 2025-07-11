@@ -28,6 +28,7 @@ type P2P interface {
 	ConnectionHandler
 	PeersProvider
 	MetadataProvider
+	RPCProvider
 }
 
 // Broadcaster broadcasts messages to peers over the p2p pubsub protocol.
@@ -101,4 +102,8 @@ type PeersProvider interface {
 type MetadataProvider interface {
 	Metadata() metadata.Metadata
 	MetadataSeq() uint64
+}
+
+type RPCProvider interface {
+	CallGetStatus(num uint64)
 }

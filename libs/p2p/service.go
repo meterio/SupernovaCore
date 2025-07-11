@@ -6,6 +6,7 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"log/slog"
 	"net"
 	"sync"
@@ -32,9 +33,11 @@ import (
 	"github.com/meterio/supernova/libs/p2p/peers"
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
 	"github.com/meterio/supernova/libs/p2p/types"
+	"github.com/meterio/supernova/libs/pb"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"storj.io/drpc/drpcconn"
 )
 
 var _ runtime.Service = (*Service)(nil)
@@ -186,6 +189,7 @@ func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRo
 
 // Start the p2p service.
 func (s *Service) Start() {
+	fmt.Println("p2p service start called")
 	if s.started {
 		log.Error("Attempted to start p2p service when it was already started")
 		return
@@ -226,6 +230,7 @@ func (s *Service) Start() {
 		go s.listenForNewNodes()
 	}
 
+	fmt.Println("P2P Service Started")
 	s.started = true
 
 	if len(s.cfg.StaticPeers) > 0 {
@@ -287,6 +292,29 @@ func (s *Service) Start() {
 		logExternalDNSAddr(s.host.ID(), p2pHostDNS, p2pTCPPort)
 	}
 	go s.forkWatcher()
+}
+
+func (s *Service) CallGetStatus(num uint64) {
+	fmt.Println("peers length:", len(s.Peers().All()))
+	for _, pid := range s.Peers().All() {
+
+		ctx := context.Background()
+		stream, err := s.Host().NewStream(ctx, pid, "sync")
+		if err != nil {
+			fmt.Println("can't establish stream")
+			continue
+		}
+		conn := drpcconn.New(stream)
+		client := pb.NewDRPCSyncClient(conn)
+		// set a deadline for the operation
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		fmt.Println("calling get status to peer", pid, "with num", num)
+		res, err := client.GetStatus(ctx, &pb.GetStatusRequest{Num: num})
+		fmt.Println("get status from ", pid, res, err)
+
+	}
 }
 
 // Stop the p2p service and terminate all peer connections.
