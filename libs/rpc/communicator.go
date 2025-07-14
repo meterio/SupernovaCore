@@ -8,6 +8,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"math"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
@@ -25,6 +27,8 @@ import (
 	"github.com/meterio/supernova/libs/pb"
 	"github.com/meterio/supernova/txpool"
 	"github.com/meterio/supernova/types"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"storj.io/drpc/drpcconn"
 )
@@ -74,8 +78,39 @@ func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxP
 	return c
 }
 
+// type Notifiee interface {
+// 	Listen(network.Network, ma.Multiaddr)       // called when network starts listening on an addr
+// 	ListenClose(network.Network, ma.Multiaddr)  // called when network stops listening on an addr
+// 	Connected(network.Network, network.Conn)    // called when a connection opened
+// 	Disconnected(network.Network, network.Conn) // called when a connection closed
+// }
+
+func (c *Communicator) Listen(net network.Network, addr ma.Multiaddr) {
+	c.logger.Info("P2P Listen on ", "addr", addr.String())
+}
+
+func (c *Communicator) ListenClose(net network.Network, addr ma.Multiaddr) {
+	c.logger.Info("P2P Listen close on ", "addr", addr.String())
+}
+
+func (c *Communicator) Connected(net network.Network, conn network.Conn) {
+	dir := "unknown"
+	if conn.Stat().Direction == network.DirOutbound {
+		dir = "outbound"
+	}
+	if conn.Stat().Direction == network.DirInbound {
+		dir = "inbound"
+	}
+
+	c.logger.Info("Peer connected", "peer", conn.RemotePeer(), "dir", conn.Stat().Direction)
+	c.servePeer(conn.RemotePeer(), dir)
+}
+
+func (c *Communicator) Disconnected(network network.Network, conn network.Conn) {
+	c.logger.Info("Peer disconnected", "peer", conn.RemotePeer())
+}
+
 func (c *Communicator) GetRPCClient(peerID peer.ID) pb.DRPCSyncClient {
-	fmt.Println("get rpc clinet", peerID)
 	stream, err := c.p2pSrv.Host().NewStream(c.ctx, peerID, "sync")
 	if err != nil {
 		fmt.Println("can't establish stream")
@@ -83,7 +118,6 @@ func (c *Communicator) GetRPCClient(peerID peer.ID) pb.DRPCSyncClient {
 	conn := drpcconn.New(stream)
 	client := pb.NewDRPCSyncClient(conn)
 
-	fmt.Println("calling get status to peer", peerID)
 	return client
 }
 
@@ -115,7 +149,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 		shouldSynced := func() bool {
 			bestBlockNano := c.chain.BestBlock().NanoTimestamp()
 			nowNano := uint64(time.Now().UnixNano())
-			if bestBlockNano+types.BlockInterval >= nowNano && c.chain.BestQC().BlockID == c.chain.BestBlock().ID() {
+			if bestBlockNano+types.BlockIntervalNano >= nowNano && c.chain.BestQC().BlockID == c.chain.BestBlock().ID() {
 				return true
 			}
 			if syncCount > 2 {
@@ -133,15 +167,6 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 				return
 			case <-timer.C:
 				c.logger.Debug("synchronization start")
-				for _, peerID := range c.p2pSrv.Peers().All() {
-					peer := c.peerSet.Find(peerID)
-					if peer != nil {
-						peer = &Peer{peerId: peerID}
-						go c.runPeer(peer, "inbound")
-						c.peerSet.Add(peer, "inbound")
-					}
-				}
-
 				best := c.chain.BestBlock().Header()
 				// choose peer which has the head block with higher total score
 				peer := c.peerSet.Slice().Find(func(peer *Peer) bool {
@@ -150,7 +175,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 					return num >= best.Number()
 				})
 				if peer == nil {
-					fmt.Println("no suitable peer")
+					c.logger.Warn("no suitable peer")
 					// original setting was 3, changed to 1 for cold start
 					if c.peerSet.Len() < 1 {
 						c.logger.Debug("no suitable peer to sync")
@@ -159,7 +184,7 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 					// if more than 3 peers connected, we are assumed to be the best
 					c.logger.Debug("synchronization done, best assumed")
 				} else {
-					fmt.Println("sync from ", peer)
+					c.logger.Info("sync from ", peer)
 					if err := c.sync(peer, best.Number(), handler); err != nil {
 						peer.logger.Debug("synchronization failed", "err", err)
 						break
@@ -180,29 +205,23 @@ func (c *Communicator) Sync(handler HandleBlockStream) {
 	})
 }
 
-// Stop stop the communicator.
-// func (c *Communicator) Stop() {
+func (c *Communicator) servePeer(peerID peer.ID, dir string) error {
+	c.logger.Info("Serve Peer", "peerID", peerID)
+	peer := newPeer(peerID)
+	knownPeer := c.peerSet.Find(peerID)
+	if knownPeer != nil {
+		return errors.New("duplicate PeerID" + peerID.String())
+	}
 
-// 	c.logger.Info("stopping P2P server...")
-// 	c.p2pSrv.Stop()
+	counter := c.peerSet.DirectionCount()
+	if counter.Outbound*4 < counter.Inbound && dir == "inbound" {
+		return errors.New("too much inbound from ")
+	}
 
-// 	nodes := c.p2pSrv.Peers()
-// 	c.logger.Info("saving peers cache...", "#peers", len(nodes))
-// 	strs := make([]string, 0)
-// 	for _, n := range nodes {
-// 		strs = append(strs, n.String())
-// 	}
-// 	data := strings.Join(strs, "\n")
-// 	if err := os.WriteFile(c.peersCachePath, []byte(data), 0600); err != nil {
-// 		c.logger.Warn("failed to write peers cache", "err", err)
-// 	}
-// 	c.feedScope.Close()
-// 	c.goes.Wait()
-// }
-
-type txsToSync struct {
-	txs    types.Transactions
-	synced bool
+	c.goes.Go(func() {
+		c.runPeer(peer, dir)
+	})
+	return nil
 }
 
 func (c *Communicator) runPeer(peer *Peer, dir string) {
@@ -221,19 +240,19 @@ func (c *Communicator) runPeer(peer *Peer, dir string) {
 		peer.logger.Error("Failed to get status", "err", err.Error())
 		return
 	}
-	if bytes.Equal(res.GenesisBlockId, c.chain.GenesisBlock().ID().Bytes()) {
-		peer.logger.Error("Failed to handshake", "err", "genesis id mismatch")
+	if !bytes.Equal(res.GenesisBlockId, c.chain.GenesisBlock().ID().Bytes()) {
+		peer.logger.Error("Failed to handshake", "err", "genesis id mismatch", "genesisInRes", hex.EncodeToString(res.GenesisBlockId), "localGenesis", hex.EncodeToString(c.chain.GenesisBlock().ID().Bytes()))
 		return
 	}
 	localClock := time.Now().Nanosecond()
 	remoteClock := res.SysNanoTimestamp
 
-	diff := localClock - int(remoteClock)
+	diffNano := localClock - int(remoteClock)
 	if localClock < int(remoteClock) {
-		diff = int(remoteClock) - localClock
+		diffNano = int(remoteClock) - localClock
 	}
-	if diff > int(types.BlockInterval*2) {
-		peer.logger.Error("Failed to handshake", "err", "sys time diff too large")
+	if diffNano > int(types.BlockIntervalNano*2) {
+		peer.logger.Error("Failed to handshake", "err", "sys time diff too large", "diffNano", diffNano)
 		return
 	}
 

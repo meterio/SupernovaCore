@@ -43,7 +43,7 @@ func (s *Service) Broadcast(ctx context.Context, msg proto.Message) error {
 	// }
 
 	topic, ok := GossipTypeMapping[reflect.TypeOf(msg)]
-	fmt.Println("broadcast with topic", "topic", topic, "msg", reflect.TypeOf(msg))
+	s.logger.Info("broadcast with topic", "topic", topic, "msg", reflect.TypeOf(msg))
 	if !ok {
 		tracing.AnnotateError(span, ErrMessageNotMapped)
 		return ErrMessageNotMapped
@@ -290,9 +290,8 @@ func (s *Service) broadcastObject(ctx context.Context, obj ssz.Marshaler, topic 
 		iid := int64(id)
 		span = trace.AddMessageSendEvent(span, iid, messageLen /*uncompressed*/, messageLen /*compressed*/)
 	}
-	fmt.Println("publis to topic", topic)
+	s.logger.Info("Publish to topic", "topic", topic)
 	if err := s.PublishToTopic(ctx, topic, buf.Bytes()); err != nil {
-		fmt.Println("publish success")
 		err := errors.Wrap(err, "could not publish message")
 		tracing.AnnotateError(span, err)
 		return err

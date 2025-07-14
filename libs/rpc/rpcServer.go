@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	errors "errors"
-	"fmt"
 	"log/slog"
 	sync "sync"
 	"time"
@@ -48,7 +47,7 @@ func NewRPCServer(p2pSrv p2p.P2P, c *chain.Chain, txPool *txpool.TxPool) *RPCSer
 		p2pSrv:         p2pSrv,
 		chain:          c,
 		txPool:         txPool,
-		logger:         slog.With("pkg", "rpc"),
+		logger:         slog.With("pkg", "rpcserver"),
 		syncedCh:       make(chan struct{}),
 		announcementCh: make(chan *announcement),
 	}
@@ -63,9 +62,7 @@ func (s *RPCServer) Start(ctx context.Context) {
 	server := drpcserver.New(m)
 
 	s.p2pSrv.Host().SetStreamHandler("sync", func(s network.Stream) {
-		fmt.Println("received sync stream call")
 		server.ServeOne(context.Background(), s)
-		fmt.Println("served one")
 		s.Close()
 	})
 	id := s.p2pSrv.Host().ID()
@@ -73,7 +70,8 @@ func (s *RPCServer) Start(ctx context.Context) {
 }
 
 func (s *RPCServer) Stop() {
-	fmt.Println("rpc server stop")
+	s.p2pSrv.Host().RemoveStreamHandler("sync")
+	s.logger.Info("RPC server stopped")
 }
 
 func (s *RPCServer) GetStatus(ctx context.Context, req *pb.GetStatusRequest) (*pb.GetStatusResponse, error) {
@@ -99,20 +97,21 @@ func (s *RPCServer) NotifyBlock(ctx context.Context, req *pb.NotifyBlockRequest)
 
 func (s *RPCServer) NotifyBlockID(ctx context.Context, req *pb.NotifyBlockIDRequest) (*pb.NotifyBlockIDResponse, error) {
 	newBlockID := types.BytesToBytes32(req.BlockIdBytes)
-	fmt.Println("New Block id: ", newBlockID)
+	s.logger.Info("Handling NotifyBlockID", "blockID", newBlockID)
 	// TODO: handle new block id
 	return &pb.NotifyBlockIDResponse{}, nil
 }
 
 func (s *RPCServer) NotifyTx(ctx context.Context, req *pb.NotifyTxRequest) (*pb.NotifyTxResponse, error) {
 	newTx := req.TxBytes
-	fmt.Println("New Tx bytes: ", hex.EncodeToString(newTx))
+	s.logger.Info("Handling NotifyTx ", "tx", hex.EncodeToString(newTx))
 	// TODO: handle new tx
 	return &pb.NotifyTxResponse{}, nil
 }
 
 func (s *RPCServer) GetBlockByID(ctx context.Context, req *pb.GetBlockByIDRequest) (*pb.GetBlockByIDResponse, error) {
 	blockID := types.BytesToBytes32(req.BlockIdBytes)
+	s.logger.Info("Handling GetBlockByID", "blockID", blockID)
 
 	resp := &pb.GetBlockByIDResponse{}
 
@@ -139,6 +138,7 @@ func (s *RPCServer) GetBlockByID(ctx context.Context, req *pb.GetBlockByIDReques
 			resp.BlockBytes, _ = rlp.EncodeToBytes(escortedBlk)
 		} else {
 			err = errors.New("no matching QC found")
+			return nil, err
 		}
 	}
 
@@ -146,15 +146,21 @@ func (s *RPCServer) GetBlockByID(ctx context.Context, req *pb.GetBlockByIDReques
 }
 
 func (s *RPCServer) GetBlockIDByNumber(ctx context.Context, req *pb.GetBlockIDByNumberRequest) (*pb.GetBlockIDByNumberResponse, error) {
-	// msg := req.Message
+	s.logger.Info("Handling GetIDByNumber", "num", req.BlockNum)
+	bestBlock := s.chain.BestBlock()
+	blockID, err := s.chain.GetAncestorBlockID(bestBlock.ID(), uint32(req.BlockNum))
 	resp := &pb.GetBlockIDByNumberResponse{}
+	if err == nil {
+		resp.BlockIdBytes = blockID.Bytes()
+	}
 	return resp, nil
 }
 
 func (s *RPCServer) GetBlocksFromNumber(ctx context.Context, req *pb.GetBlocksFromNumberRequest) (*pb.GetBlocksFromNumberResponse, error) {
 	resp := &pb.GetBlocksFromNumberResponse{}
-
 	var num uint32 = uint32(req.BlockNum)
+
+	s.logger.Info("Handling GetBlocksFromNumber", "num", req.BlockNum)
 
 	const maxBlocks = 1024
 	const maxSize = 512 * 1024

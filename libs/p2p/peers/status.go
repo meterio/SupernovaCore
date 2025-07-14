@@ -24,7 +24,6 @@ package peers
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -143,7 +142,6 @@ func (p *Status) MaxPeerLimit() int {
 func (p *Status) Add(record *enr.Record, pid peer.ID, address ma.Multiaddr, direction network.Direction) {
 	p.store.Lock()
 	defer p.store.Unlock()
-	fmt.Println("added peer", pid)
 
 	if peerData, ok := p.store.PeerData(pid); ok {
 		// Peer already exists, just update its address info.
@@ -420,7 +418,6 @@ func (p *Status) IsReadyToDial(pid peer.ID) bool {
 	if peerData, ok := p.store.PeerData(pid); ok {
 		timeIsZero := peerData.NextValidTime.IsZero()
 		isInvalidTime := peerData.NextValidTime.After(time.Now())
-		fmt.Println("is ready to dial", pid, peerData.NextValidTime, timeIsZero, isInvalidTime, timeIsZero || !isInvalidTime)
 		return timeIsZero || !isInvalidTime
 	}
 	// If no record exists, we don't restrict dials to the

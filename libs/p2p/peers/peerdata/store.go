@@ -3,7 +3,6 @@ package peerdata
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -106,7 +105,6 @@ func (s *Store) SetPeerData(pid peer.ID, data *PeerData) {
 // DeletePeerData removes data associated with a given peer.
 // Important: it is assumed that store mutex is locked when calling this method.
 func (s *Store) DeletePeerData(pid peer.ID) {
-	fmt.Println("delete peer data", pid)
 	delete(s.peers, pid)
 }
 

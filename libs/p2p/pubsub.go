@@ -50,6 +50,7 @@ func (s *Service) JoinTopic(topic string, opts ...pubsub.TopicOpt) (*pubsub.Topi
 	s.joinedTopicsLock.Lock()
 	defer s.joinedTopicsLock.Unlock()
 
+	s.logger.Debug("Join Topic", "topic", topic)
 	if _, ok := s.joinedTopics[topic]; !ok {
 		topicHandle, err := s.pubsub.Join(topic, opts...)
 		if err != nil {
@@ -67,7 +68,7 @@ func (s *Service) LeaveTopic(topic string) error {
 	s.joinedTopicsLock.Lock()
 	defer s.joinedTopicsLock.Unlock()
 
-	fmt.Println("Leave Topic called")
+	s.logger.Debug("Leave Topic", "topic", topic)
 	if t, ok := s.joinedTopics[topic]; ok {
 		if err := t.Close(); err != nil {
 			return err

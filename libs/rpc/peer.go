@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/types"
@@ -44,7 +43,7 @@ type Peer struct {
 	}
 }
 
-func newPeer(peerID peer.ID, rw p2p.MsgReadWriter) *Peer {
+func newPeer(peerID peer.ID) *Peer {
 	ctx := []interface{}{
 		"peer", peerID,
 	}
@@ -59,6 +58,7 @@ func newPeer(peerID peer.ID, rw p2p.MsgReadWriter) *Peer {
 	}
 
 	return &Peer{
+		peerId:      peerID,
 		logger:      slog.With(ctx...),
 		createdTime: mclock.Now(),
 		knownTxs:    knownTxs,
