@@ -21,6 +21,7 @@ import (
 	"github.com/OffchainLabs/prysm/v6/testing/require"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/meterio/supernova/types"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
@@ -93,7 +94,7 @@ func TestStartDiscv5_DifferentForkDigests(t *testing.T) {
 	cfg.UDPPort = 14000
 	cfg.TCPPort = 14001
 	cfg.MaxPeers = 30
-	s, err = NewService(context.Background(), cfg)
+	s, err = NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	s.genesisTime = genesisTime
 	s.genesisValidatorsRoot = make([]byte, 32)
@@ -184,7 +185,7 @@ func TestStartDiscv5_SameForkDigests_DifferentNextForkData(t *testing.T) {
 	cfg.TCPPort = 14001
 	cfg.MaxPeers = 30
 	cfg.StateNotifier = &mock.MockStateNotifier{}
-	s, err = NewService(context.Background(), cfg)
+	s, err = NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	s.genesisTime = genesisTime

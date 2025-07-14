@@ -13,6 +13,7 @@ import (
 	"github.com/OffchainLabs/prysm/v6/testing/require"
 	"github.com/meterio/supernova/libs/p2p/encoder"
 	testp2p "github.com/meterio/supernova/libs/p2p/testing"
+	"github.com/meterio/supernova/types"
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +22,7 @@ func TestService_PublishToTopicConcurrentMapWrite(t *testing.T) {
 	s, err := NewService(context.Background(), &Config{
 		StateNotifier: &mock.MockStateNotifier{},
 		ClockWaiter:   cs,
-	})
+	}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

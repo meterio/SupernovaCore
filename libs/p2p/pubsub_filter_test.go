@@ -14,6 +14,7 @@ import (
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/libs/p2p/encoder"
+	"github.com/meterio/supernova/types"
 )
 
 func TestService_CanSubscribe(t *testing.T) {
@@ -333,7 +334,7 @@ func TestService_MonitorsStateForkUpdates(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	// cs := startup.NewClockSynchronizer()
-	s, err := NewService(ctx, 0, make([]byte, 0), &Config{})
+	s, err := NewService(ctx, &Config{}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	require.Equal(t, false, s.isInitialized())

@@ -32,9 +32,7 @@ func init() {
 }
 
 var (
-	logger = cmtlog.NewTMLogger(
-		cmtlog.NewSyncWriter(os.Stdout),
-	).With("module", "priv_val")
+	logger = cmtlog.NewLogger(os.Stdout).With("module", "priv_val")
 )
 
 func main() {
@@ -49,23 +47,23 @@ func main() {
 	viper.SetConfigFile(fmt.Sprintf("%s/%s", homeDir, "config/config.toml"))
 
 	if err := viper.ReadInConfig(); err != nil {
-		slog.Error("Reading config: %v", err)
+		slog.Error("Reading config", "err", err)
 	}
 	if err := viper.Unmarshal(config); err != nil {
-		slog.Error("Decoding config: %v", err)
+		slog.Error("Decoding config", "err", err)
 	}
 	if err := config.ValidateBasic(); err != nil {
-		slog.Error("Invalid configuration data: %v", err)
+		slog.Error("Invalid configuration data", "err", err)
 	}
 	dbPath := filepath.Join(homeDir, "badger")
 	db, err := pebble.Open(dbPath, &pebble.Options{})
 
 	if err != nil {
-		slog.Error("Opening database: %v", err)
+		slog.Error("Opening database", "err", err)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			slog.Error("Closing database: %v", err)
+			slog.Error("Closing database", "err", err)
 		}
 	}()
 
@@ -78,14 +76,14 @@ func main() {
 
 	nodeKey, err := types.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
-		slog.Error("failed to load node's key: %v %v", config.NodeKeyFile(), err)
+		slog.Error("failed to load node's key", "nodeKeyFile", config.NodeKeyFile(), "err", err)
 	}
 
-	logger := cmtlog.NewTMLogger(cmtlog.NewSyncWriter(os.Stdout))
+	logger := cmtlog.NewLogger(os.Stdout)
 	logger, err = cmtflags.ParseLogLevel(config.LogLevel, logger, cfg.DefaultLogLevel)
 
 	if err != nil {
-		slog.Error("failed to parse log level: %v", err)
+		slog.Error("failed to parse log level", "err", err)
 	}
 	ctx, cancelFn := context.WithCancel(context.TODO())
 	// config.LogLevel = "debug" // default is info
@@ -102,7 +100,7 @@ func main() {
 	)
 
 	if err != nil {
-		slog.Error("Creating node: %v", err)
+		slog.Error("Creating node", "err", err)
 	}
 
 	node.Start()

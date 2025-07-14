@@ -90,7 +90,7 @@ type Service struct {
 
 // NewService initializes a new p2p service compatible with shared.Service interface. No
 // connections are made until the Start function is called during the service registry startup.
-func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRoot []byte, cfg *Config) (*Service, error) {
+func NewService(ctx context.Context, cfg *Config, genesisTimestampNano uint64, genesisValidatorsRoot []byte) (*Service, error) {
 	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop().
@@ -115,7 +115,7 @@ func NewService(ctx context.Context, genesisTimestamp int64, genesisValidatorsRo
 
 	ipLimiter := leakybucket.NewCollector(ipLimit, ipBurst, 30*time.Second, true /* deleteEmptyBuckets */)
 
-	genesisTime := time.Unix(genesisTimestamp, 0)
+	genesisTime := time.Unix(0, int64(genesisTimestampNano))
 	s := &Service{
 		ctx:    ctx,
 		cancel: cancel,

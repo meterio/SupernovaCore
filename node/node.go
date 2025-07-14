@@ -176,7 +176,7 @@ func NewNode(
 		return nil, err
 	}
 
-	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
+	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock)
 
 	rpcServer := rpc.NewRPCServer(p2pSrv, chain, txPool)
 	rpcServer.Start(ctx)
@@ -236,8 +236,8 @@ func createAndStartProxyAppConns(clientCreator cmtproxy.ClientCreator, metrics *
 	return proxyApp, nil
 }
 
-func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, geneValidatorSetHash []byte) *p2p.Service {
-	svc, err := p2p.NewService(ctx, int64(time.Now().Unix()), geneValidatorSetHash, &p2p.Config{
+func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []string, geneBlock *block.Block) *p2p.Service {
+	svc, err := p2p.NewService(ctx, &p2p.Config{
 		NoDiscovery: false,
 		// StaticPeers:          slice.SplitCommaSeparated(cliCtx.StringSlice(cmd.StaticPeers.Name)),
 		Discv5BootStrapAddrs: p2p.ParseBootStrapAddrs(bootstrapNodes),
@@ -260,7 +260,7 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 		// EnableUPnP:           cliCtx.Bool(cmd.EnableUPnPFlag.Name),
 		// StateNotifier: n,
 		// DB:            n.mainDB,
-	})
+	}, geneBlock.NanoTimestamp(), geneBlock.NextValidatorsHash())
 	if err != nil {
 		return nil
 	}

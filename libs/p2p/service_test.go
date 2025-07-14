@@ -24,6 +24,7 @@ import (
 	"github.com/meterio/supernova/libs/p2p/encoder"
 	"github.com/meterio/supernova/libs/p2p/peers"
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
+	"github.com/meterio/supernova/types"
 	"github.com/multiformats/go-multiaddr"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 )
@@ -82,7 +83,7 @@ func createHost(t *testing.T, port int) (host.Host, *ecdsa.PrivateKey, net.IP) {
 
 func TestService_Stop_SetsStartedToFalse(t *testing.T) {
 	params.SetupTestConfigCleanup(t)
-	s, err := NewService(context.Background(), &Config{StateNotifier: &mock.MockStateNotifier{}})
+	s, err := NewService(context.Background(), &Config{StateNotifier: &mock.MockStateNotifier{}}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	s.started = true
 	s.dv5Listener = &mockListener{}
@@ -92,7 +93,7 @@ func TestService_Stop_SetsStartedToFalse(t *testing.T) {
 
 func TestService_Stop_DontPanicIfDv5ListenerIsNotInited(t *testing.T) {
 	params.SetupTestConfigCleanup(t)
-	s, err := NewService(context.Background(), &Config{StateNotifier: &mock.MockStateNotifier{}})
+	s, err := NewService(context.Background(), &Config{StateNotifier: &mock.MockStateNotifier{}}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	assert.NoError(t, s.Stop())
 }
@@ -108,7 +109,7 @@ func TestService_Start_OnlyStartsOnce(t *testing.T) {
 		QUICPort: 3000,
 		// ClockWaiter: cs,
 	}
-	s, err := NewService(context.Background(), cfg)
+	s, err := NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	s.dv5Listener = &mockListener{}
 	exitRoutine := make(chan bool)
@@ -156,7 +157,7 @@ func TestService_Start_NoDiscoverFlag(t *testing.T) {
 		NoDiscovery:   true, // <-- no s.dv5Listener is created
 		// ClockWaiter:   cs,
 	}
-	s, err := NewService(context.Background(), cfg)
+	s, err := NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	// required params to addForkEntry in s.forkWatcher
@@ -253,7 +254,7 @@ func TestListenForNewNodes(t *testing.T) {
 	cfg.UDPPort = 14000
 	cfg.TCPPort = 14001
 
-	s, err = NewService(context.Background(), cfg)
+	s, err = NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 	exitRoutine := make(chan bool)
 	go func() {
@@ -306,7 +307,7 @@ func TestService_JoinLeaveTopic(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	gs := startup.NewClockSynchronizer()
-	s, err := NewService(ctx, &Config{StateNotifier: &mock.MockStateNotifier{}})
+	s, err := NewService(ctx, &Config{StateNotifier: &mock.MockStateNotifier{}}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	go s.awaitStateInitialized()

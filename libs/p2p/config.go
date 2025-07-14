@@ -3,6 +3,7 @@ package p2p
 import (
 	statefeed "github.com/OffchainLabs/prysm/v6/beacon-chain/core/feed/state"
 	"github.com/OffchainLabs/prysm/v6/beacon-chain/db"
+	"github.com/OffchainLabs/prysm/v6/beacon-chain/startup"
 )
 
 // This is the default queue size used if we have specified an invalid one.
@@ -32,7 +33,7 @@ type Config struct {
 	DenyListCIDR         []string
 	StateNotifier        statefeed.Notifier
 	DB                   db.ReadOnlyDatabase
-	// ClockWaiter          startup.ClockWaiter
+	ClockWaiter          startup.ClockWaiter
 }
 
 // validateConfig validates whether the values provided are accurate and will set

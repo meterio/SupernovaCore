@@ -35,7 +35,7 @@ func initCommServer(t *testing.T) {
 
 	chain, _ := chain.New(db, false)
 	router := mux.NewRouter()
-	node.NewNode(comm).Mount(router, "/node")
+	node.New(comm).Mount(router, "/node")
 	ts = httptest.NewServer(router)
 }
 

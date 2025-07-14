@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/go-bitfield"
 )
 
@@ -92,7 +93,7 @@ func TestStartDiscV5_FindPeersWithSubnet(t *testing.T) {
 			UDPPort:              uint(2000 + i),
 			TCPPort:              uint(3000 + i),
 			QUICPort:             uint(3000 + i),
-		})
+		}, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 
 		require.NoError(t, err)
 
@@ -139,7 +140,7 @@ func TestStartDiscV5_FindPeersWithSubnet(t *testing.T) {
 		QUICPort:             3010,
 	}
 
-	service, err := NewService(ctx, cfg)
+	service, err := NewService(ctx, cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	service.genesisTime = genesisTime

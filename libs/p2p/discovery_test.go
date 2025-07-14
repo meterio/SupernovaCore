@@ -36,6 +36,7 @@ import (
 	"github.com/meterio/supernova/libs/p2p/peers/peerdata"
 	"github.com/meterio/supernova/libs/p2p/peers/scorers"
 	testp2p "github.com/meterio/supernova/libs/p2p/testing"
+	"github.com/meterio/supernova/types"
 	"github.com/prysmaticlabs/go-bitfield"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 )
@@ -133,7 +134,7 @@ func TestStartDiscV5_DiscoverAllPeers(t *testing.T) {
 func TestCreateLocalNode(t *testing.T) {
 	params.SetupTestConfigCleanup(t)
 	cfg := params.BeaconConfig()
-	cfg.Eip7594ForkEpoch = 1
+	// cfg.Eip7594ForkEpoch = 1
 	params.OverrideBeaconConfig(cfg)
 	testCases := []struct {
 		name          string
@@ -330,7 +331,7 @@ func TestStaticPeering_PeersAreAdded(t *testing.T) {
 	cfg.StaticPeers = staticPeers
 	cfg.StateNotifier = &mock.MockStateNotifier{}
 	cfg.NoDiscovery = true
-	s, err := NewService(context.Background(), cfg)
+	s, err := NewService(context.Background(), cfg, uint64(time.Now().Nanosecond()), types.BytesToBytes32([]byte{0x01}).Bytes())
 	require.NoError(t, err)
 
 	exitRoutine := make(chan bool)
@@ -614,7 +615,7 @@ func TestRefreshPersistentSubnets(t *testing.T) {
 	defaultCfg := params.BeaconConfig()
 	cfg := defaultCfg.Copy()
 	cfg.AltairForkEpoch = altairForkEpoch
-	cfg.Eip7594ForkEpoch = eip7594ForkEpoch
+	// cfg.Eip7594ForkEpoch = eip7594ForkEpoch
 	params.OverrideBeaconConfig(cfg)
 
 	// Compute the number of seconds per epoch.
