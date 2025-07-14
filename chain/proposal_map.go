@@ -82,7 +82,6 @@ func BlockMatchDraftQC(b *block.DraftBlock, escortQC *block.QuorumCert) bool {
 
 	if b == nil {
 		// decode block to get qc
-		// fmt.Println("can not decode block", err)
 		return false
 	}
 

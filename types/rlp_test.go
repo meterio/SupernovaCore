@@ -27,7 +27,6 @@ func TestRLPAppend(t *testing.T) {
 func decodeLen(raw []byte) (prefixLen, length uint64) {
 	b0 := raw[0]
 	l := uint8(b0) - 0xf7
-	fmt.Println("l=", l)
 	bs := make([]byte, 0)
 	for i := 0; i < int(l); i++ {
 		bs = append(bs, raw[i+1])

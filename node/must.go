@@ -6,7 +6,6 @@
 package node
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -40,8 +39,6 @@ func InitLogger(config *cmtcfg.Config) {
 	default:
 		logLevel = slog.LevelInfo
 	}
-	fmt.Println("cmtlog level: ", lvl)
-	fmt.Println("slog   level: ", logLevel)
 	// set global logger with custom options
 	w := os.Stdout
 

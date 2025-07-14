@@ -6,7 +6,6 @@
 package chain_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,7 +63,6 @@ func TestBlockReaderFork(t *testing.T) {
 
 	blks, err := br.Read()
 	assert.Nil(t, err)
-	fmt.Println("blocks:", blks)
 
 	assert.Equal(t, len(blks), 1)
 	assert.Equal(t, blks[0].Header().ID(), b3.Header().ID())
@@ -73,7 +71,6 @@ func TestBlockReaderFork(t *testing.T) {
 	// assert.False(t, blks[0].Obsolete)
 
 	blks, err = br.Read()
-	fmt.Println("blocks 2:", blks)
 	assert.Nil(t, err)
 	assert.Equal(t, blks[0].Header().ID(), b4.Header().ID())
 	assert.False(t, blks[0].Obsolete)

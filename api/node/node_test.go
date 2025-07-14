@@ -5,20 +5,16 @@
 package node_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	cmtdb "github.com/cometbft/cometbft-db"
 	"github.com/gorilla/mux"
 	"github.com/meterio/supernova/api/node"
 	"github.com/meterio/supernova/chain"
-	"github.com/meterio/supernova/libs/comm"
-	"github.com/meterio/supernova/txpool"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,11 +34,6 @@ func initCommServer(t *testing.T) {
 	db := cmtdb.NewMemDB()
 
 	chain, _ := chain.New(db, false)
-	comm := comm.New(context.Background(), chain, txpool.New(chain, txpool.Options{
-		Limit:           10000,
-		LimitPerAccount: 16,
-		MaxLifetime:     10 * time.Minute,
-	}), "main", [4]byte{1, 2, 3, 4})
 	router := mux.NewRouter()
 	node.NewNode(comm).Mount(router, "/node")
 	ts = httptest.NewServer(router)

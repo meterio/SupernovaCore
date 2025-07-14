@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	abci "github.com/cometbft/cometbft/v2/abci/types"
@@ -53,7 +52,6 @@ func (h *Handshaker) NBlocks() int {
 
 // TODO: retry the handshake/replay if it fails ?
 func (h *Handshaker) Handshake(ctx context.Context, proxyApp proxy.AppConns) error {
-	fmt.Println("Start handshake")
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().Info(ctx, proxy.InfoRequest)
 	if err != nil {
@@ -110,7 +108,7 @@ func (h *Handshaker) ReplayBlocks(
 		for i, val := range h.genDoc.Validators {
 			// Ensure that the public key type is supported.
 			if _, ok := cmttypes.ABCIPubKeyTypesToNames[val.PubKey.Type()]; !ok {
-				fmt.Println("ERROR:! unspported key type ", val.PubKey.Type(), val.Name)
+				h.logger.Error("Unspported key type ", "pubkeyType", val.PubKey.Type(), "value", val.Name)
 				return nil, fmt.Errorf("unsupported public key type %s (validator name: %s)", val.PubKey.Type(), val.Name)
 			}
 			geneValidators[i] = cmttypes.NewValidator(val.PubKey, val.Power)
@@ -127,16 +125,13 @@ func (h *Handshaker) ReplayBlocks(
 			Validators:      geneVUpdates,
 			AppStateBytes:   h.genDoc.AppState,
 		}
-		fmt.Println("Consensus Params: ", pbparams)
-		fmt.Println("Consensus Params: ", pbparams.Version, pbparams.Block.MaxBytes, pbparams.Block.MaxBytes, pbparams.Evidence.MaxAgeDuration)
 		res, err := proxyApp.Consensus().InitChain(context.TODO(), req)
 		if err != nil {
-			fmt.Println("InitChain failed: ", err)
+			h.logger.Error("InitChain failed", "err", err)
 			return nil, err
 		}
 
 		appHash = res.AppHash
-		fmt.Println("InitChain Response Validators: ", len(res.Validators))
 
 		gene := genesis.NewGenesis(h.genDoc, res.Validators)
 
@@ -145,19 +140,19 @@ func (h *Handshaker) ReplayBlocks(
 			h.logger.Error("chain initialize failed", "err", err)
 		}
 
-		for i, v := range res.Validators {
-			fmt.Println(" ", i, ": ", v.PubKeyType, hex.EncodeToString(v.PubKeyBytes))
-		}
+		// for i, v := range res.Validators {
+		// fmt.Println(" ", i, ": ", v.PubKeyType, hex.EncodeToString(v.PubKeyBytes))
+		// }
 		err = h.chain.SaveInitChainResponse(res)
 		if err != nil {
-			fmt.Println("Save InitChainResponse failed", err)
+			h.logger.Error("Save InitChainResponse failed", "err", err)
 		}
 
 		initChainRes, err := h.chain.GetInitChainResponse()
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("Init Chain RESPONSE Validators: ", len(initChainRes.Validators))
+		fmt.Println("Init Chain Response Validators: ", len(initChainRes.Validators))
 	} else {
 		initChainRes, err := h.chain.GetInitChainResponse()
 		if err != nil {
@@ -179,9 +174,6 @@ func (h *Handshaker) ReplayBlocks(
 	if best != nil {
 		storeBlockHeight = best.Number()
 	}
-	// fmt.Println("store block height", storeBlockHeight)
-	// fmt.Println("after replay genesis ", h.chain.BestBlock())
-	// fmt.Println("storeBlockHeight", storeBlockHeight, "appBlockHeight", appBlockHeight)
 
 	// First handle edge cases and constraints on the storeBlockHeight and storeBlockBase.
 	switch {

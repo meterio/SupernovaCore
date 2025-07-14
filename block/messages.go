@@ -141,7 +141,6 @@ func (m *PMProposalMessage) DecodeBlock() *Block {
 	}
 	blk, err := BlockDecodeFromBytes(m.RawBlock)
 	if err != nil {
-		fmt.Println("decode error: ", err)
 		m.decodedBlock = nil
 		return nil
 	}

@@ -439,7 +439,6 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 		p.logger.Error("could not create leaf", "err", err)
 		return nil
 	}
-	// fmt.Println("Proposed: ", bnew.ProposedBlock.String())
 
 	if bnew.Height <= qc.QC.Number() {
 		p.logger.Error("proposed block refers to an invalid qc", "proposedQC", qc.QC.Number(), "proposedHeight", bnew.Height)
@@ -601,7 +600,6 @@ func (p *Pacemaker) Start() {
 
 // Committee Leader triggers
 func (p *Pacemaker) Regulate() {
-	fmt.Println("in Regulate")
 	bestQC := p.chain.BestQC()
 	best := p.chain.BestBlock()
 	if p.QCHigh != nil && p.QCHigh.QC.Number() > bestQC.Number() {

@@ -142,7 +142,7 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		SyncingToHeight:    syncingToHeight,
 	})
 	if err != nil {
-		fmt.Println("Finalize block failed: ", err)
+		e.logger.Error("Finalize block failed", "err", err)
 	}
 	appHash = abciResponse.AppHash
 	e.logger.Info(
@@ -153,11 +153,10 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		"block_app_hash", fmt.Sprintf("%X", abciResponse.AppHash),
 		"syncing_to_height", syncingToHeight,
 	)
-	commitResponse, err := e.proxyApp.Commit(context.TODO())
+	_, err = e.proxyApp.Commit(context.TODO())
 	if err != nil {
-		fmt.Println("Commit failed: ", err)
+		e.logger.Error("Commit failed", "err", err)
 	}
-	e.logger.Info("Commit", "retainHeight", commitResponse.RetainHeight)
 
 	// Assert that the application correctly returned tx results for each of the transactions provided in the block
 	if len(blk.Txs) != len(abciResponse.TxResults) {

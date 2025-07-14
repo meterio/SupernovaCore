@@ -15,7 +15,6 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 	start := time.Now()
 	p.logger.Debug("try to finalize block", "block", blk.Oneliner())
 
-	// fmt.Println("Calling AddBlock from consensus_block.commitBlock, newBlock=", blk.ID())
 	if blk.Number() <= p.chain.BestBlock().Number() {
 		return errKnownBlock
 	}

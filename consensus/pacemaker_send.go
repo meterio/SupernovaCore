@@ -267,7 +267,7 @@ func (p *Pacemaker) subscribeToConsensusMessage() {
 		pbMsg := &message.ConsensusEnvelope{}
 		err = pbMsg.UnmarshalSSZ(msg.Data)
 		if err != nil {
-			fmt.Println("Error: ", err, "skip")
+			p.logger.Error("Unmarshal Error", "err", err)
 			continue
 		}
 		consensusMsg, err := block.DecodeMsg(pbMsg.Raw)

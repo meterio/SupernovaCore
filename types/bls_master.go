@@ -7,8 +7,6 @@ package types
 
 import (
 	"crypto/md5"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -107,9 +105,9 @@ func (bm *BlsMaster) VerifySignature(signature, msgHash, blsPK []byte) (bool, er
 	return bls.VerifySignature(signature, [32]byte(msgHash), pubkey)
 }
 
-func (bm *BlsMaster) Print() {
-	fmt.Println("Bls Secret (Hex): ", hex.EncodeToString(bm.PrivKey.Marshal()))
-	fmt.Println("Bls Secret (B64): ", base64.StdEncoding.EncodeToString(bm.PrivKey.Marshal()))
-	fmt.Println("Bls Pubkey (Hex): ", hex.EncodeToString(bm.PubKey.Marshal()))
-	fmt.Println("Bls Pubkey (B64): ", base64.StdEncoding.EncodeToString(bm.PubKey.Marshal()))
-}
+// func (bm *BlsMaster) Print() {
+// 	fmt.Println("Bls Secret (Hex): ", hex.EncodeToString(bm.PrivKey.Marshal()))
+// 	fmt.Println("Bls Secret (B64): ", base64.StdEncoding.EncodeToString(bm.PrivKey.Marshal()))
+// 	fmt.Println("Bls Pubkey (Hex): ", hex.EncodeToString(bm.PubKey.Marshal()))
+// 	fmt.Println("Bls Pubkey (B64): ", base64.StdEncoding.EncodeToString(bm.PubKey.Marshal()))
+// }

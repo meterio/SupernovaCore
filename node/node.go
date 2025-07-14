@@ -177,46 +177,14 @@ func NewNode(
 	}
 
 	p2pSrv := newP2PService(ctx, config, BootstrapNodes, geneBlock.NextValidatorsHash())
-	// p2pSrv.Host().SetStreamHandler("sync", func(s network.Stream) {
-	// 	fmt.Println("received sync stream call")
-	// 	// buf := make([]byte, 1024)
-	// 	// s.Read(buf)
-	// 	// fmt.Println("received: ", hex.EncodeToString(buf))
-	// 	// s.Write([]byte{0x04, 0x3, 0x2, 0x1})
-	// 	// s.Close()
-	// 	server.ServeOne(context.Background(), s)
-	// 	fmt.Println("served one")
-	// 	s.Close()
-	// })
+
 	rpcServer := rpc.NewRPCServer(p2pSrv, chain, txPool)
 	rpcServer.Start(ctx)
 
 	communicator := rpc.NewCommunicator(ctx, chain, txPool, p2pSrv)
+	p2pSrv.Host().Network().Notify(communicator)
 
 	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, communicator, blsMaster, proxyApp)
-
-	// p2pSrv.SetStreamHandler(p2p.RPCProtocolPrefix+"/ssz_snappy", func(s network.Stream) {
-	// 	fmt.Println("!!!!!!!!! received: /block/sync")
-	// 	env := &message.RPCEnvelope{}
-	// 	bs := make([]byte, 120000)
-	// 	n, err := s.Read(bs)
-	// 	if err != nil {
-	// 		fmt.Println("Error reading")
-	// 	}
-	// 	err = env.UnmarshalSSZ(bs[:n])
-	// 	if err != nil {
-	// 		fmt.Println("Unmarshal error")
-	// 	}
-	// 	fmt.Println("env.MsgType", env.Enum)
-	// 	fmt.Println("env.Raw", hex.EncodeToString(env.Raw))
-	// 	newBlk := &block.Block{}
-	// 	err = rlp.DecodeBytes(env.Raw, newBlk)
-	// 	if err != nil {
-	// 		fmt.Println("rlp decode error")
-	// 	}
-	// 	fmt.Println("decoded block: ", newBlk.Number(), newBlk.ID())
-
-	// })
 
 	pubkey, err := privValidator.GetPubKey()
 
@@ -299,9 +267,9 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 	pubsub.WithSubscriptionFilter(pubsub.NewAllowlistSubscriptionFilter(p2p.ConsensusTopic))
 	p := svc.PubSub()
 
-	for _, s := range p.GetTopics() {
-		fmt.Println("Valid topic: ", s)
-	}
+	// for _, s := range p.GetTopics() {
+	// 	fmt.Println("Valid topic: ", s)
+	// }
 	p.RegisterTopicValidator(p2p.ConsensusTopic, customTopicValidator)
 
 	svc.Start()
@@ -421,7 +389,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	newBlockCh := make(chan *rpc.NewBlockEvent)
 	// scope.Track(n.comm.SubscribeBlock(newBlockCh))
 
-	futureTicker := time.NewTicker(time.Duration(types.BlockInterval) * time.Second)
+	futureTicker := time.NewTicker(time.Duration(types.BlockIntervalNano) * time.Nanosecond)
 	defer futureTicker.Stop()
 
 	connectivityTicker := time.NewTicker(time.Second)
@@ -545,7 +513,7 @@ func (n *Node) processBlock(blk *block.Block, escortQC *block.QuorumCert, stats 
 	if !bytes.Equal(best.ID().Bytes(), blk.ParentID().Bytes()) {
 		return errCantExtendBestBlock
 	}
-	if blk.NanoTimestamp()+types.BlockInterval > nowNano {
+	if blk.NanoTimestamp()+types.BlockIntervalNano > nowNano {
 		QCValid := n.pacemaker.ValidateQC(blk, escortQC)
 		if !QCValid {
 			return errors.New(fmt.Sprintf("invalid %s on Block %s", escortQC.String(), blk.ID().ToBlockShortID()))
@@ -618,7 +586,7 @@ func checkClockOffset() {
 		slog.Debug("failed to access NTP", "err", err)
 		return
 	}
-	if resp.ClockOffset > time.Duration(types.BlockInterval)*time.Second/2 {
+	if resp.ClockOffset > time.Duration(types.BlockIntervalNano)*time.Nanosecond/2 {
 		slog.Warn("clock offset detected", "offset", types.PrettyDuration(resp.ClockOffset))
 	}
 }
@@ -677,7 +645,7 @@ func (n *Node) validateBlock(
 		return syncError(fmt.Sprintf("block nano timestamp behind parents: parent %v, current %v", parent.NanoTimestamp, header.NanoTimestamp))
 	}
 
-	if header.NanoTimestamp > nowNanoTimestamp+types.BlockInterval {
+	if header.NanoTimestamp > nowNanoTimestamp+types.BlockIntervalNano {
 		return errFutureBlock
 	}
 

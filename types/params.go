@@ -17,9 +17,9 @@ const (
 	// minimum height for committee relay.
 
 	//  ------------------ Basics ----------------------------
-	BlockInterval uint64 = 100000      // ns time interval between two consecutive blocks. ~100ms
-	BaseTxGas     uint64 = ParamsTxGas // 21000
-	TxGas         uint64 = 5000
+	BlockIntervalNano uint64 = 10000000    // ns time interval between two consecutive blocks. ~100ms
+	BaseTxGas         uint64 = ParamsTxGas // 21000
+	TxGas             uint64 = 5000
 
 	// InitialGasLimit was 10 *1000 *100, only accommodates 476 Txs, block size 61k, so change to 200M
 	SloadGas       uint64 = 200 // EIP158 gas table

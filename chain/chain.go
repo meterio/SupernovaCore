@@ -116,7 +116,6 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 		}
 		// fmt.Println("GENESIS BLOCK:", genesisBlock)
 		if genesisBlock.Number() != 0 {
-			fmt.Println(genesisBlock.Number())
 			return errors.New("genesis number != 0")
 		}
 		if len(genesisBlock.Transactions()) != 0 {
@@ -180,7 +179,6 @@ func (c *Chain) Initialize(gene *genesis.Genesis) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("exist genesis ID", existGenesisID.String())
 		geneRaw, err := loadBlockRaw(c.db, existGenesisID)
 		if err != nil {
 			return err
@@ -531,7 +529,6 @@ func (c *Chain) GetTrunkTransaction(txID []byte) (cmttypes.Tx, *TxMeta, error) {
 
 func (c *Chain) isTrunk(header *block.Header) bool {
 	bestHeader := c.bestBlock.Header()
-	// fmt.Println(fmt.Sprintf("IsTrunk: header: %s, bestHeader: %s", header.ID().String(), bestHeader.ID().String()))
 	if header.Number() < bestHeader.Number() {
 		return false
 	}
@@ -862,7 +859,7 @@ func (c *Chain) RawBlocksCacheLen() int {
 func (c *Chain) GetBestNextValidatorSet() *cmttypes.ValidatorSet {
 	vset, err := loadValidatorSet(c.db, c.bestBlock.NextValidatorsHash())
 	if err != nil {
-		fmt.Println("could not load next vset", "hash", c.bestBlock.NextValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
+		c.logger.Warn("could not load next vset", "hash", c.bestBlock.NextValidatorsHash(), "num", c.bestBlock.Number(), "err", err)
 		return nil
 	}
 	return vset
@@ -941,7 +938,6 @@ func (c *Chain) GetInitChainResponse() (*v2.InitChainResponse, error) {
 }
 
 func (c *Chain) SaveInitChainResponse(res *v2.InitChainResponse) error {
-	fmt.Println("save init chain response")
 	return saveInitChainResponse(c.db, res)
 }
 
@@ -958,7 +954,6 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 	if num > c.BestBlock().Number() {
 		draftChild := c.GetDraftByNum(num + 1)
 		if draftChild == nil {
-			fmt.Println("error getting draft", num+1)
 			return nil, ErrEmptyDraft
 		}
 		if draftChild.ProposedBlock.QC.BlockID != blkID {

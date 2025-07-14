@@ -382,7 +382,7 @@ func isChainSynced(nowTimestamp, blockTimestamp uint64) bool {
 	if blockTimestamp > nowTimestamp {
 		timeDiff = blockTimestamp - nowTimestamp
 	}
-	return timeDiff < types.BlockInterval*6
+	return timeDiff < types.BlockIntervalNano*6
 }
 
 func (p *TxPool) All() []*txObject {

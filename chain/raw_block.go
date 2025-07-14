@@ -58,7 +58,6 @@ func (rb *rawBlock) Block() (*block.Block, error) {
 
 	// h, err := rb.Header()
 	// if err != nil {
-	// 	fmt.Println("decode header error")
 	// 	return nil, err
 	// }
 

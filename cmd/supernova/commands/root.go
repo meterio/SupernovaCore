@@ -71,7 +71,6 @@ func ParseConfig(cmd *cobra.Command) (*cmtcfg.Config, error) {
 			slog.Info("deprecated usage found in configuration file", "usage", warning)
 		}
 	}
-	fmt.Println("P2P Listen Address: ", conf.P2P.ListenAddress)
 	return conf, nil
 }
 
