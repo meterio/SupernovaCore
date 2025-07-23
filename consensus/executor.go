@@ -40,17 +40,17 @@ func (e *Executor) InitChain(req *abcitypes.InitChainRequest) (*abcitypes.InitCh
 	return e.proxyApp.InitChain(context.TODO(), req)
 }
 
-func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, round int32) (*abcitypes.PrepareProposalResponse, error) {
+func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, round int32, commitInfo *v2.ExtendedCommitInfo) (*abcitypes.PrepareProposalResponse, error) {
 	maxBytes := int64(cmttypes.MaxBlockSizeBytes)
 
 	evSize := int64(0)
 	vset := e.chain.GetValidatorsByHash(parent.ProposedBlock.NextValidatorsHash())
 	maxDataBytes := cmttypes.MaxDataBytes(maxBytes, evSize, vset.Size())
-	proposerAddr, validator := vset.GetByIndex(int32(proposerIndex))
+	proposerAddr, _ := vset.GetByIndex(int32(proposerIndex))
 	return e.proxyApp.PrepareProposal(context.TODO(), &v2.PrepareProposalRequest{
 		MaxTxBytes:         maxDataBytes,
 		Txs:                make([][]byte, 0),
-		LocalLastCommit:    v2.ExtendedCommitInfo{Round: round, Votes: []v2.ExtendedVoteInfo{{Validator: cmttypes.TM2PB.Validator(validator)}}},
+		LocalLastCommit:    *commitInfo,
 		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Height:             int64(parent.Height) + 1,
 		Time:               time.Now(),

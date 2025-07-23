@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
 	cmtcrypto "github.com/cometbft/cometbft/v2/crypto"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
 	"github.com/meterio/supernova/block"
@@ -118,25 +119,40 @@ func NewPendingEpochState(vset *cmttypes.ValidatorSet, myPubKey bls.PublicKey, c
 	}, nil
 }
 
-func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.Bytes32, sig []byte) *block.QuorumCert {
+func (es *EpochState) AddQCVote(signerIndex uint32, round uint32, blockID types.Bytes32, sig []byte, voteExtension []byte, voteExtensionSignature []byte, nonRpExtension []byte, nonRpExtensionSignature []byte) (*block.QuorumCert, *v2.ExtendedCommitInfo) {
 	v := es.committee.Validators[signerIndex]
 	signature, err := bls.SignatureFromBytes(sig)
 	if err != nil {
 		es.logger.Warn(fmt.Sprintf("invalid signature in QC vote R%v", round), "sig", hex.EncodeToString(sig), "err", err)
-		return nil
+		return nil, nil
 	}
 	cmnPubKey, err := cmn.PublicKeyFromBytes(v.PubKey.Bytes())
 	if err != nil {
 		es.logger.Warn("Invalid key", "err", err)
-		return nil
+		return nil, nil
 	}
 	verified := signature.Verify(cmnPubKey, blockID[:])
 	if !verified {
 		es.logger.Warn("invalid vote", "sig", hex.EncodeToString(sig), "signerIndex", signerIndex)
-		return nil
+		return nil, nil
 	}
 
-	return es.qcVoteManager.AddVote(signerIndex, es.epoch, round, blockID, sig)
+	extSig, _ := bls.SignatureFromBytes(voteExtensionSignature)
+	extMsgHash := types.GetMsgHashForVoteExtension(es.epoch, blockID[:], voteExtension)
+	extSigVerified := extSig.Verify(cmnPubKey, extMsgHash)
+	if !extSigVerified {
+		es.logger.Warn("invalid  vote extension", "sig", hex.EncodeToString(sig), "signerIndex", signerIndex)
+		return nil, nil
+	}
+
+	nonRpExtSig, _ := bls.SignatureFromBytes(nonRpExtensionSignature)
+	nonRpSigVerified := nonRpExtSig.Verify(cmnPubKey, nonRpExtension)
+	if !nonRpSigVerified {
+		es.logger.Warn("invalid non-rp vote extension", "sig", hex.EncodeToString(sig), "signerIndex", signerIndex)
+		return nil, nil
+	}
+
+	return es.qcVoteManager.AddVerifiedVote(signerIndex, v, es.epoch, round, blockID, signature, voteExtension, voteExtensionSignature, nonRpExtension, nonRpExtensionSignature)
 }
 
 func (es *EpochState) AddTCVote(signerIndex uint32, round uint32, sig []byte, hash [32]byte) *types.TimeoutCert {

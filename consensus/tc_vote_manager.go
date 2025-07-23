@@ -15,8 +15,13 @@ type timeoutVoteKey struct {
 	Round uint32
 }
 
+type timeoutVoteValue struct {
+	Signature bls.Signature
+	Hash      [32]byte
+}
+
 type TCVoteManager struct {
-	votes         map[timeoutVoteKey]map[uint32]*vote
+	votes         map[timeoutVoteKey]map[uint32]*timeoutVoteValue
 	sealed        map[timeoutVoteKey]bool
 	committeeSize uint32
 	logger        *slog.Logger
@@ -24,7 +29,7 @@ type TCVoteManager struct {
 
 func NewTCVoteManager(committeeSize uint32) *TCVoteManager {
 	return &TCVoteManager{
-		votes:         make(map[timeoutVoteKey]map[uint32]*vote),
+		votes:         make(map[timeoutVoteKey]map[uint32]*timeoutVoteValue),
 		sealed:        make(map[timeoutVoteKey]bool), // sealed indicator
 		committeeSize: committeeSize,
 		logger:        slog.With("pkg", "tcman"),
@@ -38,7 +43,7 @@ func (m *TCVoteManager) Size() uint32 {
 func (m *TCVoteManager) AddVote(index uint32, epoch uint64, round uint32, sig []byte, hash [32]byte) *types.TimeoutCert {
 	key := timeoutVoteKey{Epoch: epoch, Round: round}
 	if _, existed := m.votes[key]; !existed {
-		m.votes[key] = make(map[uint32]*vote)
+		m.votes[key] = make(map[uint32]*timeoutVoteValue)
 	}
 
 	if _, sealed := m.sealed[key]; sealed {
@@ -50,7 +55,7 @@ func (m *TCVoteManager) AddVote(index uint32, epoch uint64, round uint32, sig []
 		m.logger.Error("load signature failed", "err", err)
 		return nil
 	}
-	m.votes[key][index] = &vote{Signature: blsSig, Hash: hash}
+	m.votes[key][index] = &timeoutVoteValue{Signature: blsSig, Hash: hash}
 
 	voteCount := uint32(len(m.votes[key]))
 	if block.MajorityTwoThird(voteCount, m.committeeSize) {
