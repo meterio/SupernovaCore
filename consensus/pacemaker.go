@@ -144,8 +144,9 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 	}
 
 	commitInfo := &v2.ExtendedCommitInfo{Round: int32(round)}
-	cachedInfo, cached := commitInfoCache.Get(parent.ProposedBlock.ID().Bytes())
-	if cached {
+	contains := commitInfoCache.Contains(parent.ProposedBlock.ID().String())
+	if contains {
+		cachedInfo, _ := commitInfoCache.Get(parent.ProposedBlock.ID().String())
 		commitInfo = cachedInfo.(*v2.ExtendedCommitInfo)
 	}
 	res, err := p.executor.PrepareProposal(parent, p.epochState.index, int32(p.currentRound), commitInfo)
@@ -382,6 +383,11 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 			Height: int64(bnew.ProposedBlock.Number()),
 		})
 
+		if err != nil {
+			p.logger.Error("could not extend vote", "err", err)
+			panic(err)
+		}
+
 		voteMsg, err := p.BuildVoteMessage(msg, res.VoteExtension, res.NonRpExtension)
 		if err != nil {
 			p.logger.Error("could not build vote message", "err", err)
@@ -436,7 +442,7 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 		p.logger.Debug("no qc formed")
 		return
 	}
-	commitInfoCache.Add(msg.VoteBlockID.Bytes(), commitInfo)
+	commitInfoCache.Add(msg.VoteBlockID.String(), commitInfo)
 	newDraftQC := &block.DraftQC{QCNode: b, QC: qc}
 	changed := p.UpdateQCHigh(newDraftQC)
 	if changed {
@@ -551,7 +557,7 @@ func (p *Pacemaker) OnReceiveTimeout(mi IncomingMsg) {
 		p.UpdateQCHigh(&block.DraftQC{QCNode: escortQCNode, QC: newQC})
 		p.Update(newQC)
 	}
-	commitInfoCache.Add(msg.LastVoteBlockID.Bytes(), commitInfo)
+	commitInfoCache.Add(msg.LastVoteBlockID.String(), commitInfo)
 
 	qc := msg.DecodeQCHigh()
 	qcNode := p.chain.GetDraftByEscortQC(qc)
