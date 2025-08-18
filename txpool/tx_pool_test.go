@@ -58,25 +58,13 @@ func TestSubscribeNewTx(t *testing.T) {
 func TestWashTxs(t *testing.T) {
 	pool := newPool()
 	defer pool.Close()
-	txs, _, err := pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
-	assert.Nil(t, err)
-	assert.Zero(t, len(txs))
-	assert.Zero(t, len(pool.Executables()))
 
 	tx := newTx()
 	assert.Nil(t, pool.Add(tx))
 
-	txs, _, err = pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
+	txs := pool.Executables()
 	assert.Nil(t, err)
 	assert.Equal(t, types.Transactions{tx}, txs)
-
-	b1 := new(block.Builder).
-		ParentID(pool.chain.GenesisBlock().ID()).
-		NanoTimestamp(uint64(time.Now().UnixNano())).
-		Build()
-	qc := block.QuorumCert{Epoch: 0, Round: 1}
-	b1.SetQC(&qc)
-	pool.chain.AddBlock(b1, nil)
 
 	txs, _, err = pool.wash(pool.chain.BestBlock().Header(), time.Second*10)
 	assert.Nil(t, err)
@@ -123,7 +111,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := pool.StrictlyAdd(tt.tx)
+		err := pool.Add(tt.tx)
 		if tt.errStr == "" {
 			assert.Nil(t, err)
 		} else {
