@@ -165,8 +165,8 @@ func NewNode(
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGZ6np5N03sJeQPI1ep3L_13ckTJQ5TXcj81mk_UV3oeA-mMtcw7JViYP3cgSBmvxQV74MRTTfUNM5TUqr_D2BiGAZRynhEfh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBLDKxQAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfWYOJc2VjcDI1NmsxoQMkZ9waUAVNMFXOY3B5VlDTqLZHqb4MqKOFXSvh-k4dUohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-3
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QM98ZZL8E3Bx64wPtz49hJ8paIFH8Rv5QCvPTOLJeBYfSobjpjqMfrLODfwiB5_SoWh9Yo_5dvBZ2NLNilgEI9mGAZXZi7yHh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQLQJYjiRjexHE-A2FdO0PHyZUhaFYpHhDef1XVZZC5qaohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-2
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGaHtB-0kwFShAZ3lfLx0HxM-gUX3pPwS6UQkOh98dZyJopO9xFfRXLJpeg-NVVgEDjIcHOMDo2w2usa1sA2qXaGAZXZi7uFh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQPxAUSjJt5Vza3kwhv_XtDmQKCrI2SSjjQFrFkaB_ZskohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // nova-1
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QMTTIc8yLE87KlB8rZu5-RutdmTBuFNZHDDGXys-CxNWZ1vqtrktUUFDkaI5f_Mkz_HHNdFU0R9agPIasK6XkNqGAZfDOph6h2F0dG5ldHOIAAAAAAAAAACEZXRoMpCR0elIAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_eJc2VjcDI1NmsxoQLGfp3pBUkvxpdaFOzUgARlFXy4KXEJPgTjrKyFr7uDtIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-1
-	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QKt5gctukGysIHqy5cOMyGflya8KoLAf80RPqr8ZNN9qGC4Eti8fsDUCPaRUdY4pr1zil9pLg6U9q6S3qWVUKguGAZfDOn7Th2F0dG5ldHOIAAAAAAAMAACEZXRoMpCR0elIAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_iJc2VjcDI1NmsxoQKfjpkMQm9CuuRLkE_r2VoH7wtlz2HQwr4h7t6rt2gt84hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-2
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QFGVs_TSw_GfRuAxg76f05CsCXR1OoGX30zlaxvlrYptBdOiTZpTSt9ZxXFSGU5nvzkaJe3clIxGPuYl_Dvuf1iGAZhoA3sAh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDC2eMlAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_eJc2VjcDI1NmsxoQPPS9LS1HeU3LMS5WU1Zi_ePJihE2oqw1mIG6fuq7kajohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-1
+	BootstrapNodes = append(BootstrapNodes, "enr:-MK4QP3nEwXgKz7hUGxg02X7ssAS_PvALfYKhmEbd8mLibn2TUfIe0lQzIZQ4ikG6mNt1kELsLYJLSToHk6NJvdcpXCGAZhoA3wch2F0dG5ldHOIAAAAAAAAAACEZXRoMpCR0elIAQAAAAAiAQAAAAAAgmlkgnY0gmlwhAqKD_iJc2VjcDI1NmsxoQKfjpkMQm9CuuRLkE_r2VoH7wtlz2HQwr4h7t6rt2gt84hzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // super-2
 
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QMWkLjGkpPB2iP84pdrBqyB-SjJiodPu0oLYQLVLXhgmPMeqN8Nk24Al9mElveJXJFaZUkjwWHAsz1oJN_A-hYeGAZSlsvkzh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfEoiJc2VjcDI1NmsxoQMog1olklG4kSkaiGepYTRoy0OseZus8-cOKqzsOqlkBIhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // simd nova2
 	// BootstrapNodes = append(BootstrapNodes, "enr:-MK4QGD2XTHBtQ_r17bA3MHvUqrhVfKvKKqIeDN3sD-YVhkSM2j6oiv2fKHTK_5lvCn6OPa-WHZ3m9Ao1C6oz9P6i9KGAZSlsvidh2F0dG5ldHOIAAAAAAAAAACEZXRoMpAWc8IXAQAAAAAiAQAAAAAAgmlkgnY0gmlwhKwfHXiJc2VjcDI1NmsxoQOucvYee5KxdMkhPqF4W8KGJGSuOhqzk59ZJiPyogCn6ohzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A") // simd nova1
@@ -188,9 +188,9 @@ func NewNode(
 
 	pubkey, err := privValidator.GetPubKey()
 
-	apiAddr := ":8670"
+	apiAddr := ":26657"
 	chainId, err := strconv.ParseUint(genDoc.ChainID, 10, 64)
-	apiServer := api.NewAPIServer(apiAddr, chainId, config.BaseConfig.Version, chain, txPool, pacemaker, pubkey.Bytes(), p2pSrv)
+	apiServer := api.NewAPIServer(proxyApp.Query(), apiAddr, chainId, config.BaseConfig.Version, chain, txPool, pacemaker, pubkey.Bytes(), p2pSrv)
 
 	bestBlock := chain.BestBlock()
 
@@ -380,8 +380,8 @@ func (n *Node) handleBlockStream(ctx context.Context, stream <-chan *block.Escor
 }
 
 func (n *Node) houseKeeping(ctx context.Context) {
-	n.logger.Debug("enter house keeping")
-	defer n.logger.Debug("leave house keeping")
+	n.logger.Info("enter house keeping")
+	defer n.logger.Info("leave house keeping")
 
 	var scope event.SubscriptionScope
 	defer scope.Close()
@@ -400,8 +400,10 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			n.logger.Info("house keeping quite due to ctx done")
 			return
 		case newBlock := <-newBlockCh:
+			n.logger.Info("new block", newBlock.Block.Number())
 			var stats blockStats
 
 			if err := n.processBlock(newBlock.Block, newBlock.EscortQC, &stats); err != nil {
