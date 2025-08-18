@@ -13,12 +13,14 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/genesis"
+	"github.com/meterio/supernova/txpool"
 )
 
 type Handshaker struct {
 	chain    *chain.Chain
 	eventBus cmttypes.BlockEventPublisher
 	genDoc   *cmttypes.GenesisDoc
+	txPool   *txpool.TxPool
 	logger   log.Logger
 
 	nBlocks int // number of blocks applied to the state
@@ -263,7 +265,7 @@ func (h *Handshaker) replayBlock(height int64, proxyApp proxy.AppConnConsensus) 
 
 	// Use stubs for both mempool and evidence pool since no transactions nor
 	// evidence are needed here - block already exists.
-	blockExec := NewExecutor(proxyApp, h.chain)
+	blockExec := NewExecutor(proxyApp, h.chain, h.txPool)
 	blockExec.SetEventBus(h.eventBus)
 
 	appHash, nxtVSet, err := blockExec.ApplyBlock(block, int64(block.Number()))

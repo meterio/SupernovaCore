@@ -203,7 +203,7 @@ func (c *Communicator) syncTxs(peer *Peer) {
 		for _, txBytes := range res.TxsBytesList {
 			tx := cmttypes.Tx(txBytes)
 			peer.MarkTransaction(tx.Hash())
-			c.txPool.StrictlyAdd(tx)
+			c.txPool.Add(tx)
 			select {
 			case <-c.ctx.Done():
 				return

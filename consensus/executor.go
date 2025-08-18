@@ -19,6 +19,7 @@ import (
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
+	"github.com/meterio/supernova/txpool"
 )
 
 var (
@@ -28,12 +29,13 @@ var (
 type Executor struct {
 	proxyApp cmtproxy.AppConnConsensus
 	chain    *chain.Chain
+	txPool   *txpool.TxPool
 	logger   *slog.Logger
 	eventBus cmttypes.BlockEventPublisher
 }
 
-func NewExecutor(proxyApp cmtproxy.AppConnConsensus, c *chain.Chain) *Executor {
-	return &Executor{proxyApp: proxyApp, chain: c, logger: slog.With("pkg", "exec")}
+func NewExecutor(proxyApp cmtproxy.AppConnConsensus, c *chain.Chain, txPool *txpool.TxPool) *Executor {
+	return &Executor{proxyApp: proxyApp, chain: c, txPool: txPool, logger: slog.With("pkg", "exec")}
 }
 
 func (e *Executor) InitChain(req *abcitypes.InitChainRequest) (*abcitypes.InitChainResponse, error) {
@@ -47,9 +49,18 @@ func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, 
 	vset := e.chain.GetValidatorsByHash(parent.ProposedBlock.NextValidatorsHash())
 	maxDataBytes := cmttypes.MaxDataBytes(maxBytes, evSize, vset.Size())
 	proposerAddr, validator := vset.GetByIndex(int32(proposerIndex))
+
+	executables := e.txPool.Executables()
+	fmt.Println("executables: ", len(executables))
+	txs := make([][]byte, 0)
+	for _, tx := range executables {
+		txs = append(txs, tx)
+	}
+	fmt.Println("txs: ", len(txs))
+
 	return e.proxyApp.PrepareProposal(context.TODO(), &v2.PrepareProposalRequest{
 		MaxTxBytes:         maxDataBytes,
-		Txs:                make([][]byte, 0),
+		Txs:                txs,
 		LocalLastCommit:    v2.ExtendedCommitInfo{Round: round, Votes: []v2.ExtendedVoteInfo{{Validator: cmttypes.TM2PB.Validator(validator)}}},
 		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Height:             int64(parent.Height) + 1,
@@ -83,6 +94,12 @@ func (e *Executor) ProcessProposal(blk *block.Block) (bool, error) {
 	}
 	if resp.IsStatusUnknown() {
 		panic("ProcessProposal responded with status " + resp.Status.String())
+	}
+
+	if resp.IsAccepted() {
+		for _, tx := range blk.Txs {
+			e.txPool.Remove(tx.Hash())
+		}
 	}
 	return resp.IsAccepted(), nil
 }

@@ -108,7 +108,7 @@ func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *t
 		version:      version,
 		txpool:       txpool,
 		communicator: communicator,
-		executor:     NewExecutor(proxyApp.Consensus(), c),
+		executor:     NewExecutor(proxyApp.Consensus(), c, txpool),
 
 		cmdCh:           make(chan PMCmd, 2),
 		beatCh:          make(chan PMBeatInfo, 2),
@@ -116,7 +116,6 @@ func NewPacemaker(ctx context.Context, version string, c *chain.Chain, txpool *t
 		roundTimer:      nil,
 		roundMutex:      sync.Mutex{},
 		broadcastCh:     make(chan *block.PMProposalMessage, 4),
-		newTxCh:         txpool.GetNewTxFeed(),
 		addedValidators: make([]*cmttypes.Validator, 0),
 
 		timeoutCounter:       0,
@@ -664,12 +663,13 @@ func (p *Pacemaker) mainLoop() {
 			}
 			p.OnRoundTimeout(ti)
 
-		case newTxID := <-p.newTxCh:
-			if p.epochState.InCommittee() && p.amIRoundProproser(p.currentRound) && p.curProposal != nil && p.curProposal.ProposedBlock != nil && p.curProposal.ProposedBlock.BlockHeader != nil && p.curProposal.Round == p.currentRound {
-				if time.Since(p.roundStartedAt) < ProposeTimeLimit {
-					p.AddTxToCurProposal(newTxID)
-				}
-			}
+			// FIXME: removed proactively add tx to proposal
+		// case newTxID := <-p.newTxCh:
+		// 	if p.epochState.InCommittee() && p.amIRoundProproser(p.currentRound) && p.curProposal != nil && p.curProposal.ProposedBlock != nil && p.curProposal.ProposedBlock.BlockHeader != nil && p.curProposal.Round == p.currentRound {
+		// 		if time.Since(p.roundStartedAt) < ProposeTimeLimit {
+		// 			p.AddTxToCurProposal(newTxID)
+		// 		}
+		// 	}
 
 		case <-p.broadcastCh:
 			p.broadcastCurProposal()
