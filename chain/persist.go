@@ -64,6 +64,9 @@ func loadRLP(r cmtdb.DB, key []byte, val interface{}) error {
 	if err != nil {
 		return err
 	}
+	if len(data) == 0 {
+		return ErrNotFound
+	}
 	return rlp.DecodeBytes(data, val)
 }
 
