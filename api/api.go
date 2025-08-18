@@ -6,18 +6,24 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"log"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
 
+	cmtproxy "github.com/cometbft/cometbft/v2/proxy"
+	cmtrpctypes "github.com/cometbft/cometbft/v2/rpc/jsonrpc/types"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/meterio/supernova/api/blocks"
 	"github.com/meterio/supernova/api/doc"
-	"github.com/meterio/supernova/api/node"
+	"github.com/meterio/supernova/api/jsonrpc"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/consensus"
 	"github.com/meterio/supernova/libs/co"
@@ -25,14 +31,67 @@ import (
 	"github.com/meterio/supernova/txpool"
 )
 
+// CheckTx result.
+type ResultBroadcastTx struct {
+	Code      uint32 `json:"code"`
+	Data      []byte `json:"data"`
+	Log       string `json:"log"`
+	Codespace string `json:"codespace"`
+
+	Hash []byte `json:"hash"`
+}
+
+type Result struct {
+	JSONRPC string                `json:"jsonrpc"`
+	Id      uint32                `json:"id"`
+	Result  ResultBroadcastTx     `json:"result"`
+	Error   *cmtrpctypes.RPCError `json:"error,omitempty"`
+}
+
 type APIServer struct {
 	listenAddr string
 	handler    http.Handler
 }
 
+// loggingMiddleware logs request and response
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Log request
+		bodyBytes, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Restore body
+		log.Printf("REQUEST: %s %s\nHeaders: %v\nBody: %s\n",
+			r.Method, r.URL, r.Header, string(bodyBytes))
+
+		// Capture response
+		rw := &responseCapture{ResponseWriter: w, body: new(bytes.Buffer)}
+		next.ServeHTTP(rw, r)
+
+		// Log response
+		log.Printf("RESPONSE: status=%d, body=%s\n", rw.statusCode, rw.body.String())
+	})
+}
+
+type responseCapture struct {
+	http.ResponseWriter
+	body       *bytes.Buffer
+	statusCode int
+}
+
+func (rw *responseCapture) WriteHeader(statusCode int) {
+	rw.statusCode = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (rw *responseCapture) Write(b []byte) (int, error) {
+	rw.body.Write(b) // copy to buffer
+	return rw.ResponseWriter.Write(b)
+}
+
 // New return api router
-func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chain.Chain, txPool *txpool.TxPool, pacemaker *consensus.Pacemaker, pubkey []byte, p2pSrv p2p.P2P) *APIServer {
+func NewAPIServer(proxyAppQuery cmtproxy.AppConnQuery, listenAddr string, chainId uint64, version string, chain *chain.Chain, txPool *txpool.TxPool, pacemaker *consensus.Pacemaker, pubkey []byte, p2pSrv p2p.P2P) *APIServer {
 	router := mux.NewRouter()
+
+	logger := slog.With("mod", "api")
 
 	// to serve api doc and swagger-ui
 	router.PathPrefix("/doc").Handler(
@@ -42,16 +101,68 @@ func NewAPIServer(listenAddr string, chainId uint64, version string, chain *chai
 				AssetDir:  doc.AssetDir,
 				AssetInfo: doc.AssetInfo})))
 
-	// redirect swagger-ui
-	router.Path("/").HandlerFunc(
+	// jsonrpc.New(chain).Mount(router, "/")
+
+	handler := jsonrpc.New(chain, txPool, proxyAppQuery)
+
+	router.Path("/").Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			http.Redirect(w, req, "doc/swagger-ui/", http.StatusTemporaryRedirect)
+			jsonReq := cmtrpctypes.RPCRequest{}
+			decoder := json.NewDecoder(req.Body)
+			err := decoder.Decode(&jsonReq)
+			if err != nil {
+				panic(err)
+			}
+
+			params := jsonReq.Params
+			logger.Info("received JSON-RPC call", "method", jsonReq.Method, "params", string(params))
+
+			var m map[string]interface{}
+			if err := json.Unmarshal(params, &m); err != nil {
+				panic(err)
+			}
+
+			var result json.RawMessage
+			switch jsonReq.Method {
+			case "abci_query":
+				result, err = handler.HandleABCIQuery(params)
+			case "broadcast_tx_sync":
+				result, err = handler.HandleBroadcastTx(params)
+			}
+
+			if err != nil {
+				panic(err)
+			}
+
+			p := cmtrpctypes.RPCResponse{
+				JSONRPC: jsonReq.JSONRPC,
+				ID:      jsonReq.ID,
+				Result:  result,
+			}
+			json.NewEncoder(w).Encode(p)
 		})
 
-	blocks.New(chain).
-		Mount(router, "/blocks")
-	node.New(version, chainId, p2pSrv, pacemaker, chain, pubkey).
-		Mount(router, "/node")
+	// Walk through and print all registered routes
+	// router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	// 	pathTemplate, err := route.GetPathTemplate()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	methods, err := route.GetMethods()
+	// 	if err != nil {
+	// 		// No methods explicitly set, ignore
+	// 		methods = []string{"ANY"}
+	// 	}
+
+	// 	fmt.Printf("Path: %-20s Methods: %v Handler: %v\n", pathTemplate, methods, route.GetHandler())
+	// 	return nil
+	// })
+
+	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.Warn("404 Not Found", "url", r.URL.Path)
+		http.Error(w, "Not found", http.StatusNotFound)
+	})
 
 	return &APIServer{
 		listenAddr: listenAddr,
@@ -72,6 +183,7 @@ func (api *APIServer) Start(ctx context.Context) {
 	handler = handleAPITimeout(handler, time.Duration(timeout)*time.Millisecond)
 	handler = handleXVersion(handler)
 	handler = requestBodyLimit(handler)
+	handler = loggingMiddleware(handler)
 	srv := &http.Server{
 		Handler:      handler,
 		ReadTimeout:  5 * time.Second,
