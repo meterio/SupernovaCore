@@ -42,7 +42,7 @@ func (e *Executor) InitChain(req *abcitypes.InitChainRequest) (*abcitypes.InitCh
 	return e.proxyApp.InitChain(context.TODO(), req)
 }
 
-func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, round int32) (*abcitypes.PrepareProposalResponse, error) {
+func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, round int32, commitInfo *v2.ExtendedCommitInfo) (*abcitypes.PrepareProposalResponse, error) {
 	maxBytes := int64(cmttypes.MaxBlockSizeBytes)
 
 	evSize := int64(0)

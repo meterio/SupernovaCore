@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
+	abcitypes "github.com/cometbft/cometbft/v2/abci/types"
 	"github.com/cometbft/cometbft/v2/privval"
 	cmtproxy "github.com/cometbft/cometbft/v2/proxy"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
@@ -34,8 +36,9 @@ const (
 )
 
 var (
-	validQCs, _ = lru.New(256)
-	inQueue     *IncomingQueue
+	validQCs, _        = lru.New(256)
+	inQueue            *IncomingQueue
+	commitInfoCache, _ = lru.New(256)
 )
 
 func init() {
@@ -139,7 +142,13 @@ func (p *Pacemaker) CreateLeaf(parent *block.DraftBlock, justify *block.DraftQC,
 		targetTime = now
 	}
 
-	res, err := p.executor.PrepareProposal(parent, p.epochState.index, int32(p.currentRound))
+	commitInfo := &v2.ExtendedCommitInfo{Round: int32(round)}
+	contains := commitInfoCache.Contains(parent.ProposedBlock.ID().String())
+	if contains {
+		cachedInfo, _ := commitInfoCache.Get(parent.ProposedBlock.ID().String())
+		commitInfo = cachedInfo.(*v2.ExtendedCommitInfo)
+	}
+	res, err := p.executor.PrepareProposal(parent, p.epochState.index, int32(p.currentRound), commitInfo)
 	if err != nil {
 		return err, nil
 	}
@@ -367,7 +376,18 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 	}
 
 	if bnew.Height >= p.lastVotingHeight && p.ExtendedFromLastCommitted(bnew) {
-		voteMsg, err := p.BuildVoteMessage(msg)
+		// FIXME: should check if vote extension is turned on
+		res, err := p.executor.proxyApp.ExtendVote(context.TODO(), &abcitypes.ExtendVoteRequest{
+			Hash:   bnew.ProposedBlock.ID().Bytes(),
+			Height: int64(bnew.ProposedBlock.Number()),
+		})
+
+		if err != nil {
+			p.logger.Error("could not extend vote", "err", err)
+			panic(err)
+		}
+
+		voteMsg, err := p.BuildVoteMessage(msg, res.VoteExtension, res.NonRpExtension)
 		if err != nil {
 			p.logger.Error("could not build vote message", "err", err)
 			return
@@ -416,11 +436,12 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 		return
 	}
 
-	qc := p.epochState.AddQCVote(msg.GetSignerIndex(), round, msg.VoteBlockID, msg.VoteSignature)
+	qc, commitInfo := p.epochState.AddQCVote(msg.GetSignerIndex(), round, msg.VoteBlockID, msg.VoteSignature, msg.VoteExtension, msg.ExtensionSignature, msg.NonRpVoteExtension, msg.NonRpExtensionSignature)
 	if qc == nil {
 		p.logger.Debug("no qc formed")
 		return
 	}
+	commitInfoCache.Add(msg.VoteBlockID.String(), commitInfo)
 	newDraftQC := &block.DraftQC{QCNode: b, QC: qc}
 	changed := p.UpdateQCHigh(newDraftQC)
 	if changed {
@@ -529,12 +550,13 @@ func (p *Pacemaker) OnReceiveTimeout(mi IncomingMsg) {
 	}
 
 	// collect vote and see if QC is formed
-	newQC := p.epochState.AddQCVote(msg.SignerIndex, msg.LastVoteRound, msg.LastVoteBlockID, msg.LastVoteSignature)
+	newQC, commitInfo := p.epochState.AddQCVote(msg.SignerIndex, msg.LastVoteRound, msg.LastVoteBlockID, msg.LastVoteSignature, msg.LastVoteExtension, msg.LastExtensionSignature, msg.LastNonRpVoteExtension, msg.LastNonRpExtensionSignature)
 	if newQC != nil {
 		escortQCNode := p.chain.GetDraftByEscortQC(newQC)
 		p.UpdateQCHigh(&block.DraftQC{QCNode: escortQCNode, QC: newQC})
 		p.Update(newQC)
 	}
+	commitInfoCache.Add(msg.LastVoteBlockID.String(), commitInfo)
 
 	qc := msg.DecodeQCHigh()
 	qcNode := p.chain.GetDraftByEscortQC(qc)

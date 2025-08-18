@@ -49,12 +49,15 @@ func (p *Pacemaker) BuildProposalMessage(height, round uint32, bnew *block.Draft
 
 // BuildVoteMsg build VFP message for proposal
 // txRoot, stateRoot is decoded from proposalMsg.ProposedBlock, carry in cos already decoded outside
-func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*block.PMVoteMessage, error) {
-
+func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage, voteExtension []byte, nonRpVoteExtension []byte) (*block.PMVoteMessage, error) {
 	proposedBlock := proposalMsg.DecodeBlock()
 	voteHash := proposedBlock.ID()
 	voteSig := p.blsMaster.SignMessage(voteHash[:])
 	// p.logger.Debug("Built PMVoteMessage", "signMsg", signMsg)
+
+	extensionMsgHash := types.GetMsgHashForVoteExtension(p.epochState.epoch, proposedBlock.ID().Bytes(), voteExtension)
+	extensionSignature := p.blsMaster.SignMessage(extensionMsgHash)
+	nonRpExtensionSignature := p.blsMaster.SignMessage(nonRpVoteExtension)
 
 	msg := &block.PMVoteMessage{
 		NanoTimestamp: uint64(time.Now().UnixNano()),
@@ -64,6 +67,11 @@ func (p *Pacemaker) BuildVoteMessage(proposalMsg *block.PMProposalMessage) (*blo
 		VoteRound:     proposalMsg.Round,
 		VoteBlockID:   proposedBlock.ID(),
 		VoteSignature: voteSig.Marshal(),
+
+		VoteExtension:           voteExtension,
+		ExtensionSignature:      extensionSignature.Marshal(),
+		NonRpVoteExtension:      nonRpVoteExtension,
+		NonRpExtensionSignature: nonRpExtensionSignature.Marshal(),
 	}
 
 	// sign message
@@ -109,6 +117,10 @@ func (p *Pacemaker) BuildTimeoutMessage(qcHigh *block.DraftQC, ti *PMRoundTimeou
 		msg.LastVoteRound = lastVoteMsg.VoteRound
 		msg.LastVoteBlockID = lastVoteMsg.VoteBlockID
 		msg.LastVoteSignature = lastVoteMsg.VoteSignature
+		msg.LastVoteExtension = lastVoteMsg.VoteExtension
+		msg.LastExtensionSignature = lastVoteMsg.ExtensionSignature
+		msg.LastNonRpVoteExtension = lastVoteMsg.NonRpVoteExtension
+		msg.LastNonRpExtensionSignature = lastVoteMsg.NonRpExtensionSignature
 	}
 
 	// if ti != nil {

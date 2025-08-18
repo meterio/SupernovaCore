@@ -176,6 +176,11 @@ type PMVoteMessage struct {
 	VoteBlockID   types.Bytes32
 	VoteSignature []byte //bls.Signature
 
+	VoteExtension           []byte // repeat-protected support for cometbft vote extension
+	ExtensionSignature      []byte
+	NonRpVoteExtension      []byte // non-repeat-protected
+	NonRpExtensionSignature []byte
+
 	MsgSignature []byte
 }
 
@@ -204,6 +209,8 @@ func (m *PMVoteMessage) GetMsgHash() types.Bytes32 {
 		m.VoteRound,
 		m.VoteBlockID,
 		m.VoteSignature,
+		m.VoteExtension,
+		m.NonRpVoteExtension,
 	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
@@ -244,6 +251,11 @@ type PMTimeoutMessage struct {
 	LastVoteBlockID   types.Bytes32
 	LastVoteSignature []byte
 
+	LastVoteExtension           []byte
+	LastExtensionSignature      []byte
+	LastNonRpVoteExtension      []byte
+	LastNonRpExtensionSignature []byte
+
 	MsgSignature []byte
 
 	// cached
@@ -279,6 +291,8 @@ func (m *PMTimeoutMessage) GetMsgHash() types.Bytes32 {
 		m.LastVoteRound,
 		m.LastVoteBlockID,
 		m.LastVoteSignature,
+		m.LastVoteExtension,
+		m.LastNonRpVoteExtension,
 	})
 	if err != nil {
 		slog.Error("RLP Encode Error", "err", err)
