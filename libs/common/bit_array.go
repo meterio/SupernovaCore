@@ -195,7 +195,7 @@ func (bA *BitArray) CountNo() uint32 {
 	c := bA.copy()
 	no := uint32(0)
 	for i := 0; i < int(c.Bits); i++ {
-		if c.getIndex(i) {
+		if !c.getIndex(i) {
 			no++
 		}
 	}
