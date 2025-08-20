@@ -6,6 +6,7 @@
 package txpool
 
 import (
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"sync"
@@ -121,7 +122,8 @@ func (p *TxPool) Remove(id []byte) bool {
 	strId := bytes.HexBytes(id).String()
 	if _, ok := p.executables.Load(strId); ok {
 		p.executables.Delete(strId)
-		p.logger.Info("tx removed", "id", id)
+		hash := hex.EncodeToString(id)
+		p.logger.Info("tx removed", "id", hash)
 		return true
 	}
 	return false

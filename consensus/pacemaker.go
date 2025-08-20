@@ -14,7 +14,6 @@ import (
 	"time"
 
 	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
-	abcitypes "github.com/cometbft/cometbft/v2/abci/types"
 	"github.com/cometbft/cometbft/v2/privval"
 	cmtproxy "github.com/cometbft/cometbft/v2/proxy"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
@@ -377,17 +376,20 @@ func (p *Pacemaker) OnReceiveProposal(mi IncomingMsg) {
 
 	if bnew.Height >= p.lastVotingHeight && p.ExtendedFromLastCommitted(bnew) {
 		// FIXME: should check if vote extension is turned on
-		res, err := p.executor.proxyApp.ExtendVote(context.TODO(), &abcitypes.ExtendVoteRequest{
-			Hash:   bnew.ProposedBlock.ID().Bytes(),
-			Height: int64(bnew.ProposedBlock.Number()),
-		})
+		// res, err := p.executor.proxyApp.ExtendVote(context.TODO(), &abcitypes.ExtendVoteRequest{
+		// 	Hash:   bnew.ProposedBlock.ID().Bytes(),
+		// 	Height: int64(bnew.ProposedBlock.Number()),
+		// })
 
-		if err != nil {
-			p.logger.Error("could not extend vote", "err", err)
-			panic(err)
-		}
+		// if err != nil {
+		// 	p.logger.Error("could not extend vote", "err", err)
+		// 	panic(err)
+		// }
 
-		voteMsg, err := p.BuildVoteMessage(msg, res.VoteExtension, res.NonRpExtension)
+		voteExtension := []byte{}
+		nonRpExtension := []byte{}
+
+		voteMsg, err := p.BuildVoteMessage(msg, voteExtension, nonRpExtension)
 		if err != nil {
 			p.logger.Error("could not build vote message", "err", err)
 			return
@@ -455,6 +457,8 @@ func (p *Pacemaker) OnReceiveVote(mi IncomingMsg) {
 func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock {
 	parent := p.chain.GetDraftByEscortQC(qc.QC)
 	err, bnew := p.CreateLeaf(parent, qc, round)
+
+	fmt.Println("Proposed block:\n", bnew.ProposedBlock, "with qc", bnew.Justify.QC)
 	if err != nil {
 		p.logger.Error("could not create leaf", "err", err)
 		return nil

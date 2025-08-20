@@ -978,11 +978,13 @@ func (c *Chain) GetQCForBlock(blkID types.Bytes32) (*block.QuorumCert, error) {
 // If you want to load the validator set from the store instead of providing it,
 // use buildLastCommitInfoFromStore.
 func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.CommitInfo {
+	c.logger.Info("build last commit info", "blk", blk.Number(), "parent", parent.Number(), "vsetHash", hex.EncodeToString(parent.ValidatorsHash()))
 	vset := c.GetValidatorsByHash(parent.ValidatorsHash())
 	// if blk.Number() == 0 {
 	// 	fmt.Println("parent is genesis", parent.NextValidatorsHash())
 	// 	vset = c.GetValidatorsByHash(parent.NextValidatorsHash())
 	// }
+
 	qc := blk.QC
 	if vset == nil {
 		if parent.Number() == 0 {
@@ -993,22 +995,26 @@ func (c *Chain) BuildLastCommitInfo(parent *block.Block, blk *block.Block) abci.
 	}
 
 	var (
-		commiteeSize = vset.Size()
-		votesSize    = qc.BitArray.Size()
+	// FIXME: should check vote size and committee size
+	// commiteeSize = vset.Size()
+	// votesSize = qc.BitArray.Size()
 	)
 
-	if commiteeSize != votesSize {
-		panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, blk.Number()))
-	}
+	// if commiteeSize != votesSize {
+	// 	panic(fmt.Sprintf("committee size (%d) doesn't match with votes size (%d) at height %d", commiteeSize, votesSize, blk.Number()))
+	// }
 
 	votes := make([]abci.VoteInfo, vset.Size())
-	for i := 0; i < votesSize; i++ {
-		if qc.BitArray.GetIndex(i) {
-			_, v := vset.GetByIndex(int32(i))
-			votes[i] = abci.VoteInfo{
-				Validator:   abci.Validator{Address: v.Address.Bytes(), Power: int64(v.VotingPower)},
-				BlockIdFlag: cmtproto.BlockIDFlagCommit,
-			}
+	for i := 0; i < vset.Size(); i++ {
+		yes := qc.BitArray.GetIndex(i)
+		flag := cmtproto.BlockIDFlagAbsent
+		if yes {
+			flag = cmtproto.BlockIDFlagCommit
+		}
+		_, v := vset.GetByIndex(int32(i))
+		votes[i] = abci.VoteInfo{
+			Validator:   abci.Validator{Address: v.Address.Bytes(), Power: int64(v.VotingPower)},
+			BlockIdFlag: flag,
 		}
 	}
 

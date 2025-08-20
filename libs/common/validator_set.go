@@ -105,6 +105,7 @@ func ApplyUpdatesToValidatorSet(vset *cmttypes.ValidatorSet, validatorUpdates []
 	for i, _ := range validatorUpdates {
 		addedIndex[i] = true
 	}
+
 	// delete/update existing validator
 	for i := 0; i < len(vs); {
 		v := vs[i]

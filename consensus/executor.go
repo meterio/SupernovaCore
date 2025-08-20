@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	v2 "github.com/cometbft/cometbft/api/cometbft/abci/v2"
@@ -15,7 +14,6 @@ import (
 	"github.com/cometbft/cometbft/v2/crypto/bls12381"
 	cmtproxy "github.com/cometbft/cometbft/v2/proxy"
 	cmttypes "github.com/cometbft/cometbft/v2/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	cmn "github.com/meterio/supernova/libs/common"
@@ -51,12 +49,10 @@ func (e *Executor) PrepareProposal(parent *block.DraftBlock, proposerIndex int, 
 	proposerAddr, validator := vset.GetByIndex(int32(proposerIndex))
 
 	executables := e.txPool.Executables()
-	fmt.Println("executables: ", len(executables))
 	txs := make([][]byte, 0)
 	for _, tx := range executables {
 		txs = append(txs, tx)
 	}
-	fmt.Println("txs: ", len(txs))
 
 	return e.proxyApp.PrepareProposal(context.TODO(), &v2.PrepareProposalRequest{
 		MaxTxBytes:         maxDataBytes,
@@ -147,13 +143,20 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		parent = parentDraft.ProposedBlock
 	}
 	proposerAddr, _ := vset.GetByIndex(int32(blk.ProposerIndex()))
+	decidedLastCommit := e.chain.BuildLastCommitInfo(parent, blk)
+	// fmt.Println("Decided Last Commit")
+	// for _, v := range decidedLastCommit.Votes {
+	// 	fmt.Println("decided last commit: ", "address:", v.Validator.Address, "power:", v.Validator.Power)
+	// 	fmt.Println("block id flag: ", v.BlockIdFlag)
+	// }
+	// fmt.Println("------------------------------------------------")
 	abciResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.FinalizeBlockRequest{
 		Hash:               blk.ID().Bytes(),
 		NextValidatorsHash: blk.Header().NextValidatorsHash,
 		ProposerAddress:    proposerAddr,
 		Height:             int64(blk.Number()),
 		Time:               time.Unix(0, int64(blk.NanoTimestamp())),
-		DecidedLastCommit:  e.chain.BuildLastCommitInfo(parent, blk),
+		DecidedLastCommit:  decidedLastCommit,
 		Misbehavior:        make([]v2.Misbehavior, 0), // FIXME: track the misbehavior and preppare the evidence
 		Txs:                blk.Transactions().Convert(),
 		SyncingToHeight:    syncingToHeight,
@@ -181,10 +184,17 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 		return
 	}
 
+	for index, txResult := range abciResponse.TxResults {
+		e.logger.Info("tx result", "index", index, "code", txResult.Code, "log", txResult.Log, "info", txResult.Info)
+	}
+
 	// calculate the next committee
 	if len(abciResponse.ValidatorUpdates) > 0 {
+		e.logger.Info("block has validator updates", "len", len(abciResponse.ValidatorUpdates))
 		curVSet := e.chain.GetValidatorsByHash(blk.ValidatorsHash())
+		e.logger.Info("current validator set", "len", len(curVSet.Validators), "hash", hex.EncodeToString(curVSet.Hash()))
 		nxtVSet = calcNewValidatorSet(curVSet, abciResponse.ValidatorUpdates, abciResponse.Events)
+		e.logger.Info("next validator set", "len", len(nxtVSet.Validators), "hash", hex.EncodeToString(nxtVSet.Hash()))
 	} else {
 		nxtVSet = nil
 	}
@@ -198,27 +208,34 @@ func calcNewValidatorSet(vset *cmttypes.ValidatorSet, updates abcitypes.Validato
 	}
 	nxtVSetAdapter := cmn.NewValidatorSetAdapter(vset)
 
-	veMap := make(map[string]validatorExtra)
-	for _, ev := range events {
-		if ev.Type == "ValidatorExtra" {
-			ve := validatorExtra{}
-			for _, attr := range ev.Attributes {
-				switch attr.Key {
-				case "address":
-					ve.Address = common.Address{}
-				case "name":
-					ve.Name = attr.Value
-				case "pubkey":
-					ve.Pubkey, _ = hex.DecodeString(attr.Value)
-				case "ip":
-					ve.IP = attr.Value
-				case "port":
-					ve.Port, _ = strconv.ParseUint(attr.Value, 10, 32)
-				}
-			}
-			veMap[hex.EncodeToString(ve.Pubkey)] = ve
-		}
+	fmt.Println("before calc new VSET")
+	fmt.Println("VSET: ", hex.EncodeToString(vset.Hash()))
+	for i, v := range vset.Validators {
+		fmt.Println("index ", i, v.Address.String(), v.PubKey.Type(), hex.EncodeToString(v.PubKey.Bytes()))
 	}
+	fmt.Println("--------------------------------------------------")
+
+	// veMap := make(map[string]validatorExtra)
+	// for _, ev := range events {
+	// 	if ev.Type == "ValidatorExtra" {
+	// 		ve := validatorExtra{}
+	// 		for _, attr := range ev.Attributes {
+	// 			switch attr.Key {
+	// 			case "address":
+	// 				ve.Address = common.Address{}
+	// 			case "name":
+	// 				ve.Name = attr.Value
+	// 			case "pubkey":
+	// 				ve.Pubkey, _ = hex.DecodeString(attr.Value)
+	// 			case "ip":
+	// 				ve.IP = attr.Value
+	// 			case "port":
+	// 				ve.Port, _ = strconv.ParseUint(attr.Value, 10, 32)
+	// 			}
+	// 		}
+	// 		veMap[hex.EncodeToString(ve.Pubkey)] = ve
+	// 	}
+	// }
 	for _, update := range updates {
 		pubkey, err := bls12381.NewPublicKeyFromBytes(update.PubKeyBytes)
 		if err != nil {
@@ -234,9 +251,18 @@ func calcNewValidatorSet(vset *cmttypes.ValidatorSet, updates abcitypes.Validato
 			}
 
 			v.VotingPower = update.Power
+			v.Address = pubkey.Address()
 			nxtVSetAdapter.Upsert(v)
 		}
 	}
+
+	nxtVSet = nxtVSetAdapter.ToValidatorSet()
+	fmt.Println("Next VSET: ", hex.EncodeToString(nxtVSet.Hash()))
+	for i, v := range nxtVSet.Validators {
+		fmt.Println("index ", i, v.Address.String(), v.PubKey.Type(), hex.EncodeToString(v.PubKey.Bytes()))
+	}
+	fmt.Println("--------------------------------------------------")
+
 	return
 }
 
