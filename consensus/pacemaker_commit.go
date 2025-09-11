@@ -67,16 +67,14 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 	// p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
 	// successfully added the block, update the current hight of consensus
 
-	p.logger.Info("Check kblock")
 	if blk.IsKBlock() {
 		p.logger.Info("committed a KBlock, schedule regulate now", "blk", blk.ID().ToBlockShortID())
 		p.scheduleRegulate()
 	}
-	p.logger.Info("Prepare to encode block")
 
 	start = time.Now()
 	p.communicator.BroadcastBlock(&block.EscortedBlock{Block: blk, EscortQC: escortQC})
-	p.logger.Info("broadcast elapsed", "elapsed", time.Since(start))
+	p.logger.Debug("broadcast elapsed", "elapsed", time.Since(start))
 
 	return nil
 }

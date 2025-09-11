@@ -458,7 +458,7 @@ func (p *Pacemaker) OnPropose(qc *block.DraftQC, round uint32) *block.DraftBlock
 	parent := p.chain.GetDraftByEscortQC(qc.QC)
 	err, bnew := p.CreateLeaf(parent, qc, round)
 
-	fmt.Println("Proposed block:\n", bnew.ProposedBlock, "with qc", bnew.Justify.QC)
+	fmt.Println("Proposed block: ", bnew.ProposedBlock)
 	if err != nil {
 		p.logger.Error("could not create leaf", "err", err)
 		return nil
