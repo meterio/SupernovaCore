@@ -107,6 +107,7 @@ func (c *Communicator) Connected(net network.Network, conn network.Conn) {
 }
 
 func (c *Communicator) Disconnected(network network.Network, conn network.Conn) {
+	c.peerSet.Remove(conn.RemotePeer())
 	c.logger.Info("Peer disconnected", "peer", conn.RemotePeer())
 }
 
@@ -308,6 +309,11 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					peer.logger.Error("drpc send recovered from panic: %v", "err", r)
+				}
+			}()
 			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.CompactString(), peer.ID()))
 			client := c.GetRPCClient(peer.ID())
 
@@ -321,6 +327,11 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 		peer := peer
 		peer.MarkBlock(blk.Block.ID())
 		c.goes.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					peer.logger.Error("drpc send recovered from panic: %v", "err", r)
+				}
+			}()
 			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.CompactString(), peer.ID()))
 			client := c.GetRPCClient(peer.ID())
 

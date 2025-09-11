@@ -245,7 +245,6 @@ func newP2PService(ctx context.Context, config *cmtcfg.Config, bootstrapNodes []
 		DataDir: config.RootDir,
 		// LocalIP:              cliCtx.String(cmd.P2PIP.Name),
 		// HostAddress: config.P2P.ExternalAddress,
-
 		// HostDNS:      cliCtx.String(cmd.P2PHostDNS.Name),
 		PrivateKey:   "",
 		StaticPeerID: true,
