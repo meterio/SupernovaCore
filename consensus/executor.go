@@ -163,6 +163,7 @@ func (e *Executor) applyBlock(blk *block.Block, syncingToHeight int64) (appHash 
 	})
 	if err != nil {
 		e.logger.Error("Finalize block failed", "err", err)
+		return
 	}
 	appHash = abciResponse.AppHash
 	e.logger.Info(

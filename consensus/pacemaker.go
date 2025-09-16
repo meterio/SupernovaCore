@@ -643,6 +643,7 @@ func (p *Pacemaker) Regulate() {
 
 	round := bestQC.Round
 	actualRound := round + 1
+	p.logger.Info("regulate with best block and qc", "blkNum", best.Number(), "blkID", best.ID(), "qcEpoch", bestQC.Epoch, "qcRound", bestQC.Round)
 	if best.IsKBlock() {
 		actualRound = 0
 	}
@@ -706,7 +707,7 @@ func (p *Pacemaker) mainLoop() {
 		case m := <-inQueue.queue:
 			// if not in committee, skip rcvd messages
 			if !(p.epochState.InCommittee() || p.nextEpochState != nil && p.nextEpochState.InCommittee()) {
-				p.logger.Info("skip handling msg bcuz I'm not in committee", "type", m.Msg.GetType())
+				p.logger.Debug("skip handling msg bcuz I'm not in committee", "type", m.Msg.GetType())
 				continue
 			}
 			if m.Msg.GetEpoch() != p.epochState.epoch {

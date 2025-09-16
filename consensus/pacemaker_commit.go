@@ -19,6 +19,16 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 		return errKnownBlock
 	}
 
+	fork, err := p.chain.AddBlock(blk, escortQC)
+	if err != nil {
+		if err == chain.ErrBlockExist {
+			p.logger.Info("block already exist", "id", blk.ID(), "num", blk.Number())
+		} else {
+			p.logger.Warn("add block failed ...", "err", err, "id", blk.ID(), "num", blk.Number())
+		}
+		return err
+	}
+
 	appHash, nxtVSet, err := p.executor.ApplyBlock(blk, int64(blk.Number())) // TODO: syncingToHeight might need adjustment
 	if err != nil {
 		return err
@@ -38,16 +48,6 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 		p.logger.Info("next epoch state", "incommittee", p.nextEpochState.inCommittee, "epoch", p.nextEpochState.epoch)
 	}
 
-	fork, err := p.chain.AddBlock(blk, escortQC)
-	if err != nil {
-		if err == chain.ErrBlockExist {
-			p.logger.Info("block already exist", "id", blk.ID(), "num", blk.Number())
-		} else {
-			p.logger.Warn("add block failed ...", "err", err, "id", blk.ID(), "num", blk.Number())
-		}
-		return err
-	}
-
 	// unlike processBlock, we do not need to handle fork
 	if fork != nil {
 		// process fork????
@@ -58,6 +58,12 @@ func (p *Pacemaker) CommitBlock(blk *block.Block, escortQC *block.QuorumCert) er
 			p.scheduleRegulate()
 			return ErrForkHappened
 		}
+	}
+
+	if p.QCHigh.QC.Round < escortQC.Round {
+		draftBlk := p.chain.GetDraftByEscortQC(escortQC)
+		p.QCHigh = &block.DraftQC{QCNode: draftBlk, QC: escortQC}
+		p.logger.Info(`QCHigh updated`, "epoch", escortQC.Epoch, "round", escortQC.Round)
 	}
 
 	p.logger.Info(fmt.Sprintf("* committed %v", blk.CompactString()), "txs", len(blk.Txs), "epoch", blk.Epoch(), "elapsed", types.PrettyDuration(time.Since(start)))
