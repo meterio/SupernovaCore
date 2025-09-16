@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/libp2p/go-libp2p/core/network"
+	libp2ppeer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/block"
 	"github.com/meterio/supernova/chain"
 	"github.com/meterio/supernova/libs/co"
@@ -32,8 +33,8 @@ type RPCServer struct {
 	goes   co.Goes
 
 	// announcement
-	newBlockFeed   event.Feed
-	announcementCh chan *announcement
+	newBlockFeed   event.Feed // feed of block
+	newBlockIdFeed event.Feed // feed of announcement
 	feedScope      event.SubscriptionScope
 
 	// sync
@@ -44,12 +45,11 @@ type RPCServer struct {
 // NewRPCServer creates a new RPC server
 func NewRPCServer(p2pSrv p2p.P2P, c *chain.Chain, txPool *txpool.TxPool) *RPCServer {
 	return &RPCServer{
-		p2pSrv:         p2pSrv,
-		chain:          c,
-		txPool:         txPool,
-		logger:         slog.With("pkg", "rpcserver"),
-		syncedCh:       make(chan struct{}),
-		announcementCh: make(chan *announcement),
+		p2pSrv:   p2pSrv,
+		chain:    c,
+		txPool:   txPool,
+		logger:   slog.With("pkg", "rpcserver"),
+		syncedCh: make(chan struct{}),
 	}
 }
 
@@ -61,9 +61,10 @@ func (s *RPCServer) Start(ctx context.Context) {
 	pb.DRPCRegisterSync(m, s)
 	server := drpcserver.New(m)
 
-	s.p2pSrv.Host().SetStreamHandler("sync", func(s network.Stream) {
-		server.ServeOne(context.Background(), s)
-		s.Close()
+	s.p2pSrv.Host().SetStreamHandler("sync", func(stream network.Stream) {
+		server.ServeOne(context.Background(), stream)
+		s.logger.Info("handling sync stream", "fromPeer", stream.Conn().ID())
+		stream.Close()
 	})
 	id := s.p2pSrv.Host().ID()
 	s.logger.Info("RPC server started", "self", id)
@@ -86,19 +87,40 @@ func (s *RPCServer) GetStatus(ctx context.Context, req *pb.GetStatusRequest) (*p
 	return resp, nil
 }
 
+func (s *RPCServer) SubscribeBlock(ch chan *NewBlockEvent) event.Subscription {
+	return s.feedScope.Track(s.newBlockFeed.Subscribe(ch))
+}
+
+func (s *RPCServer) SubscribeBlockID(ch chan *NewBlockIDEvent) event.Subscription {
+	return s.feedScope.Track(s.newBlockIdFeed.Subscribe(ch))
+}
+
 func (s *RPCServer) NotifyBlock(ctx context.Context, req *pb.NotifyBlockRequest) (*pb.NotifyBlockResponse, error) {
 	escortedBlk := &block.EscortedBlock{}
 	err := rlp.DecodeBytes(req.BlockBytes, escortedBlk)
+	if err != nil {
+		return &pb.NotifyBlockResponse{}, nil
+	}
+
+	peerID, err := libp2ppeer.Decode(req.PeerId)
+	if err != nil {
+		return &pb.NotifyBlockResponse{}, nil
+	}
 	if err == nil {
-		// TODO: add new block if needed
+		s.newBlockFeed.Send(&NewBlockEvent{PeerID: peerID, NewBlock: escortedBlk})
 	}
 	return &pb.NotifyBlockResponse{}, nil
 }
 
 func (s *RPCServer) NotifyBlockID(ctx context.Context, req *pb.NotifyBlockIDRequest) (*pb.NotifyBlockIDResponse, error) {
 	newBlockID := types.BytesToBytes32(req.BlockIdBytes)
-	s.logger.Info("Handling NotifyBlockID", "blockID", newBlockID)
-	// TODO: handle new block id
+	s.logger.Debug("Handling NotifyBlockID", "blockID", newBlockID)
+	peerID, err := libp2ppeer.Decode(req.PeerId)
+	if err != nil {
+		return &pb.NotifyBlockIDResponse{}, nil
+	}
+	s.logger.Debug("putting newBlockID into newBlockIdFeed", "id", newBlockID)
+	s.newBlockIdFeed.Send(&NewBlockIDEvent{PeerID: peerID, NewBlockID: newBlockID})
 	return &pb.NotifyBlockIDResponse{}, nil
 }
 
@@ -111,7 +133,7 @@ func (s *RPCServer) NotifyTx(ctx context.Context, req *pb.NotifyTxRequest) (*pb.
 
 func (s *RPCServer) GetBlockByID(ctx context.Context, req *pb.GetBlockByIDRequest) (*pb.GetBlockByIDResponse, error) {
 	blockID := types.BytesToBytes32(req.BlockIdBytes)
-	s.logger.Info("Handling GetBlockByID", "blockID", blockID)
+	s.logger.Debug("Handling GetBlockByID", "blockID", blockID)
 
 	resp := &pb.GetBlockByIDResponse{}
 

@@ -8,12 +8,20 @@ package rpc
 import (
 	"context"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/meterio/supernova/block"
+	"github.com/meterio/supernova/types"
 )
 
 // NewBlockEvent event emitted when received block announcement.
 type NewBlockEvent struct {
-	*block.EscortedBlock
+	PeerID   peer.ID
+	NewBlock *block.EscortedBlock
+}
+
+type NewBlockIDEvent struct {
+	PeerID     peer.ID
+	NewBlockID types.Bytes32
 }
 
 // HandleBlockStream to handle the stream of downloaded blocks in sync process.

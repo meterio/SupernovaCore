@@ -42,18 +42,18 @@ var (
 
 // Communicator communicates with remote p2p peers to exchange blocks and txs, etc.
 type Communicator struct {
-	p2pSrv *p2p.Service
-	chain  *chain.Chain
-	txPool *txpool.TxPool
-	ctx    context.Context
+	p2pSrv    *p2p.Service
+	chain     *chain.Chain
+	txPool    *txpool.TxPool
+	rpcServer *RPCServer
+	ctx       context.Context
 	// cancel         context.CancelFunc
-	peerSet        *PeerSet
-	syncedCh       chan struct{}
-	newBlockFeed   event.Feed
-	announcementCh chan *announcement
-	feedScope      event.SubscriptionScope
-	goes           co.Goes
-	onceSynced     sync.Once
+	peerSet      *PeerSet
+	syncedCh     chan struct{}
+	newBlockCh   chan *NewBlockEvent
+	newBlockIdCh chan *NewBlockIDEvent
+	goes         co.Goes
+	onceSynced   sync.Once
 	// peersCachePath string
 	Synced bool
 
@@ -61,19 +61,24 @@ type Communicator struct {
 }
 
 // New create a new Communicator instance.
-func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, p2pSrv *p2p.Service) *Communicator {
+func NewCommunicator(ctx context.Context, chain *chain.Chain, txPool *txpool.TxPool, p2pSrv *p2p.Service, rpcServer *RPCServer) *Communicator {
 	c := &Communicator{
 		chain:  chain,
 		txPool: txPool,
 		ctx:    context.Background(),
 		// cancel:         cancel,
-		peerSet:        newPeerSet(),
-		syncedCh:       make(chan struct{}),
-		announcementCh: make(chan *announcement),
-		logger:         slog.With("pkg", "comm"),
+		peerSet:      newPeerSet(),
+		syncedCh:     make(chan struct{}),
+		rpcServer:    rpcServer,
+		newBlockCh:   make(chan *NewBlockEvent, 100),
+		newBlockIdCh: make(chan *NewBlockIDEvent, 100),
+		logger:       slog.With("pkg", "comm"),
 		// peersCachePath: filepath.Join("peers.cache", rootDir),
 		p2pSrv: p2pSrv,
 	}
+
+	rpcServer.SubscribeBlock(c.newBlockCh)
+	rpcServer.SubscribeBlockID(c.newBlockIdCh)
 
 	return c
 }
@@ -282,7 +287,7 @@ func (c *Communicator) runPeer(peer *Peer, dir string) {
 
 // SubscribeBlock subscribe the event that new block received.
 func (c *Communicator) SubscribeBlock(ch chan *NewBlockEvent) event.Subscription {
-	return c.feedScope.Track(c.newBlockFeed.Subscribe(ch))
+	return c.rpcServer.SubscribeBlock(ch)
 }
 
 // BroadcastBlock broadcast a block to remote peers.
@@ -300,6 +305,7 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 	})
 
 	p := int(math.Sqrt(float64(len(peers))))
+	myPeerID := c.p2pSrv.Host().ID()
 	toPropagate := peers[:p]
 	toAnnounce := peers[p:]
 	bbytes, _ := rlp.EncodeToBytes(blk)
@@ -314,10 +320,10 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 					peer.logger.Error("drpc send recovered from panic: %v", "err", r)
 				}
 			}()
-			c.logger.Debug(fmt.Sprintf("propagate %s to %s", blk.Block.CompactString(), peer.ID()))
+			c.logger.Info(fmt.Sprintf("propagate %s to %s", blk.Block.CompactString(), peer.ID()))
 			client := c.GetRPCClient(peer.ID())
 
-			if _, err := client.NotifyBlock(context.Background(), &pb.NotifyBlockRequest{BlockBytes: bbytes}); err != nil {
+			if _, err := client.NotifyBlock(context.Background(), &pb.NotifyBlockRequest{PeerId: myPeerID.String(), BlockBytes: bbytes}); err != nil {
 				peer.logger.Error(fmt.Sprintf("Failed to propagate %s", blk.Block.CompactString()), "err", err)
 			}
 		})
@@ -332,10 +338,10 @@ func (c *Communicator) BroadcastBlock(blk *block.EscortedBlock) {
 					peer.logger.Error("drpc send recovered from panic: %v", "err", r)
 				}
 			}()
-			c.logger.Debug(fmt.Sprintf("announce %s to %s", blk.Block.CompactString(), peer.ID()))
+			c.logger.Info(fmt.Sprintf("announce %s to %s", blk.Block.CompactString(), peer.ID()))
 			client := c.GetRPCClient(peer.ID())
 
-			if _, err := client.NotifyBlockID(context.Background(), &pb.NotifyBlockIDRequest{BlockIdBytes: blkID[:]}); err != nil {
+			if _, err := client.NotifyBlockID(context.Background(), &pb.NotifyBlockIDRequest{PeerId: myPeerID.String(), BlockIdBytes: blkID[:]}); err != nil {
 				peer.logger.Error(fmt.Sprintf("Failed to announce %s", blk.Block.CompactString()), "err", err)
 			}
 		})

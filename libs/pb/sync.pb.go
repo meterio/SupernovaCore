@@ -136,7 +136,8 @@ func (x *GetStatusResponse) GetBestBlockNum() uint64 {
 // NotifyBlock
 type NotifyBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockBytes    []byte                 `protobuf:"bytes,1,opt,name=block_bytes,json=blockBytes,proto3" json:"block_bytes,omitempty"`
+	PeerId        string                 `protobuf:"bytes,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	BlockBytes    []byte                 `protobuf:"bytes,2,opt,name=block_bytes,json=blockBytes,proto3" json:"block_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,6 +170,13 @@ func (x *NotifyBlockRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NotifyBlockRequest.ProtoReflect.Descriptor instead.
 func (*NotifyBlockRequest) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NotifyBlockRequest) GetPeerId() string {
+	if x != nil {
+		return x.PeerId
+	}
+	return ""
 }
 
 func (x *NotifyBlockRequest) GetBlockBytes() []byte {
@@ -217,7 +225,8 @@ func (*NotifyBlockResponse) Descriptor() ([]byte, []int) {
 // NotifyBlockID
 type NotifyBlockIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlockIdBytes  []byte                 `protobuf:"bytes,1,opt,name=block_id_bytes,json=blockIdBytes,proto3" json:"block_id_bytes,omitempty"`
+	PeerId        string                 `protobuf:"bytes,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	BlockIdBytes  []byte                 `protobuf:"bytes,2,opt,name=block_id_bytes,json=blockIdBytes,proto3" json:"block_id_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,6 +259,13 @@ func (x *NotifyBlockIDRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NotifyBlockIDRequest.ProtoReflect.Descriptor instead.
 func (*NotifyBlockIDRequest) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NotifyBlockIDRequest) GetPeerId() string {
+	if x != nil {
+		return x.PeerId
+	}
+	return ""
 }
 
 func (x *NotifyBlockIDRequest) GetBlockIdBytes() []byte {
@@ -298,7 +314,8 @@ func (*NotifyBlockIDResponse) Descriptor() ([]byte, []int) {
 // NotifyTx
 type NotifyTxRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TxBytes       []byte                 `protobuf:"bytes,1,opt,name=tx_bytes,json=txBytes,proto3" json:"tx_bytes,omitempty"`
+	PeerId        string                 `protobuf:"bytes,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	TxBytes       []byte                 `protobuf:"bytes,2,opt,name=tx_bytes,json=txBytes,proto3" json:"tx_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -331,6 +348,13 @@ func (x *NotifyTxRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NotifyTxRequest.ProtoReflect.Descriptor instead.
 func (*NotifyTxRequest) Descriptor() ([]byte, []int) {
 	return file_sync_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *NotifyTxRequest) GetPeerId() string {
+	if x != nil {
+		return x.PeerId
+	}
+	return ""
 }
 
 func (x *NotifyTxRequest) GetTxBytes() []byte {
@@ -736,16 +760,19 @@ const file_sync_proto_rawDesc = "" +
 	"\x10genesis_block_id\x18\x01 \x01(\fR\x0egenesisBlockId\x12,\n" +
 	"\x12sys_nano_timestamp\x18\x02 \x01(\x04R\x10sysNanoTimestamp\x12\"\n" +
 	"\rbest_block_id\x18\x03 \x01(\fR\vbestBlockId\x12$\n" +
-	"\x0ebest_block_num\x18\x04 \x01(\x04R\fbestBlockNum\"5\n" +
-	"\x12NotifyBlockRequest\x12\x1f\n" +
-	"\vblock_bytes\x18\x01 \x01(\fR\n" +
+	"\x0ebest_block_num\x18\x04 \x01(\x04R\fbestBlockNum\"N\n" +
+	"\x12NotifyBlockRequest\x12\x17\n" +
+	"\apeer_id\x18\x01 \x01(\tR\x06peerId\x12\x1f\n" +
+	"\vblock_bytes\x18\x02 \x01(\fR\n" +
 	"blockBytes\"\x15\n" +
-	"\x13NotifyBlockResponse\"<\n" +
-	"\x14NotifyBlockIDRequest\x12$\n" +
-	"\x0eblock_id_bytes\x18\x01 \x01(\fR\fblockIdBytes\"\x17\n" +
-	"\x15NotifyBlockIDResponse\",\n" +
-	"\x0fNotifyTxRequest\x12\x19\n" +
-	"\btx_bytes\x18\x01 \x01(\fR\atxBytes\"\x12\n" +
+	"\x13NotifyBlockResponse\"U\n" +
+	"\x14NotifyBlockIDRequest\x12\x17\n" +
+	"\apeer_id\x18\x01 \x01(\tR\x06peerId\x12$\n" +
+	"\x0eblock_id_bytes\x18\x02 \x01(\fR\fblockIdBytes\"\x17\n" +
+	"\x15NotifyBlockIDResponse\"E\n" +
+	"\x0fNotifyTxRequest\x12\x17\n" +
+	"\apeer_id\x18\x01 \x01(\tR\x06peerId\x12\x19\n" +
+	"\btx_bytes\x18\x02 \x01(\fR\atxBytes\"\x12\n" +
 	"\x10NotifyTxResponse\"\x0f\n" +
 	"\rGetTxsRequest\"6\n" +
 	"\x0eGetTxsResponse\x12$\n" +

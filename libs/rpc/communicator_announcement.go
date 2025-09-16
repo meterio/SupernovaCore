@@ -10,34 +10,29 @@ import (
 	"github.com/meterio/supernova/types"
 )
 
-type announcement struct {
-	newBlockID types.Bytes32
-	peerID     peer.ID
-}
-
 func (c *Communicator) announcementLoop() {
 	const maxFetches = 3 // per block ID
 
 	fetchingPeers := map[peer.ID]bool{}
 	fetchingBlockIDs := map[types.Bytes32]int{}
 
-	fetchDone := make(chan *announcement)
+	fetchDone := make(chan *NewBlockIDEvent)
 
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
 		case ann := <-fetchDone:
-			delete(fetchingPeers, ann.peerID)
-			if n := fetchingBlockIDs[ann.newBlockID] - 1; n > 0 {
-				fetchingBlockIDs[ann.newBlockID] = n
+			delete(fetchingPeers, ann.PeerID)
+			if n := fetchingBlockIDs[ann.NewBlockID] - 1; n > 0 {
+				fetchingBlockIDs[ann.NewBlockID] = n
 			} else {
-				delete(fetchingBlockIDs, ann.newBlockID)
+				delete(fetchingBlockIDs, ann.NewBlockID)
 			}
-		case ann := <-c.announcementCh:
-			if f, n := fetchingPeers[ann.peerID], fetchingBlockIDs[ann.newBlockID]; !f && n < maxFetches {
-				fetchingPeers[ann.peerID] = true
-				fetchingBlockIDs[ann.newBlockID] = n + 1
+		case ann := <-c.newBlockIdCh:
+			if f, n := fetchingPeers[ann.PeerID], fetchingBlockIDs[ann.NewBlockID]; !f && n < maxFetches {
+				fetchingPeers[ann.PeerID] = true
+				fetchingBlockIDs[ann.NewBlockID] = n + 1
 
 				c.goes.Go(func() {
 					defer func() {
@@ -46,10 +41,10 @@ func (c *Communicator) announcementLoop() {
 						case <-c.ctx.Done():
 						}
 					}()
-					c.fetchBlockByID(ann.peerID, ann.newBlockID)
+					c.fetchBlockByID(ann.PeerID, ann.NewBlockID)
 				})
 			} else {
-				c.logger.Debug("skip new block ID announcement")
+				c.logger.Warn("skip new block ID announcement", "id", ann.NewBlockID)
 			}
 		}
 	}
@@ -79,7 +74,8 @@ func (c *Communicator) fetchBlockByID(peerID peer.ID, newBlockID types.Bytes32) 
 	escortedBlock := block.EscortedBlock{}
 	rlp.DecodeBytes(res.BlockBytes, &escortedBlock)
 
-	c.newBlockFeed.Send(&NewBlockEvent{
-		EscortedBlock: &escortedBlock,
+	c.rpcServer.newBlockFeed.Send(&NewBlockEvent{
+		PeerID:   peerID,
+		NewBlock: &escortedBlock,
 	})
 }

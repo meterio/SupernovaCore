@@ -181,7 +181,7 @@ func NewNode(
 	rpcServer := rpc.NewRPCServer(p2pSrv, chain, txPool)
 	rpcServer.Start(ctx)
 
-	communicator := rpc.NewCommunicator(ctx, chain, txPool, p2pSrv)
+	communicator := rpc.NewCommunicator(ctx, chain, txPool, p2pSrv, rpcServer)
 	p2pSrv.Host().Network().Notify(communicator)
 
 	pacemaker := consensus.NewPacemaker(ctx, config.Version, chain, txPool, communicator, blsMaster, proxyApp)
@@ -224,6 +224,7 @@ func NewNode(
 		logger:        slog.With("pkg", "node"),
 		proxyApp:      proxyApp,
 	}
+	go communicator.Start()
 
 	return node, nil
 }
@@ -386,7 +387,7 @@ func (n *Node) houseKeeping(ctx context.Context) {
 	defer scope.Close()
 
 	newBlockCh := make(chan *rpc.NewBlockEvent)
-	// scope.Track(n.comm.SubscribeBlock(newBlockCh))
+	scope.Track(n.communicator.SubscribeBlock(newBlockCh))
 
 	futureTicker := time.NewTicker(time.Duration(types.BlockIntervalNano) * time.Nanosecond)
 	defer futureTicker.Stop()
@@ -401,15 +402,15 @@ func (n *Node) houseKeeping(ctx context.Context) {
 		case <-ctx.Done():
 			n.logger.Info("house keeping quite due to ctx done")
 			return
-		case newBlock := <-newBlockCh:
-			n.logger.Info("new block", newBlock.Block.Number())
+		case evt := <-newBlockCh:
+			n.logger.Debug("found new block", "num", evt.NewBlock.Block.Number(), "id", evt.NewBlock.Block.ID())
 			var stats blockStats
 
-			if err := n.processBlock(newBlock.Block, newBlock.EscortQC, &stats); err != nil {
+			if err := n.processBlock(evt.NewBlock.Block, evt.NewBlock.EscortQC, &stats); err != nil {
 				if consensus.IsFutureBlock(err) ||
-					(consensus.IsParentMissing(err) && futureBlocks.Contains(newBlock.Block.Header().ParentID)) {
-					n.logger.Debug("future block added", "id", newBlock.Block.ID())
-					futureBlocks.Set(newBlock.Block.ID(), newBlock)
+					(consensus.IsParentMissing(err) && futureBlocks.Contains(evt.NewBlock.Block.Header().ParentID)) {
+					n.logger.Debug("future block added", "id", evt.NewBlock.Block.ID())
+					futureBlocks.Set(evt.NewBlock.Block.ID(), evt.NewBlock)
 				}
 			} else {
 				// TODO: maybe I should not broadcast future blocks？

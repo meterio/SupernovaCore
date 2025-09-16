@@ -28,7 +28,8 @@ message GetStatusResponse {
 
 // NotifyBlock
 message NotifyBlockRequest {
-  bytes block_bytes = 1;
+  string peer_id = 1;
+  bytes block_bytes = 2;
 }
 
 message NotifyBlockResponse {
@@ -36,7 +37,8 @@ message NotifyBlockResponse {
 
 // NotifyBlockID
 message NotifyBlockIDRequest {
-  bytes block_id_bytes = 1;
+  string peer_id = 1;
+  bytes block_id_bytes = 2;
 }
 
 message NotifyBlockIDResponse {
@@ -44,7 +46,8 @@ message NotifyBlockIDResponse {
 
 // NotifyTx
 message NotifyTxRequest {
-  bytes tx_bytes = 1;
+  string peer_id = 1;
+  bytes tx_bytes = 2;
 }
 
 message NotifyTxResponse {
